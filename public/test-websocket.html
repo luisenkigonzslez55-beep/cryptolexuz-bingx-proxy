@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#070b19">
+<title>CRYPTOLEXUZ | Diagnóstico WebSocket</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,sans-serif}*{box-sizing:border-box}body{margin:0;background:#070b19;color:#f1f4ff;padding:16px}main{max-width:850px;margin:auto}h1{font-size:23px;margin-bottom:6px}p,.muted{color:#a5b0cf}label{display:block;margin:14px 0 6px;font-weight:650}select,button{background:#172244;color:white;border:1px solid #5362a2;border-radius:9px;padding:11px;font:inherit}select{width:100%}button{cursor:pointer;margin:10px 7px 10px 0}button.primary{background:#58309c;border-color:#b56bff}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}.card{background:#111a34;border:1px solid #33456d;border-radius:12px;padding:15px;min-width:0}.card h2{font-size:18px;margin:0 0 12px}.state{font-weight:750;color:#ffe15a}.ok{color:#00f5a0}.bad{color:#ff476c}.price{font-size:25px;font-weight:800;overflow-wrap:anywhere;margin:10px 0}.metric{font-size:12px;color:#b7c5e7;margin:5px 0;overflow-wrap:anywhere}pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:230px;overflow:auto;background:#090e21;border-radius:8px;padding:10px;font-size:11px}small{color:#a5b0cf}footer{margin:20px 0;font-size:12px;color:#a5b0cf}
+</style>
+</head>
+<body>
+<main>
+<h1>CRYPTOLEXUZ · Prueba WebSocket</h1>
+<p>Diagnóstico de recepción de precios desde el servidor de Render. Una conexión abierta no garantiza que el exchange esté enviando datos.</p>
+<label for="market">Mercado</label>
+<select id="market"><option value="perpetual">Perpetuos</option><option value="spot">Spot</option></select>
+<label for="symbol">Activo</label>
+<select id="symbol"><option value="BTC-USDT">BTC/USDT</option><option value="ETH-USDT">ETH/USDT</option></select>
+<div><button class="primary" id="start">▶ Iniciar pruebas</button><button id="stop">■ Detener</button></div>
+<div class="grid" id="grid"></div>
+<footer>El intervalo mostrado mide el tiempo entre mensajes de precio recibidos en este navegador; no es latencia de red ni garantiza frecuencia fija. El servidor puede usar consultas REST de respaldo.</footer>
+</main>
+<script>
+(()=>{
+'use strict';
+const names=['bingx','okx','binance','bybit'];
+const sockets=new Map();
+const cards=new Map();
+const $=id=>document.getElementById(id);
+let generation=0;
+function format(n){return Number.isFinite(n)?n.toLocaleString('en-US',{maximumFractionDigits:8}):'—'}
+function makeCards(){
+ $('grid').replaceChildren();cards.clear();
+ for(const name of names){
+  const card=document.createElement('article');card.className='card';
+  const title=document.createElement('h2');title.textContent=name.toUpperCase();
+  const status=document.createElement('div');status.className='state';status.textContent='Sin iniciar';
+  const price=document.createElement('div');price.className='price';price.textContent='—';
+  const count=document.createElement('div');count.className='metric';count.textContent='Precios recibidos: 0';
+  const interval=document.createElement('div');interval.className='metric';interval.textContent='Intervalo: —';
+  const source=document.createElement('div');source.className='metric';source.textContent='Origen: —';
+  const age=document.createElement('div');age.className='metric';age.textContent='Último precio: —';
+  const log=document.createElement('pre');log.textContent='Esperando prueba…';
+  card.append(title,status,price,count,interval,source,age,log);$('grid').append(card);
+  cards.set(name,{status,price,count,interval,source,age,log,last:0,total:0});
+ }
+}
+function note(c,text){const line=new Date().toLocaleTimeString('es-MX')+' · '+text;c.log.textContent=(line+'\n'+(c.log.textContent==='Esperando prueba…'?'':c.log.textContent)).slice(0,1700)}
+function closeAll(){generation++;for(const ws of sockets.values()){try{ws.close(1000,'Prueba detenida')}catch{}}sockets.clear()}
+function start(){closeAll();makeCards();const token=generation;const market=$('market').value;const symbol=$('symbol').value;
+ for(const name of names){const c=cards.get(name);const protocol=location.protocol==='https:'?'wss:':'ws:';
+  const url=new URL('/ws',location.origin);url.protocol=protocol;url.searchParams.set('exchange',name);url.searchParams.set('market',market);url.searchParams.set('symbol',symbol);
+  let ws;try{ws=new WebSocket(url.href)}catch(e){c.status.textContent='No se pudo iniciar';c.status.className='state bad';note(c,e.message);continue}
+  sockets.set(name,ws);c.status.textContent='Conectando…';
+  ws.onopen=()=>{if(token!==generation)return;c.status.textContent='Canal local abierto · esperando precio';c.status.className='state';note(c,'Conexión al servidor abierta')};
+  ws.onmessage=event=>{if(token!==generation)return;let m;try{m=JSON.parse(event.data)}catch{return}
+   if(m.type==='status'){note(c,'Servidor: '+String(m.status||'sin estado'));if(m.status==='reconnecting'){c.status.textContent='Exchange reconectando…';c.status.className='state bad'}else if(m.status==='connected'){c.status.textContent='Exchange conectado · esperando precio';c.status.className='state'}return}
+   if(m.type!=='price'||!Number.isFinite(Number(m.price))||Number(m.price)<=0)return;
+   const now=Date.now();if(c.last)c.interval.textContent='Intervalo: '+(now-c.last)+' ms';c.last=now;c.total++;
+   c.price.textContent=format(Number(m.price));c.count.textContent='Precios recibidos: '+c.total;
+   c.source.textContent='Origen: '+(m.source==='rest-fallback'?'REST de respaldo':m.source==='websocket'?'WebSocket del exchange':String(m.source||'no indicado'));
+   c.status.textContent=m.source==='rest-fallback'?'Precio recibido por REST (no WS upstream)':'Precio recibido por WebSocket';c.status.className='state ok';note(c,'Precio '+format(Number(m.price))+' · '+String(m.source||'sin origen'));
+  };
+  ws.onerror=()=>{if(token!==generation)return;note(c,'Error de conexión (el navegador no proporciona detalle)')};
+  ws.onclose=e=>{if(token!==generation)return;c.status.textContent='Conexión cerrada ('+e.code+')';c.status.className='state bad';note(c,'Cierre del canal')};
+ }
+}
+$('start').addEventListener('click',start);
+$('stop').addEventListener('click',()=>{closeAll();for(const c of cards.values()){c.status.textContent='Prueba detenida';c.status.className='state';note(c,'Detenido por el usuario')}});
+$('market').addEventListener('change',start);$('symbol').addEventListener('change',start);
+setInterval(()=>{const now=Date.now();for(const c of cards.values()){if(c.last)c.age.textContent='Último precio: hace '+((now-c.last)/1000).toFixed(1)+' s';if(c.last&&now-c.last>10000){c.status.textContent='Sin precios recientes';c.status.className='state bad'}}},1000);
+window.addEventListener('pagehide',closeAll);
+makeCards();
+})();
+</script>
+</body>
+</html>
