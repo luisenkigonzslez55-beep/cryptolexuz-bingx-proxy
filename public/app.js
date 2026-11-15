@@ -1,571 +1,354 @@
 
 const $ = id => document.getElementById(id);
-const base = location.origin;
+const API = location.origin;
+const COLORS = { ema21:'#b43cff', ma55:'#ff922b', ma100:'#ff466b', ma200:'#46adff' };
+const enabled = new Set(['ema21','ma55']);
+let priceChart, volumeChart, candles, histogram, lines = {}, priceLines = {};
+let currentRows = [], busy = false, requestPending = false;
+const signalKeys = new Set(), signalHistory = [];
+const fmt = (v, d=2) => v == null || v === '' || !Number.isFinite(+v) ? '—' : (+v).toLocaleString('en-US',{maximumFractionDigits:d});
+const field = (o, keys) => keys.map(k => o?.[k]).find(v => v !== undefined && v !== null);
+const setText = (id, value) => { const el=$(id); if(el) el.textContent=value; };
+async function api(path){const r=await fetch(API+path,{cache:'no-store'});if(!r.ok)throw Error('HTTP '+r.status);const j=await r.json();if(j.error)throw Error(typeof j.error==='string'?j.error:JSON.stringify(j.error));return j;}
 
-let chart, candles, volumes, latestRows = [], busy = false;
-const activeIndicators = new Set(["ema21", "ma55"]);
-const indicatorSeries = {};
-const indicatorLines = {};
-const indicatorColors = {
-  ema21: "#a78bfa",
-  ma55: "#fb923c",
-  ma100: "#ef4444",
-  ma200: "#60a5fa"
-};
-const lastLogged = {};
-const logItems = [];
-
-const fmt = (v, d = 4) =>
-  v !== null && v !== undefined && v !== "" && Number.isFinite(Number(v))
-    ? Number(v).toLocaleString("en-US", { maximumFractionDigits: d })
-    : "—";
-
-const pick = (o, keys) => {
-  for (const k of keys) {
-    if (o?.[k] !== undefined && o[k] !== null) return o[k];
-  }
-};
-
-async function api(path) {
-  const response = await fetch(base + path, { cache: "no-store" });
-  const data = await response.json();
-  if (!response.ok || data.error) {
-    throw Error(data.error || `HTTP ${response.status}`);
-  }
-  return data;
+function normalize(raw){
+  const source=Array.isArray(raw)?raw:Array.isArray(raw?.data)?raw.data:Array.isArray(raw?.rows)?raw.rows:[];
+  return source.map(v=>{
+    const a=Array.isArray(v);let t=+(a?v[0]:field(v,['time','timestamp','t']));
+    if(t>1e12)t=Math.floor(t/1000);
+    return {time:t,open:+(a?v[1]:field(v,['open','o'])),high:+(a?v[2]:field(v,['high','h'])),low:+(a?v[3]:field(v,['low','l'])),close:+(a?v[4]:field(v,['close','c'])),volume:+(a?v[5]:field(v,['volume','vol','v']))||0};
+  }).filter(v=>v.time>0&&[v.open,v.high,v.low,v.close].every(Number.isFinite)).sort((a,b)=>a.time-b.time).filter((v,i,a)=>!i||v.time!==a[i-1].time);
 }
 
-function init() {
-  const el = $("chart");
-  if (!window.LightweightCharts) {
-    $("message").textContent = "No se pudo cargar la librería de gráficas.";
-    return;
+function ema(rows,n){let v=null;const k=2/(n+1);return rows.map(r=>(v=v===null?r.close:v+(r.close-v)*k));}
+function sma(rows,n){let sum=0;return rows.map((r,i)=>{sum+=r.close;if(i>=n)sum-=rows[i-n].close;return i<n-1?null:sum/n;});}
+
+function rsi(rows,n=14){
+  const out=Array(rows.length).fill(null);
+  if(rows.length<=n)return out;
+  let gains=0,losses=0;
+  for(let i=1;i<=n;i++){const d=rows[i].close-rows[i-1].close;gains+=Math.max(d,0);losses+=Math.max(-d,0);}
+  gains/=n;losses/=n;
+  const val=()=>losses===0?(gains===0?50:100):100-100/(1+gains/losses);
+  out[n]=val();
+  for(let i=n+1;i<rows.length;i++){
+    const d=rows[i].close-rows[i-1].close;
+    gains=(gains*(n-1)+Math.max(d,0))/n;
+    losses=(losses*(n-1)+Math.max(-d,0))/n;
+    out[i]=val();
   }
+  return out;
+}
 
-  chart = LightweightCharts.createChart(el, {
-    width: el.clientWidth,
-    height: window.innerWidth <= 750 ? 410 : 520,
-    layout: {
-      background: { color: "#111a2b" },
-      textColor: "#b6c9e7"
-    },
-    grid: {
-      vertLines: { color: "#243249" },
-      horzLines: { color: "#243249" }
-    },
-    timeScale: {
-      timeVisible: true,
-      borderColor: "#30415b",
-      barSpacing: 9
-    },
-    rightPriceScale: { borderColor: "#30415b" }
+// Wilder ADX, with +DI and -DI
+function adx(rows,n=14){
+  const result={adx:Array(rows.length).fill(null),plus:Array(rows.length).fill(null),minus:Array(rows.length).fill(null)};
+  if(rows.length<2*n+1)return result;
+  const tr=[],pd=[],md=[];
+  for(let i=1;i<rows.length;i++){
+    const a=rows[i],p=rows[i-1],up=a.high-p.high,down=p.low-a.low;
+    tr[i]=Math.max(a.high-a.low,Math.abs(a.high-p.close),Math.abs(a.low-p.close));
+    pd[i]=up>down&&up>0?up:0;
+    md[i]=down>up&&down>0?down:0;
+  }
+  let st=0,sp=0,sm=0;
+  for(let i=1;i<=n;i++){st+=tr[i];sp+=pd[i];sm+=md[i];}
+  const dx=Array(rows.length).fill(null);
+  for(let i=n;i<rows.length;i++){
+    if(i>n){st=st-st/n+tr[i];sp=sp-sp/n+pd[i];sm=sm-sm/n+md[i];}
+    const plus=100*sp/(st||1),minus=100*sm/(st||1);
+    result.plus[i]=plus;result.minus[i]=minus;
+    dx[i]=100*Math.abs(plus-minus)/(plus+minus||1);
+  }
+  let total=0;
+  for(let i=n;i<2*n;i++)total+=dx[i];
+  let value=total/n;
+  result.adx[2*n-1]=value;
+  for(let i=2*n;i<rows.length;i++){
+    value=(value*(n-1)+dx[i])/n;
+    result.adx[i]=value;
+  }
+  return result;
+}
+
+function createCharts(){
+  if(!window.LightweightCharts)throw Error('No se pudo cargar Lightweight Charts.');
+  const priceEl=$('chart'),volEl=$('volumeChart');
+  if(!priceEl||!volEl)throw Error('Faltan los contenedores de las gráficas.');
+  const common={
+    layout:{background:{color:'#081426'},textColor:'#b3c4df'},
+    grid:{vertLines:{color:'#1b2c43'},horzLines:{color:'#1b2c43'}},
+    rightPriceScale:{borderColor:'#39516d'},
+    timeScale:{timeVisible:true,secondsVisible:false,borderColor:'#39516d'}
+  };
+  priceChart=LightweightCharts.createChart(priceEl,{
+    ...common,width:priceEl.clientWidth,height:priceEl.clientHeight||340,
+    timeScale:{...common.timeScale,visible:false},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal}
+  });
+  volumeChart=LightweightCharts.createChart(volEl,{
+    ...common,width:volEl.clientWidth,height:volEl.clientHeight||115,
+    rightPriceScale:{visible:true,borderColor:'#39516d'},
+    timeScale:{...common.timeScale,visible:true}
+  });
+  candles=priceChart.addCandlestickSeries({
+    upColor:'#00e69b',downColor:'#ff3868',
+    borderUpColor:'#00e69b',borderDownColor:'#ff3868',
+    wickUpColor:'#00e69b',wickDownColor:'#ff3868'
+  });
+  histogram=volumeChart.addHistogramSeries({
+    priceFormat:{type:'volume'},priceScaleId:'right',
+    priceLineVisible:false,lastValueVisible:true
+  });
+  volumeChart.priceScale('right').applyOptions({scaleMargins:{top:.12,bottom:0}});
+  Object.entries(COLORS).forEach(([key,color])=>{
+    lines[key]=priceChart.addLineSeries({
+      color,lineWidth:2,priceLineVisible:false,
+      lastValueVisible:true,crosshairMarkerVisible:false
+    });
   });
 
-  candles = chart.addCandlestickSeries({
-    upColor: "#00e6a0",
-    downColor: "#ff466b",
-    borderUpColor: "#00e6a0",
-    borderDownColor: "#ff466b",
-    wickUpColor: "#00e6a0",
-    wickDownColor: "#ff466b"
-  });
-
-  volumes = chart.addHistogramSeries({
-    priceScaleId: "",
-    priceFormat: { type: "volume" },
-    scaleMargins: { top: 0.82, bottom: 0 }
-  });
-
-  for (const key of Object.keys(indicatorColors)) {
-    indicatorSeries[key] = chart.addLineSeries({
-      color: indicatorColors[key],
-      lineWidth: 2,
-      priceLineVisible: false,
-      lastValueVisible: true,
-      crosshairMarkerVisible: false
+  // Keep both charts on the same visible time range.
+  let syncing=false;
+  function sync(from,to){
+    from.timeScale().subscribeVisibleLogicalRangeChange(range=>{
+      if(syncing||!range)return;
+      syncing=true;
+      try{to.timeScale().setVisibleLogicalRange(range);}
+      catch(e){console.warn('Sincronización:',e.message);}
+      finally{syncing=false;}
     });
   }
+  sync(priceChart,volumeChart);
+  sync(volumeChart,priceChart);
 
-  if (typeof ResizeObserver !== "undefined") {
-    new ResizeObserver(() => {
-      chart.applyOptions({ width: el.clientWidth });
-    }).observe(el);
-  }
-}
-
-function normalize(data) {
-  const source = Array.isArray(data)
-    ? data
-    : Array.isArray(data?.data)
-      ? data.data
-      : Array.isArray(data?.rows)
-        ? data.rows
-        : [];
-
-  const rows = source.map(x => {
-    let t, o, h, l, c, v;
-
-    if (Array.isArray(x)) {
-      [t, o, h, l, c, v] = x;
-    } else {
-      t = pick(x, ["time", "timestamp", "t"]);
-      o = pick(x, ["open", "o"]);
-      h = pick(x, ["high", "h"]);
-      l = pick(x, ["low", "l"]);
-      c = pick(x, ["close", "c"]);
-      v = pick(x, ["volume", "vol", "v"]);
-    }
-
-    t = Number(t);
-    if (t > 1e12) t = Math.floor(t / 1000);
-
-    return {
-      time: t,
-      open: Number(o),
-      high: Number(h),
-      low: Number(l),
-      close: Number(c),
-      volume: Number(v || 0)
-    };
-  });
-
-  return rows
-    .filter(x =>
-      x.time > 0 &&
-      [x.open, x.high, x.low, x.close].every(Number.isFinite)
-    )
-    .sort((a, b) => a.time - b.time)
-    .filter((x, i, a) => !i || x.time !== a[i - 1].time);
-}
-
-function ema(rows, period) {
-  const output = [];
-  const factor = 2 / (period + 1);
-  let value = null;
-
-  for (const row of rows) {
-    value = value === null
-      ? row.close
-      : row.close * factor + value * (1 - factor);
-    output.push(value);
-  }
-
-  return output;
-}
-
-function sma(rows, period) {
-  const output = Array(rows.length).fill(null);
-  let sum = 0;
-
-  for (let i = 0; i < rows.length; i++) {
-    sum += rows[i].close;
-    if (i >= period) sum -= rows[i - period].close;
-    if (i >= period - 1) output[i] = sum / period;
-  }
-
-  return output;
-}
-
-function rsi(rows, period = 14) {
-  const output = Array(rows.length).fill(null);
-
-  for (let i = period; i < rows.length; i++) {
-    let gains = 0, losses = 0;
-
-    for (let j = i - period + 1; j <= i; j++) {
-      const difference = rows[j].close - rows[j - 1].close;
-      if (difference > 0) gains += difference;
-      else losses -= difference;
-    }
-
-    output[i] = losses === 0
-      ? gains === 0 ? 50 : 100
-      : 100 - 100 / (1 + gains / losses);
-  }
-
-  return output;
-}
-
-function adxApprox(rows, period = 14) {
-  const output = Array(rows.length).fill(null);
-
-  for (let i = period * 2; i < rows.length; i++) {
-    let plus = 0, minus = 0, trSum = 0;
-
-    for (let j = i - period + 1; j <= i; j++) {
-      const up = rows[j].high - rows[j - 1].high;
-      const down = rows[j - 1].low - rows[j].low;
-
-      if (up > down && up > 0) plus += up;
-      if (down > up && down > 0) minus += down;
-
-      trSum += Math.max(
-        rows[j].high - rows[j].low,
-        Math.abs(rows[j].high - rows[j - 1].close),
-        Math.abs(rows[j].low - rows[j - 1].close)
-      );
-    }
-
-    const p = 100 * plus / (trSum || 1);
-    const m = 100 * minus / (trSum || 1);
-    output[i] = 100 * Math.abs(p - m) / ((p + m) || 1);
-  }
-
-  return output;
-}
-
-function updateIndicators() {
-  if (!candles || !latestRows.length) return;
-
-  const rows = latestRows;
-  const values = {
-    ema21: ema(rows, 21),
-    ma55: sma(rows, 55),
-    ma100: sma(rows, 100),
-    ma200: sma(rows, 200)
+  const resize=()=>{
+    priceChart.applyOptions({width:priceEl.clientWidth,height:priceEl.clientHeight||340});
+    volumeChart.applyOptions({width:volEl.clientWidth,height:volEl.clientHeight||115});
   };
-
-  for (const key of Object.keys(indicatorSeries)) {
-    const series = indicatorSeries[key];
-
-    const points = activeIndicators.has(key)
-      ? rows.flatMap((row, index) =>
-          Number.isFinite(values[key][index])
-            ? [{ time: row.time, value: values[key][index] }]
-            : []
-        )
-      : [];
-
-    series.setData(points);
-  }
-
-  for (const key of ["support", "resistance"]) {
-    if (indicatorLines[key]) {
-      candles.removePriceLine(indicatorLines[key]);
-      indicatorLines[key] = null;
-    }
-  }
-
-  const closedRows = rows.slice(0, -1);
-  const recent = closedRows.slice(-50);
-
-  if (recent.length) {
-    if (activeIndicators.has("support")) {
-      indicatorLines.support = candles.createPriceLine({
-        price: Math.min(...recent.map(x => x.low)),
-        color: "#4ade80",
-        lineWidth: 2,
-        lineStyle: 2,
-        axisLabelVisible: true,
-        title: "Soporte 50"
-      });
-    }
-
-    if (activeIndicators.has("resistance")) {
-      indicatorLines.resistance = candles.createPriceLine({
-        price: Math.max(...recent.map(x => x.high)),
-        color: "#fb7185",
-        lineWidth: 2,
-        lineStyle: 2,
-        axisLabelVisible: true,
-        title: "Resistencia 50"
-      });
-    }
-  }
-
-  const last = rows.length - 2;
-  const parts = [];
-
-  if (activeIndicators.has("rsi") && last >= 14) {
-    parts.push(`RSI 14: ${fmt(rsi(rows)[last], 1)}`);
-  }
-
-  if (activeIndicators.has("adx") && last >= 28) {
-    parts.push(
-      `ADX aproximado: ${fmt(adxApprox(rows)[last], 1)} (no Wilder)`
-    );
-  }
-
-  const readout = $("indicatorReadout");
-  if (readout) {
-    readout.textContent = parts.length
-      ? parts.join(" · ")
-      : "Las medias se dibujan sobre el precio. Soportes y resistencias usan 50 velas cerradas.";
+  if('ResizeObserver'in window){
+    new ResizeObserver(resize).observe(priceEl);
+    new ResizeObserver(resize).observe(volEl);
+  }else{
+    window.addEventListener('resize',resize);
   }
 }
 
-function setupIndicatorButtons() {
-  document.querySelectorAll("[data-indicator]").forEach(button => {
-    const key = button.dataset.indicator;
+function updateIndicators(){
+  if(!candles||!currentRows.length)return;
+  const rows=currentRows;
+  const values={
+    ema21:ema(rows,21),
+    ma55:sma(rows,55),
+    ma100:sma(rows,100),
+    ma200:sma(rows,200)
+  };
+  Object.keys(lines).forEach(key=>{
+    lines[key].setData(enabled.has(key)
+      ? rows.flatMap((r,i)=>Number.isFinite(values[key][i])?[{time:r.time,value:values[key][i]}]:[])
+      : []);
+  });
+  for(const key of ['support','resistance']){
+    if(priceLines[key]){
+      candles.removePriceLine(priceLines[key]);
+      priceLines[key]=null;
+    }
+  }
+  const recent=rows.slice(0,-1).slice(-50);
+  if(recent.length){
+    if(enabled.has('support')){
+      priceLines.support=candles.createPriceLine({
+        price:Math.min(...recent.map(r=>r.low)),
+        color:'#00e69b',lineWidth:2,lineStyle:2,
+        axisLabelVisible:true,title:'Soporte'
+      });
+    }
+    if(enabled.has('resistance')){
+      priceLines.resistance=candles.createPriceLine({
+        price:Math.max(...recent.map(r=>r.high)),
+        color:'#ff3868',lineWidth:2,lineStyle:2,
+        axisLabelVisible:true,title:'Resistencia'
+      });
+    }
+  }
+  const i=Math.max(0,rows.length-2);
+  const rv=rsi(rows)[i],ax=adx(rows).adx[i];
+  setText('ema21Value',fmt(values.ema21[i]));
+  setText('ma55Value',fmt(values.ma55[i]));
+  setText('rsiValue',fmt(rv,1));
+  setText('adxValue',fmt(ax,1));
+  setText('indicatorReadout',`RSI 14: ${fmt(rv,1)} · ADX Wilder: ${fmt(ax,1)} · Datos de la última vela cerrada.`);
+}
 
-    button.setAttribute(
-      "aria-pressed",
-      String(activeIndicators.has(key))
-    );
-
-    if (button.disabled) return;
-
-    button.addEventListener("click", () => {
-      if (activeIndicators.has(key)) {
-        activeIndicators.delete(key);
-      } else {
-        activeIndicators.add(key);
-      }
-
-      button.setAttribute(
-        "aria-pressed",
-        String(activeIndicators.has(key))
-      );
-
+function setupButtons(){
+  document.querySelectorAll('[data-indicator]').forEach(button=>{
+    const key=button.dataset.indicator;
+    button.setAttribute('aria-pressed',String(enabled.has(key)));
+    if(button.disabled)return;
+    button.addEventListener('click',()=>{
+      enabled.has(key)?enabled.delete(key):enabled.add(key);
+      button.setAttribute('aria-pressed',String(enabled.has(key)));
       updateIndicators();
     });
   });
 }
 
-function analyze(rows, tf, symbol) {
-  if (rows.length < 70) {
-    return {
-      tf,
-      symbol,
-      label: "DATOS INSUFICIENTES",
-      side: "WAIT",
-      detail: "Se necesitan más velas para evaluar el mercado.",
-      metrics: "—"
-    };
+function evaluate(rows,tf,symbol){
+  if(rows.length<70)return {
+    tf,symbol,side:'WAIT',label:'DATOS INSUFICIENTES',
+    detail:'Esperando suficientes velas cerradas.',metrics:'—'
+  };
+  const i=rows.length-2,r=rows[i];
+  const e21=ema(rows,21),e55=ema(rows,55);
+  const rv=rsi(rows)[i],a=adx(rows).adx[i];
+  const prev=rows.slice(i-20,i);
+  const hi=Math.max(...prev.map(x=>x.high)),lo=Math.min(...prev.map(x=>x.low));
+  const sweepLow=r.low<lo&&r.close>lo,sweepHigh=r.high>hi&&r.close<hi;
+  const gapUp=i>=2&&r.low>rows[i-2].high;
+  const gapDown=i>=2&&r.high<rows[i-2].low;
+  const bull=e21[i]>e55[i]&&r.close>e21[i]&&e21[i]>e21[i-4];
+  const bear=e21[i]<e55[i]&&r.close<e21[i]&&e21[i]<e21[i-4];
+  let side='WAIT',detail='No hay confluencia suficiente. ESPERAR.';
+  if(bull&&rv>50&&rv<75&&a>=18&&(sweepLow||gapUp)){
+    side='LONG';
+    detail=`Sesgo alcista; RSI ${fmt(rv,1)}; ADX ${fmt(a,1)}; ${sweepLow?'barrido de mínimo':'brecha alcista de tres velas'}.`;
+  }else if(bear&&rv<50&&rv>25&&a>=18&&(sweepHigh||gapDown)){
+    side='SHORT';
+    detail=`Sesgo bajista; RSI ${fmt(rv,1)}; ADX ${fmt(a,1)}; ${sweepHigh?'barrido de máximo':'brecha bajista de tres velas'}.`;
   }
-
-  const i = rows.length - 2;
-  const x = rows[i];
-
-  const e21 = ema(rows, 21);
-  const e55 = ema(rows, 55);
-  const rv = rsi(rows);
-  const ax = adxApprox(rows);
-
-  const bullish = e21[i] > e55[i] && x.close > e21[i];
-  const bearish = e21[i] < e55[i] && x.close < e21[i];
-
-  const r = rv[i];
-  const a = ax[i] || 0;
-
-  const previous = rows.slice(i - 20, i);
-  const high = Math.max(...previous.map(z => z.high));
-  const low = Math.min(...previous.map(z => z.low));
-
-  const sweepLow = x.low < low && x.close > low;
-  const sweepHigh = x.high > high && x.close < high;
-
-  const bullFvg = i >= 2 && rows[i].low > rows[i - 2].high;
-  const bearFvg = i >= 2 && rows[i].high < rows[i - 2].low;
-
-  const momentum = e21[i] - e21[i - 4];
-  const bullMom = momentum > 0;
-  const bearMom = momentum < 0;
-
-  let side = "WAIT";
-  let reason = "No hay confluencia suficiente. NO HAY ENTRADA. ESPERAR.";
-
-  if (
-    bullish && bullMom && r > 50 && r < 75 &&
-    a >= 18 && (sweepLow || bullFvg)
-  ) {
-    side = "LONG";
-    reason = `Sesgo alcista; RSI ${fmt(r, 1)}; fuerza aproximada ${fmt(a, 1)}; ${sweepLow ? "barrido de mínimo" : "FVG alcista"}.`;
-  } else if (
-    bearish && bearMom && r < 50 && r > 25 &&
-    a >= 18 && (sweepHigh || bearFvg)
-  ) {
-    side = "SHORT";
-    reason = `Sesgo bajista; RSI ${fmt(r, 1)}; fuerza aproximada ${fmt(a, 1)}; ${sweepHigh ? "barrido de máximo" : "FVG bajista"}.`;
-  }
-
   return {
-    tf,
-    symbol,
-    side,
-    label: side === "WAIT" ? "NO HAY ENTRADA" : `POSIBLE ${side}`,
-    detail: reason,
-    price: x.close,
-    time: x.time,
-    metrics: `EMA21 ${fmt(e21[i])} · EMA55 ${fmt(e55[i])} · RSI ${fmt(r, 1)} · Fuerza aprox. ${fmt(a, 1)}`
+    tf,symbol,side,
+    label:side==='WAIT'?'NO HAY ENTRADA':`POSIBLE ${side}`,
+    detail,
+    metrics:`EMA21 ${fmt(e21[i])} · EMA55 ${fmt(e55[i])} · RSI ${fmt(rv,1)} · ADX ${fmt(a,1)}`,
+    price:r.close,time:r.time
   };
 }
 
-function paintResult(result) {
-  const suffix = result.tf === "5m" ? "5" : "15";
-
-  $("state" + suffix).textContent = result.label;
-  $("state" + suffix).className =
-    "state " +
-    (result.side === "LONG"
-      ? "long"
-      : result.side === "SHORT"
-        ? "short"
-        : "wait");
-
-  $("detail" + suffix).textContent = result.detail;
-  $("metrics" + suffix).textContent = result.metrics;
+function showSignal(r){
+  const suffix=r.tf==='5m'?'5':'15';
+  setText('state'+suffix,r.label);
+  setText('detail'+suffix,r.detail);
+  setText('metrics'+suffix,r.metrics);
+  const el=$('state'+suffix);
+  if(el)el.className='state '+(r.side==='LONG'?'long':r.side==='SHORT'?'short':'wait');
 }
 
-function logSignal(result, market) {
-  if (!result.side || result.side === "WAIT") return;
-
-  const key = `${market}:${result.symbol}:${result.tf}:${result.time}`;
-  if (lastLogged[key]) return;
-  lastLogged[key] = true;
-
-  logItems.unshift({
-    ...result,
-    stamp: new Date().toLocaleTimeString()
-  });
-
-  if (logItems.length > 30) logItems.pop();
-
-  $("signalLog").innerHTML = logItems.map(item => `
-    <tr>
-      <td>${item.stamp}</td>
-      <td>${item.tf}</td>
-      <td>${item.symbol}</td>
-      <td class="${item.side === "LONG" ? "long" : "short"}">${item.label}</td>
-      <td>${fmt(item.price)}</td>
-      <td>${item.detail}</td>
-      <td>EN OBSERVACIÓN</td>
-    </tr>
-  `).join("");
-}
-
-async function getCandles(symbol, market, interval) {
-  const response = await api(
-    `/api/market/${market}/klines/${symbol}?interval=${interval}&limit=300`
-  );
-  return normalize(response.data);
-}
-
-async function monitor(symbol, market) {
-  document.querySelectorAll(".signal-grid h3").forEach((heading, index) => {
-    heading.textContent =
-      `${symbol} / ${index === 0 ? "5" : "15"} minutos`;
-  });
-
-  for (const tf of ["5m", "15m"]) {
-    try {
-      const rows = await getCandles(symbol, market, tf);
-      const result = analyze(rows, tf, symbol);
-      paintResult(result);
-      logSignal(result, market);
-    } catch (error) {
-      const suffix = tf === "5m" ? "5" : "15";
-      $("state" + suffix).textContent = "ERROR DE DATOS";
-      $("detail" + suffix).textContent = error.message;
+function recordSignal(r,market){
+  if(r.side==='WAIT')return;
+  const key=`${market}:${r.symbol}:${r.tf}:${r.time}`;
+  if(signalKeys.has(key))return;
+  signalKeys.add(key);
+  signalHistory.unshift({...r,stamp:new Date().toLocaleTimeString()});
+  signalHistory.length=Math.min(signalHistory.length,30);
+  const body=$('signalLog');
+  if(!body)return;
+  body.replaceChildren(...signalHistory.map(item=>{
+    const tr=document.createElement('tr');
+    for(const value of [
+      item.stamp,item.tf,item.symbol,item.label,
+      fmt(item.price),item.detail,'EN OBSERVACIÓN'
+    ]){
+      const td=document.createElement('td');
+      td.textContent=value;
+      tr.append(td);
     }
-  }
+    return tr;
+  }));
 }
 
-async function refresh() {
-  if (busy) return;
-  busy = true;
+async function monitor(symbol,market){
+  document.querySelectorAll('.signal-grid h3').forEach((h,i)=>{
+    h.textContent=`${symbol} / ${i===0?'5':'15'} minutos`;
+  });
+  const frames=['5m','15m'];
+  const results=await Promise.allSettled(frames.map(tf=>
+    api(`/api/market/${market}/klines/${symbol}?interval=${tf}&limit=300`)
+  ));
+  results.forEach((result,i)=>{
+    const tf=frames[i];
+    if(result.status==='fulfilled'){
+      const r=evaluate(normalize(result.value.data),tf,symbol);
+      showSignal(r);
+      recordSignal(r,market);
+    }else{
+      const suffix=tf==='5m'?'5':'15';
+      setText('state'+suffix,'ERROR DE DATOS');
+      setText('detail'+suffix,result.reason.message);
+    }
+  });
+}
 
-  const symbol = $("symbol").value;
-  const market = $("market").value;
-  const interval = $("interval").value;
-
-  $("refresh").disabled = true;
-  $("chartTitle").textContent = `${symbol} · ${interval}`;
-  $("message").textContent = "Actualizando datos...";
-
-  try {
-    await api("/health");
-
-    const [ticker, klines] = await Promise.all([
+async function refresh(){
+  if(busy){requestPending=true;return;}
+  busy=true;
+  const symbol=$('symbol').value,market=$('market').value,tf=$('interval').value;
+  $('refresh').disabled=true;
+  setText('chartTitle',`${symbol} · ${tf}`);
+  setText('message','Actualizando datos...');
+  try{
+    const [ticker,klines]=await Promise.all([
       api(`/api/market/${market}/ticker/${symbol}`),
-      api(`/api/market/${market}/klines/${symbol}?interval=${interval}&limit=300`)
+      api(`/api/market/${market}/klines/${symbol}?interval=${tf}&limit=300`)
     ]);
-
-    const data = ticker.data || {};
-
-    $("price").textContent = fmt(
-      pick(data, ["lastPrice", "last", "price", "close"])
-    );
-
-    const change = pick(data, ["priceChangePercent", "changePercent"]);
-    $("change").textContent =
-      change === undefined ? "—" : `${fmt(change, 2)}%`;
-    $("change").style.color =
-      Number(change) >= 0 ? "#00e6a0" : "#ff466b";
-
-    $("high").textContent = fmt(pick(data, ["highPrice", "high"]));
-    $("low").textContent = fmt(pick(data, ["lowPrice", "low"]));
-    $("volume").textContent = fmt(
-      pick(data, ["volume", "quoteVolume", "turnover"]), 2
-    );
-    $("bid").textContent = fmt(pick(data, ["bidPrice", "bid"]));
-    $("ask").textContent = fmt(pick(data, ["askPrice", "ask"]));
-    $("open").textContent = fmt(pick(data, ["openPrice", "open"]));
-
-    const rows = normalize(klines.data);
-
-    if (!rows.length) {
-      throw Error("BingX no devolvió velas reconocibles.");
-    }
-
-    if (!candles) init();
-    if (!candles) throw Error("No se pudo iniciar la gráfica.");
-
-    candles.setData(rows.map(row => ({
-      time: row.time,
-      open: row.open,
-      high: row.high,
-      low: row.low,
-      close: row.close
+    const d=ticker.data||{},rows=normalize(klines.data);
+    if(!rows.length)throw Error('No se reconocieron las velas de BingX.');
+    setText('price',fmt(field(d,['lastPrice','last','price','close'])));
+    const change=field(d,['priceChangePercent','changePercent']);
+    setText('change',change==null?'—':fmt(change,2)+'%');
+    $('change').style.color=+change>=0?'#00e69b':'#ff3868';
+    for(const [id,keys] of Object.entries({
+      high:['highPrice','high'],low:['lowPrice','low'],
+      open:['openPrice','open'],
+      volume:['volume','quoteVolume','turnover'],
+      bid:['bidPrice','bid'],ask:['askPrice','ask']
+    }))setText(id,fmt(field(d,keys)));
+    candles.setData(rows.map(({time,open,high,low,close})=>({
+      time,open,high,low,close
     })));
-
-    volumes.setData(rows.map(row => ({
-      time: row.time,
-      value: row.volume,
-      color: row.close >= row.open
-        ? "rgba(0,230,160,.55)"
-        : "rgba(255,70,107,.55)"
+    histogram.setData(rows.map(r=>({
+      time:r.time,value:r.volume,
+      color:r.close>=r.open?'rgba(0,230,155,.85)':'rgba(255,56,104,.85)'
     })));
-
-    latestRows = rows;
+    currentRows=rows;
     updateIndicators();
-    chart.timeScale().fitContent();
-
-    $("message").textContent =
-      `${rows.length} velas cargadas · Indicadores disponibles.`;
-
-    $("connection").textContent = "● Conectado a BingX";
-    $("connection").style.color = "#00e6a0";
-
-    $("status").textContent =
-      "Servidor activo; datos recibidos de BingX.";
-
-    $("engineState").textContent = "MONITOREANDO";
-    $("updated").textContent = new Date().toLocaleTimeString();
-
-    await monitor(symbol, market);
-  } catch (error) {
-    $("message").textContent = error.message;
-    $("connection").textContent = "● Sin conexión";
-    $("connection").style.color = "#ff466b";
-    $("status").textContent = error.message;
-    $("engineState").textContent = "SIN DATOS";
-  } finally {
-    $("refresh").disabled = false;
-    busy = false;
+    priceChart.timeScale().fitContent();
+    volumeChart.timeScale().setVisibleLogicalRange(
+      priceChart.timeScale().getVisibleLogicalRange()
+    );
+    setText('volumeLabel',symbol.split('-')[0]);
+    setText('message',`${rows.length} velas cargadas · Precio y volumen sincronizados.`);
+    setText('connection','● Conectado a BingX');
+    $('connection').style.color='#00e69b';
+    setText('status','Datos públicos de BingX recibidos.');
+    setText('engineState','MONITOREANDO');
+    setText('updated',new Date().toLocaleTimeString());
+    await monitor(symbol,market);
+  }catch(e){
+    setText('message','Error: '+e.message);
+    setText('connection','● Error de datos');
+    $('connection').style.color='#ff3868';
+    setText('status',e.message);
+    setText('engineState','SIN DATOS');
+  }finally{
+    busy=false;
+    $('refresh').disabled=false;
+    if(requestPending){requestPending=false;refresh();}
   }
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-  init();
-  setupIndicatorButtons();
-
-  $("refresh").addEventListener("click", refresh);
-
-  ["symbol", "market", "interval"].forEach(id => {
-    $(id).addEventListener("change", refresh);
-  });
-
-  refresh();
-  setInterval(refresh, 30000);
+document.addEventListener('DOMContentLoaded',()=>{
+  try{
+    createCharts();
+    setupButtons();
+    $('refresh').addEventListener('click',refresh);
+    ['symbol','market','interval'].forEach(id=>
+      $(id).addEventListener('change',refresh)
+    );
+    refresh();
+    setInterval(refresh,30000);
+  }catch(e){
+    setText('message','Error al iniciar: '+e.message);
+    console.error(e);
+  }
 });
