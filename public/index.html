@@ -12,12 +12,14 @@
   <link rel="stylesheet" href="styles.css?v=10">
 
   <style>
-    /* CORRECCIÓN DEFINITIVA DEL ENCABEZADO */
+    /* ENCABEZADO CON LOGO ORIGINAL */
+
     .app-header {
       display: flex;
       align-items: center;
       gap: 10px;
       min-height: 88px;
+      height: auto;
       padding: 10px 14px;
     }
 
@@ -44,8 +46,10 @@
 
     .app-header .connection {
       flex: 0 0 auto;
+      max-width: 118px;
       font-size: 11px;
-      white-space: nowrap;
+      white-space: normal;
+      overflow-wrap: anywhere;
     }
 
     @media (max-width: 390px) {
@@ -76,12 +80,17 @@
     src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js">
   </script>
 
+  <!-- MOTOR PRINCIPAL -->
   <script defer src="app.js?v=10"></script>
+
+  <!-- MAPA DE LIQUIDEZ Y LIBRO DE ÓRDENES -->
+  <script defer src="liquidity.js?v=11"></script>
+
 </head>
 
 <body>
 
-  <!-- ENCABEZADO: SOLO LOGO ORIGINAL -->
+  <!-- ENCABEZADO -->
 
   <header class="app-header">
 
@@ -235,7 +244,7 @@
           disabled>
 
         <span class="muted">
-          Pendiente de conexión
+          Preparando conexión...
         </span>
       </label>
 
@@ -495,16 +504,15 @@
         <div class="section-heading">
           <h2>Mapa de liquidez</h2>
           <span class="muted">
-            Pendiente de conexión
+            Preparando conexión...
           </span>
         </div>
 
         <div
           id="liquidityMap"
           class="liquidity-placeholder">
-          Aquí aparecerá el mapa de órdenes
-          cuando conectemos la profundidad
-          real del mercado.
+          Conectando con la profundidad
+          visible del mercado...
         </div>
 
       </section>
@@ -643,7 +651,7 @@
 
       </section>
 
-      <!-- LIBRO DE PRECIOS -->
+      <!-- LIBRO DE ÓRDENES -->
 
       <section
         id="orderbookSection"
@@ -665,8 +673,11 @@
 
           <p class="muted">
             Profundidad de diez niveles:
-            pendiente.
+            conectando...
           </p>
+
+          <!-- liquidity.js insertará aquí
+               las órdenes de compra y venta -->
 
         </article>
 
@@ -707,8 +718,9 @@
         </label>
 
         <p class="muted">
-          Binance, Bybit y OKX:
-          pendientes de integración.
+          El módulo de liquidez consulta BingX.
+          La integración de otros exchanges
+          requiere configuración adicional.
         </p>
 
       </section>
@@ -737,6 +749,10 @@
 
       const close =
         document.getElementById("menuClose");
+
+      if (!sidebar || !backdrop || !toggle || !close) {
+        return;
+      }
 
       function setOpen(open) {
         sidebar.classList.toggle("is-open", open);
