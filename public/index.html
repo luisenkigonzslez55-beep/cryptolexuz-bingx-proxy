@@ -3,274 +3,94 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport"
-        content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#060815">
-
-  <title>CRYPTOLEXUZ | Trading Terminal</title>
-
+  <meta name="description" content="CRYPTOLEXUZ PRO: gráficas, indicadores, liquidez y escáner multitemporal de oportunidades.">
+  <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
   <link rel="stylesheet" href="styles.css?v=10">
 
   <style>
-    /* ENCABEZADO CON LOGO ORIGINAL */
-
-    .app-header {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-height: 88px;
-      height: auto;
-      padding: 10px 14px;
-    }
-
-    .app-header .brand {
-      display: flex;
-      flex: 1 1 auto;
-      align-items: center;
-      justify-content: flex-start;
-      min-width: 0;
-      gap: 0;
-      overflow: hidden;
-    }
-
-    .app-header .logo-3d {
-      display: block;
-      width: clamp(165px, 38vw, 310px);
-      height: 66px;
-      max-width: 100%;
-      min-width: 0;
-      object-fit: contain;
-      object-position: left center;
-      flex-shrink: 1;
-    }
-
-    .app-header .connection {
-      flex: 0 0 auto;
-      max-width: 118px;
-      font-size: 11px;
-      white-space: normal;
-      overflow-wrap: anywhere;
-    }
-
-    @media (max-width: 390px) {
-      .app-header {
-        gap: 6px;
-        padding: 8px;
-      }
-
-      .app-header .logo-3d {
-        width: 150px;
-        height: 58px;
-      }
-
-      .app-header .connection {
-        font-size: 10px;
-      }
-    }
-
-    @media (min-width: 900px) {
-      .app-header .logo-3d {
-        width: 310px;
-        height: 75px;
-      }
-    }
+    /* Mantener las proporciones del encabezado original. */
+    .app-header{display:flex;align-items:center;gap:10px;min-height:88px;height:auto;padding:10px 14px}
+    .app-header .brand{display:flex;flex:1 1 auto;align-items:center;justify-content:flex-start;min-width:0;gap:0;overflow:hidden}
+    .app-header .logo-3d{display:block;width:clamp(165px,38vw,310px);height:66px;max-width:100%;min-width:0;object-fit:contain;object-position:left center;flex-shrink:1}
+    .app-header .connection{flex:0 0 auto;max-width:118px;font-size:11px;white-space:normal;overflow-wrap:anywhere}
+    @media(max-width:390px){.app-header{gap:6px;padding:8px}.app-header .logo-3d{width:150px;height:58px}.app-header .connection{font-size:10px}}
+    @media(min-width:900px){.app-header .logo-3d{width:310px;height:75px}}
+    /* Los controles agregados conservan el estilo de los campos existentes. */
+    .cl-extra-select{display:flex;flex-wrap:wrap;gap:12px;align-items:end;margin:12px 0}
+    .cl-extra-select label{display:flex;flex-direction:column;gap:6px;min-width:135px;flex:1}
+    .cl-extra-select select{max-width:100%;min-height:40px;border:1px solid #304469;border-radius:9px;background:#111b32;color:#e3ebff;padding:7px 10px;font:inherit}
   </style>
 
-  <script defer
-    src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js">
-  </script>
-
-  <!-- MOTOR PRINCIPAL -->
-  <script defer src="app.js?v=11"></script>
-
-  <!-- MAPA DE LIQUIDEZ Y LIBRO DE ÓRDENES -->
+  <script defer src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+  <!-- V11 instalado en app.js; v=12 renueva la caché del navegador. -->
+  <script defer src="app.js?v=12"></script>
+  <!-- Se conserva el mapa de liquidez existente. -->
   <script defer src="liquidity.js?v=11"></script>
-
 </head>
-
 <body>
-
-  <!-- ENCABEZADO -->
-
   <header class="app-header">
-
-    <button
-      id="menuToggle"
-      class="menu-toggle"
-      type="button"
-      aria-label="Abrir menú"
-      aria-expanded="false"
-      aria-controls="sidebar">
-      ☰
-    </button>
-
+    <button id="menuToggle" class="menu-toggle" type="button"
+      aria-label="Abrir menú" aria-expanded="false" aria-controls="sidebar">☰</button>
     <div class="brand">
-      <img
-        class="logo-3d"
-        src="file_00000000600881fb8ee48d81ba77b640.png"
-        alt="CRYPTOLEXUZ">
+      <img class="logo-3d" src="file_00000000600881fb8ee48d81ba77b640.png" alt="CRYPTOLEXUZ PRO">
     </div>
-
-    <span
-      id="connection"
-      class="connection"
-      role="status">
-      ● Conectando...
-    </span>
-
+    <span id="connection" class="connection" role="status">● Conectando...</span>
   </header>
 
   <div class="app-shell">
-
-    <!-- MENÚ LATERAL -->
-
-    <aside
-      id="sidebar"
-      class="sidebar"
-      aria-label="Herramientas">
-
+    <aside id="sidebar" class="sidebar" aria-label="Herramientas">
       <div class="sidebar-head">
         <strong>Herramientas</strong>
-
-        <button
-          id="menuClose"
-          type="button"
-          aria-label="Cerrar menú">
-          ✕
-        </button>
+        <button id="menuClose" type="button" aria-label="Cerrar menú">✕</button>
       </div>
-
       <nav class="side-nav" aria-label="Secciones">
+        <a href="#clScanner">📡 Escáner de señales</a>
         <a href="#chartSection">📈 Gráfica</a>
         <a href="#liquiditySection">🌡️ Mapa de liquidez</a>
         <a href="#orderbookSection">📚 Libro de órdenes</a>
-        <a href="#signalsSection">🎯 Señales</a>
+        <a href="#signalsSection">🎯 Señales 5m y 15m</a>
         <a href="#historySection">🕒 Historial</a>
         <a href="#settingsSection">⚙️ Ajustes</a>
       </nav>
-
       <h3>Indicadores</h3>
-
-      <div
-        id="indicatorButtons"
-        class="indicator-buttons">
-
-        <button type="button"
-          data-indicator="ema21">
-          EMA 21
-        </button>
-
-        <button type="button"
-          data-indicator="ma55">
-          MA 55
-        </button>
-
-        <button type="button"
-          data-indicator="ma100">
-          MA 100
-        </button>
-
-        <button type="button"
-          data-indicator="ma200">
-          MA 200
-        </button>
-
-        <button type="button"
-          data-indicator="rsi">
-          RSI
-        </button>
-
-        <button type="button"
-          data-indicator="adx">
-          ADX
-        </button>
-
-        <button type="button"
-          data-indicator="fvg">
-          FVG
-        </button>
-
-        <button type="button"
-          data-indicator="ifvg">
-          IFVG
-        </button>
-
-        <button type="button"
-          data-indicator="liquidity">
-          Zonas de liquidez
-        </button>
-
-        <button type="button"
-          data-indicator="sweeps">
-          Barridos
-        </button>
-
-        <button type="button"
-          data-indicator="support">
-          Soportes
-        </button>
-
-        <button type="button"
-          data-indicator="resistance">
-          Resistencias
-        </button>
-
-        <button type="button" disabled>
-          Divergencias · pendiente
-        </button>
-
-        <button type="button" disabled>
-          Squeeze · pendiente
-        </button>
-
-        <button type="button" disabled>
-          Order Blocks · pendiente
-        </button>
-
-        <button type="button" disabled>
-          Cuña descendente · pendiente
-        </button>
-
+      <div id="indicatorButtons" class="indicator-buttons">
+        <button type="button" data-indicator="ema21" aria-pressed="true">EMA 21</button>
+        <button type="button" data-indicator="ma55" aria-pressed="true">MA 55</button>
+        <button type="button" data-indicator="ma100" aria-pressed="false">MA 100</button>
+        <button type="button" data-indicator="ma200" aria-pressed="false">MA 200</button>
+        <button type="button" data-indicator="rsi" aria-pressed="true">RSI</button>
+        <button type="button" data-indicator="adx" aria-pressed="false">ADX</button>
+        <button type="button" data-indicator="fvg" aria-pressed="true">FVG</button>
+        <button type="button" data-indicator="ifvg" aria-pressed="false">IFVG</button>
+        <button type="button" data-indicator="liquidity" aria-pressed="false">Zonas de liquidez</button>
+        <button type="button" data-indicator="sweeps" aria-pressed="false">Barridos</button>
+        <button type="button" data-indicator="support" aria-pressed="false">Soportes</button>
+        <button type="button" data-indicator="resistance" aria-pressed="false">Resistencias</button>
+        <button type="button" disabled>Divergencias · pendiente</button>
+        <button type="button" disabled>Squeeze · pendiente</button>
+        <button type="button" disabled>Order Blocks · pendiente</button>
+        <button type="button" disabled>Cuña descendente · pendiente</button>
       </div>
-
       <h3>Mapa de liquidez</h3>
-
       <label class="switch-row">
         <span>Mostrar mapa</span>
-
-        <input
-          id="liquidityMapToggle"
-          type="checkbox"
-          disabled>
-
-        <span class="muted">
-          Preparando conexión...
-        </span>
+        <input id="liquidityMapToggle" type="checkbox" disabled>
+        <span class="muted">Preparando conexión...</span>
       </label>
-
     </aside>
 
-    <button
-      id="menuBackdrop"
-      class="menu-backdrop"
-      type="button"
-      aria-label="Cerrar menú"
-      hidden>
-    </button>
+    <button id="menuBackdrop" class="menu-backdrop" type="button"
+      aria-label="Cerrar menú" hidden></button>
 
     <main class="app-container">
-
-      <!-- MERCADO -->
-
+      <!-- El módulo app.js V11 inserta aquí automáticamente #clScanner. -->
       <section class="market-card">
-
         <div class="market-top">
-
           <div class="selectors-row">
-
             <label class="compact-field">
               <span>Activo</span>
-
               <select id="symbol">
                 <option value="BTC-USDT">BTC/USDT</option>
                 <option value="ETH-USDT">ETH/USDT</option>
@@ -278,18 +98,15 @@
                 <option value="SOL-USDT">SOL/USDT</option>
                 <option value="XRP-USDT">XRP/USDT</option>
                 <option value="DOGE-USDT">DOGE/USDT</option>
+                <option value="XAU-USDT">GOLD (XAU) · BingX</option>
               </select>
             </label>
-
             <label class="compact-field">
               <span>Temporalidad</span>
-
               <select id="interval">
                 <option value="1m">1 minuto</option>
                 <option value="5m">5 minutos</option>
-                <option value="15m" selected>
-                  15 minutos
-                </option>
+                <option value="15m" selected>15 minutos</option>
                 <option value="30m">30 minutos</option>
                 <option value="1h">1 hora</option>
                 <option value="4h">4 horas</option>
@@ -297,502 +114,161 @@
                 <option value="1w">1 semana</option>
               </select>
             </label>
-
           </div>
-
           <div class="market-price">
             <strong id="price">—</strong>
             <span id="change">—</span>
           </div>
-
         </div>
-
         <div class="market-bottom">
-
-          <div>
-            <span>Máximo 24h</span>
-            <strong id="high">—</strong>
-          </div>
-
-          <div>
-            <span>Mínimo 24h</span>
-            <strong id="low">—</strong>
-          </div>
-
-          <div>
-            <span>Apertura</span>
-            <strong id="open">—</strong>
-          </div>
-
-          <div>
-            <span>Volumen 24h</span>
-            <strong id="volume">—</strong>
-          </div>
-
+          <div><span>Máximo 24h</span><strong id="high">—</strong></div>
+          <div><span>Mínimo 24h</span><strong id="low">—</strong></div>
+          <div><span>Apertura</span><strong id="open">—</strong></div>
+          <div><span>Volumen 24h</span><strong id="volume">—</strong></div>
         </div>
-
       </section>
 
-      <!-- GRÁFICA -->
-
-      <section
-        id="chartSection"
-        class="chart-card">
-
+      <section id="chartSection" class="chart-card">
         <div class="chart-heading">
-
-          <div>
-            <h2 id="chartTitle">
-              BTC-USDT · 15m
-            </h2>
-            <small>GRÁFICA DE VELAS</small>
-          </div>
-
-          <button
-            id="refresh"
-            type="button">
-            ↻ Actualizar
-          </button>
-
+          <div><h2 id="chartTitle">BTC-USDT · 15m</h2><small>GRÁFICA DE VELAS</small></div>
+          <button id="refresh" type="button">↻ Actualizar</button>
         </div>
-
         <div class="chart-controls">
-
-          <button
-            id="chartNavigation"
-            type="button"
-            aria-pressed="false">
-            🔒 Desbloquear
-          </button>
-
-          <button
-            id="chartReset"
-            type="button">
-            ⟲ Restablecer
-          </button>
-
-          <span
-            id="chartTouchStatus"
-            class="chart-control-note">
-            Gráfica bloqueada:
-            desliza la página con un dedo.
-          </span>
-
+          <button id="chartNavigation" type="button" aria-pressed="false">🔒 Desbloquear</button>
+          <button id="chartReset" type="button">⟲ Restablecer</button>
+          <span id="chartTouchStatus" class="chart-control-note">Gráfica bloqueada: desliza la página con un dedo.</span>
         </div>
-
-        <div
-          id="priceChartArea"
-          class="chart-area">
-
+        <div id="priceChartArea" class="chart-area">
           <div id="chart"></div>
-
-          <canvas
-            id="zonesCanvas"
-            aria-hidden="true">
-          </canvas>
-
+          <canvas id="zonesCanvas" aria-hidden="true"></canvas>
         </div>
-
-        <!-- VOLUMEN -->
-
         <div class="volume-section">
-
-          <div class="volume-heading">
-            <strong>Volumen</strong>
-            <span id="volumeLabel">BTC</span>
-          </div>
-
+          <div class="volume-heading"><strong>Volumen</strong><span id="volumeLabel">BTC</span></div>
           <div id="volumeChart"></div>
-
-          <p
-            id="volumeInterpretation"
-            class="interpretation">
-            Esperando análisis...
-          </p>
-
+          <p id="volumeInterpretation" class="interpretation">Esperando análisis...</p>
         </div>
-
-        <!-- RSI -->
-
-        <div
-          id="rsiSection"
-          class="oscillator-section">
-
-          <div class="oscillator-heading">
-            <strong>RSI 14</strong>
-            <span id="rsiChartValue">—</span>
-          </div>
-
-          <div
-            id="rsiChart"
-            class="oscillator-chart">
-          </div>
-
-          <p
-            id="rsiInterpretation"
-            class="interpretation">
-            Esperando RSI...
-          </p>
-
-          <button
-            id="rsiSpeak"
-            type="button"
-            disabled>
-            🔊 Escuchar RSI
-          </button>
-
+        <div id="rsiSection" class="oscillator-section">
+          <div class="oscillator-heading"><strong>RSI 14</strong><span id="rsiChartValue">—</span></div>
+          <div id="rsiChart" class="oscillator-chart"></div>
+          <p id="rsiInterpretation" class="interpretation">Esperando RSI...</p>
+          <button id="rsiSpeak" type="button" disabled>🔊 Escuchar RSI</button>
         </div>
-
-        <!-- ADX -->
-
-        <div
-          id="adxSection"
-          class="oscillator-section"
-          hidden>
-
-          <div class="oscillator-heading">
-            <strong>ADX 14 / +DI / −DI</strong>
-            <span id="adxChartValue">—</span>
-          </div>
-
-          <div
-            id="adxChart"
-            class="oscillator-chart">
-          </div>
-
-          <p
-            id="adxInterpretation"
-            class="interpretation">
-            Esperando ADX...
-          </p>
-
+        <div id="adxSection" class="oscillator-section" hidden>
+          <div class="oscillator-heading"><strong>ADX 14 / +DI / −DI</strong><span id="adxChartValue">—</span></div>
+          <div id="adxChart" class="oscillator-chart"></div>
+          <p id="adxInterpretation" class="interpretation">Esperando ADX...</p>
         </div>
-
-        <!-- SQUEEZE PENDIENTE -->
-
-        <div
-          id="squeezeSection"
-          class="oscillator-section"
-          hidden>
-
-          <div class="oscillator-heading">
-            <strong>Squeeze Momentum</strong>
-            <span>Pendiente</span>
-          </div>
-
-          <div
-            id="squeezeChart"
-            class="oscillator-chart">
-          </div>
-
+        <div id="squeezeSection" class="oscillator-section" hidden>
+          <div class="oscillator-heading"><strong>Squeeze Momentum</strong><span>Pendiente</span></div>
+          <div id="squeezeChart" class="oscillator-chart"></div>
         </div>
-
-        <p
-          id="message"
-          class="chart-message"
-          role="status">
-          Cargando datos...
-        </p>
-
+        <p id="message" class="chart-message" role="status">Cargando datos...</p>
       </section>
 
-      <!-- MAPA DE LIQUIDEZ -->
-
-      <section
-        id="liquiditySection"
-        class="liquidity-card">
-
-        <div class="section-heading">
-          <h2>Mapa de liquidez</h2>
-          <span class="muted">
-            Preparando conexión...
-          </span>
-        </div>
-
-        <div
-          id="liquidityMap"
-          class="liquidity-placeholder">
-          Conectando con la profundidad
-          visible del mercado...
-        </div>
-
+      <section id="liquiditySection" class="liquidity-card">
+        <div class="section-heading"><h2>Mapa de liquidez</h2><span class="muted">Preparando conexión...</span></div>
+        <div id="liquidityMap" class="liquidity-placeholder">Conectando con la profundidad visible del mercado...</div>
       </section>
-
-      <!-- INDICADORES -->
 
       <section class="indicator-summary">
-
-        <div class="section-heading">
-          <h2>Indicadores técnicos</h2>
-          <small>Última vela cerrada</small>
-        </div>
-
+        <div class="section-heading"><h2>Indicadores técnicos</h2><small>Última vela cerrada</small></div>
         <div class="indicator-values">
-
-          <div>
-            <span>EMA 21</span>
-            <strong id="ema21Value">—</strong>
-          </div>
-
-          <div>
-            <span>MA 55</span>
-            <strong id="ma55Value">—</strong>
-          </div>
-
-          <div>
-            <span>RSI 14</span>
-            <strong id="rsiValue">—</strong>
-          </div>
-
-          <div>
-            <span>ADX 14</span>
-            <strong id="adxValue">—</strong>
-          </div>
-
+          <div><span>EMA 21</span><strong id="ema21Value">—</strong></div>
+          <div><span>MA 55</span><strong id="ma55Value">—</strong></div>
+          <div><span>RSI 14</span><strong id="rsiValue">—</strong></div>
+          <div><span>ADX 14</span><strong id="adxValue">—</strong></div>
         </div>
-
-        <p
-          id="indicatorReadout"
-          class="indicator-readout">
-          Esperando cálculos...
-        </p>
-
+        <p id="indicatorReadout" class="indicator-readout">Esperando cálculos...</p>
       </section>
 
-      <!-- MONITOR -->
-
-      <section
-        id="signalsSection"
-        class="signals-section">
-
-        <div class="section-heading">
-          <h2>Monitor de señales</h2>
-
-          <span
-            id="engineState"
-            class="pill">
-            INICIANDO
-          </span>
-        </div>
-
+      <section id="signalsSection" class="signals-section">
+        <div class="section-heading"><h2>Monitor de señales</h2><span id="engineState" class="pill">INICIANDO</span></div>
         <div class="signal-grid">
-
           <article class="signal-card">
-
             <h3>BTC-USDT / 5 minutos</h3>
-
-            <strong
-              id="state5"
-              class="state">
-              Esperando datos
-            </strong>
-
-            <p id="detail5">—</p>
-            <small id="metrics5">—</small>
-
+            <strong id="state5" class="state">Esperando datos</strong>
+            <p id="detail5">—</p><small id="metrics5">—</small>
           </article>
-
           <article class="signal-card">
-
             <h3>BTC-USDT / 15 minutos</h3>
-
-            <strong
-              id="state15"
-              class="state">
-              Esperando datos
-            </strong>
-
-            <p id="detail15">—</p>
-            <small id="metrics15">—</small>
-
+            <strong id="state15" class="state">Esperando datos</strong>
+            <p id="detail15">—</p><small id="metrics15">—</small>
           </article>
-
         </div>
-
       </section>
 
-      <!-- HISTORIAL -->
-
-      <section
-        id="historySection"
-        class="history-section">
-
-        <div class="section-heading">
-          <h2>Historial de señales</h2>
-          <small>Últimas 30</small>
-        </div>
-
+      <section id="historySection" class="history-section">
+        <div class="section-heading"><h2>Historial de señales</h2><small>Últimas 30</small></div>
         <div class="table-wrap">
-
           <table>
-
-            <thead>
-              <tr>
-                <th>Hora</th>
-                <th>TF</th>
-                <th>Activo</th>
-                <th>Señal</th>
-                <th>Precio</th>
-                <th>Motivo</th>
-                <th>Estado</th>
-              </tr>
-            </thead>
-
+            <thead><tr><th>Hora</th><th>TF</th><th>Activo</th><th>Señal</th><th>Precio</th><th>Motivo</th><th>Estado</th></tr></thead>
             <tbody id="signalLog">
-              <tr>
-                <td colspan="7">
-                  Todavía no hay señales registradas.
-                </td>
-              </tr>
+              <tr><td colspan="7">Todavía no hay señales registradas.</td></tr>
             </tbody>
-
           </table>
-
         </div>
-
       </section>
 
-      <!-- LIBRO DE ÓRDENES -->
-
-      <section
-        id="orderbookSection"
-        class="details">
-
+      <section id="orderbookSection" class="details">
         <article>
-
           <h2>Libro de precios</h2>
-
-          <p>
-            Bid
-            <strong id="bid">—</strong>
-          </p>
-
-          <p>
-            Ask
-            <strong id="ask">—</strong>
-          </p>
-
-          <p class="muted">
-            Profundidad de diez niveles:
-            conectando...
-          </p>
-
-          <!-- liquidity.js insertará aquí
-               las órdenes de compra y venta -->
-
+          <p>Bid <strong id="bid">—</strong></p>
+          <p>Ask <strong id="ask">—</strong></p>
+          <p class="muted">Profundidad de diez niveles: conectando...</p>
+          <!-- liquidity.js completa el libro de órdenes. -->
         </article>
-
         <article>
-
           <h2>Estado del servidor</h2>
-
-          <p id="status">
-            Comprobando conexión...
-          </p>
-
-          <small>
-            Actualizado:
-            <strong id="updated">—</strong>
-          </small>
-
+          <p id="status">Comprobando conexión...</p>
+          <small>Actualizado: <strong id="updated">—</strong></small>
         </article>
-
       </section>
 
-      <!-- AJUSTES -->
-
-      <section
-        id="settingsSection"
-        class="market-settings">
-
-        <label>
-          Tipo de mercado
-
-          <select id="market">
-            <option value="perpetual">
-              Perpetuos BingX
-            </option>
-            <option value="spot">
-              Spot BingX
-            </option>
-          </select>
-        </label>
-
-        <p class="muted">
-          El módulo de liquidez consulta BingX.
-          La integración de otros exchanges
-          requiere configuración adicional.
-        </p>
-
+      <section id="settingsSection" class="market-settings">
+        <div class="cl-extra-select">
+          <label>
+            <span>Exchange</span>
+            <select id="exchange">
+              <option value="bingx" selected>BingX</option>
+              <option value="binance">Binance</option>
+              <option value="bybit">Bybit</option>
+              <option value="okx">OKX</option>
+            </select>
+          </label>
+          <label>
+            <span>Tipo de mercado</span>
+            <select id="market">
+              <option value="perpetual">Perpetuos</option>
+              <option value="spot">Spot</option>
+            </select>
+          </label>
+        </div>
+        <p class="muted">GOLD (XAU) se consulta exclusivamente en BingX. El escáner se ejecuta mientras esta página permanece activa; los avisos con la página cerrada requieren notificaciones push en el servidor.</p>
       </section>
 
-      <footer>
-        CRYPTOLEXUZ · Análisis informativo.
-        No ejecuta operaciones ni garantiza señales.
-      </footer>
-
+      <footer>CRYPTOLEXUZ PRO · Información técnica. No ejecuta operaciones ni garantiza resultados.</footer>
     </main>
-
   </div>
 
-  <!-- MENÚ RESPONSIVO -->
-
   <script>
+    // Menú responsive, independiente del motor del gráfico.
     (() => {
-      const sidebar =
-        document.getElementById("sidebar");
-
-      const backdrop =
-        document.getElementById("menuBackdrop");
-
-      const toggle =
-        document.getElementById("menuToggle");
-
-      const close =
-        document.getElementById("menuClose");
-
-      if (!sidebar || !backdrop || !toggle || !close) {
-        return;
-      }
-
-      function setOpen(open) {
+      const sidebar = document.getElementById("sidebar");
+      const backdrop = document.getElementById("menuBackdrop");
+      const toggle = document.getElementById("menuToggle");
+      const close = document.getElementById("menuClose");
+      if (!sidebar || !backdrop || !toggle || !close) return;
+      const setOpen = open => {
         sidebar.classList.toggle("is-open", open);
-
-        toggle.setAttribute(
-          "aria-expanded",
-          String(open)
-        );
-
+        toggle.setAttribute("aria-expanded", String(open));
         backdrop.hidden = !open;
-
-        document.body.classList.toggle(
-          "menu-open",
-          open
-        );
-      }
-
-      toggle.addEventListener("click", () => {
-        setOpen(
-          !sidebar.classList.contains("is-open")
-        );
-      });
-
-      close.addEventListener("click", () => {
-        setOpen(false);
-      });
-
-      backdrop.addEventListener("click", () => {
-        setOpen(false);
-      });
-
-      sidebar.querySelectorAll(".side-nav a")
-        .forEach(link => {
-          link.addEventListener("click", () => {
-            setOpen(false);
-          });
-        });
+        document.body.classList.toggle("menu-open", open);
+      };
+      toggle.addEventListener("click", () => setOpen(!sidebar.classList.contains("is-open")));
+      close.addEventListener("click", () => setOpen(false));
+      backdrop.addEventListener("click", () => setOpen(false));
+      sidebar.querySelectorAll(".side-nav a").forEach(a => a.addEventListener("click", () => setOpen(false)));
     })();
   </script>
-
 </body>
 </html>
