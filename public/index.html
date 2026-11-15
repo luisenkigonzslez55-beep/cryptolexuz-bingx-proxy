@@ -3,11 +3,9 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport"
-    content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#060815">
-  <meta name="description"
-    content="CRYPTOLEXUZ PRO: gráficas, indicadores, liquidez y escáner de trading.">
+  <meta name="description" content="CRYPTOLEXUZ PRO: escáner multitemporal, gráficas, señales, niveles de entrada y liquidez.">
 
   <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
 
@@ -15,88 +13,96 @@
 
   <style>
     .app-header {
-      display:flex;
-      align-items:center;
-      gap:10px;
-      min-height:88px;
-      height:auto;
-      padding:10px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 88px;
+      height: auto;
+      padding: 10px 14px;
     }
 
     .app-header .brand {
-      display:flex;
-      flex:1 1 auto;
-      align-items:center;
-      min-width:0;
-      overflow:hidden;
+      display: flex;
+      flex: 1 1 auto;
+      align-items: center;
+      min-width: 0;
+      overflow: hidden;
     }
 
     .app-header .logo-3d {
-      display:block;
-      width:clamp(165px,38vw,310px);
-      height:66px;
-      max-width:100%;
-      object-fit:contain;
-      object-position:left center;
+      display: block;
+      width: clamp(165px, 38vw, 310px);
+      height: 66px;
+      max-width: 100%;
+      object-fit: contain;
+      object-position: left center;
     }
 
     .app-header .connection {
-      flex:0 0 auto;
-      max-width:118px;
-      font-size:11px;
-      overflow-wrap:anywhere;
+      flex: 0 0 auto;
+      max-width: 118px;
+      font-size: 11px;
+      overflow-wrap: anywhere;
     }
 
-    @media(max-width:390px) {
+    @media (max-width: 390px) {
       .app-header {
-        gap:6px;
-        padding:8px;
+        gap: 6px;
+        padding: 8px;
       }
+
       .app-header .logo-3d {
-        width:150px;
-        height:58px;
+        width: 150px;
+        height: 58px;
       }
+
       .app-header .connection {
-        font-size:10px;
+        font-size: 10px;
+      }
+    }
+
+    @media (min-width: 900px) {
+      .app-header .logo-3d {
+        width: 310px;
+        height: 75px;
       }
     }
 
     .cl-extra-select {
-      display:flex;
-      flex-wrap:wrap;
-      gap:12px;
-      margin:12px 0;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin: 12px 0;
     }
 
     .cl-extra-select label {
-      display:flex;
-      flex-direction:column;
-      gap:6px;
-      min-width:135px;
-      flex:1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 135px;
+      flex: 1;
     }
 
     .cl-extra-select select {
-      max-width:100%;
-      min-height:40px;
-      background:#111b32;
-      color:#e3ebff;
-      border:1px solid #304469;
-      border-radius:9px;
-      padding:7px 10px;
-      font:inherit;
+      max-width: 100%;
+      min-height: 40px;
+      background: #111b32;
+      color: #e3ebff;
+      border: 1px solid #304469;
+      border-radius: 9px;
+      padding: 7px 10px;
+      font: inherit;
     }
   </style>
 
-  <script defer
-    src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js">
-  </script>
-
+  <script defer src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
   <script defer src="app.js?v=13"></script>
   <script defer src="liquidity.js?v=11"></script>
+  <script defer src="trade-plans.js?v=1"></script>
 </head>
 
 <body>
+
   <header class="app-header">
     <button
       id="menuToggle"
@@ -104,37 +110,46 @@
       type="button"
       aria-label="Abrir menú"
       aria-expanded="false"
-      aria-controls="sidebar">☰</button>
+      aria-controls="sidebar"
+    >☰</button>
 
     <div class="brand">
       <img
         class="logo-3d"
         src="file_00000000600881fb8ee48d81ba77b640.png"
-        alt="CRYPTOLEXUZ PRO">
+        alt="CRYPTOLEXUZ PRO"
+      >
     </div>
 
-    <span id="connection"
+    <span
+      id="connection"
       class="connection"
-      role="status">● Conectando...</span>
+      role="status"
+    >● Conectando...</span>
   </header>
 
   <div class="app-shell">
 
-    <aside id="sidebar"
+    <aside
+      id="sidebar"
       class="sidebar"
-      aria-label="Herramientas">
+      aria-label="Herramientas"
+    >
 
       <div class="sidebar-head">
         <strong>Herramientas</strong>
-        <button id="menuClose"
-          type="button">✕</button>
+        <button
+          id="menuClose"
+          type="button"
+          aria-label="Cerrar menú"
+        >✕</button>
       </div>
 
-      <nav class="side-nav">
-        <a href="#clScanner">📡 Escáner</a>
+      <nav class="side-nav" aria-label="Secciones">
+        <a href="#clScanner">📡 Escáner de señales</a>
         <a href="#chartSection">📈 Gráfica</a>
-        <a href="#liquiditySection">🌡️ Liquidez</a>
-        <a href="#orderbookSection">📚 Órdenes</a>
+        <a href="#liquiditySection">🌡️ Mapa de liquidez</a>
+        <a href="#orderbookSection">📚 Libro de órdenes</a>
         <a href="#signalsSection">🎯 Señales</a>
         <a href="#historySection">🕒 Historial</a>
         <a href="#settingsSection">⚙️ Ajustes</a>
@@ -142,48 +157,79 @@
 
       <h3>Indicadores</h3>
 
-      <div id="indicatorButtons"
-        class="indicator-buttons">
+      <div id="indicatorButtons" class="indicator-buttons">
 
-        <button type="button"
-          data-indicator="ema21">EMA 21</button>
+        <button
+          type="button"
+          data-indicator="ema21"
+          aria-pressed="true"
+        >EMA 21</button>
 
-        <button type="button"
-          data-indicator="ma55">MA 55</button>
+        <button
+          type="button"
+          data-indicator="ma55"
+          aria-pressed="true"
+        >MA 55</button>
 
-        <button type="button"
-          data-indicator="ma100">MA 100</button>
+        <button
+          type="button"
+          data-indicator="ma100"
+          aria-pressed="false"
+        >MA 100</button>
 
-        <button type="button"
-          data-indicator="ma200">MA 200</button>
+        <button
+          type="button"
+          data-indicator="ma200"
+          aria-pressed="false"
+        >MA 200</button>
 
-        <button type="button"
-          data-indicator="rsi">RSI</button>
+        <button
+          type="button"
+          data-indicator="rsi"
+          aria-pressed="true"
+        >RSI</button>
 
-        <button type="button"
-          data-indicator="adx">ADX</button>
+        <button
+          type="button"
+          data-indicator="adx"
+          aria-pressed="false"
+        >ADX</button>
 
-        <button type="button"
-          data-indicator="fvg">FVG</button>
+        <button
+          type="button"
+          data-indicator="fvg"
+          aria-pressed="true"
+        >FVG</button>
 
-        <button type="button"
-          data-indicator="ifvg">IFVG</button>
+        <button
+          type="button"
+          data-indicator="ifvg"
+          aria-pressed="false"
+        >IFVG</button>
 
-        <button type="button"
-          data-indicator="liquidity">
-          Zonas de liquidez
-        </button>
+        <button
+          type="button"
+          data-indicator="liquidity"
+          aria-pressed="false"
+        >Zonas de liquidez</button>
 
-        <button type="button"
-          data-indicator="sweeps">Barridos</button>
+        <button
+          type="button"
+          data-indicator="sweeps"
+          aria-pressed="false"
+        >Barridos</button>
 
-        <button type="button"
-          data-indicator="support">Soportes</button>
+        <button
+          type="button"
+          data-indicator="support"
+          aria-pressed="false"
+        >Soportes</button>
 
-        <button type="button"
-          data-indicator="resistance">
-          Resistencias
-        </button>
+        <button
+          type="button"
+          data-indicator="resistance"
+          aria-pressed="false"
+        >Resistencias</button>
 
         <button type="button" disabled>
           Divergencias · pendiente
@@ -200,20 +246,25 @@
         <button type="button" disabled>
           Cuña descendente · pendiente
         </button>
+
       </div>
 
       <h3>Mapa de liquidez</h3>
 
       <label class="switch-row">
         <span>Mostrar mapa</span>
+
         <input
           id="liquidityMapToggle"
           type="checkbox"
-          disabled>
+          disabled
+        >
+
         <span class="muted">
           Preparando conexión...
         </span>
       </label>
+
     </aside>
 
     <button
@@ -221,39 +272,28 @@
       class="menu-backdrop"
       type="button"
       aria-label="Cerrar menú"
-      hidden></button>
+      hidden
+    ></button>
 
     <main class="app-container">
 
       <section class="market-card">
+
         <div class="market-top">
 
           <div class="selectors-row">
+
             <label class="compact-field">
               <span>Activo</span>
 
               <select id="symbol">
-                <option value="BTC-USDT">
-                  BTC/USDT
-                </option>
-                <option value="ETH-USDT">
-                  ETH/USDT
-                </option>
-                <option value="BNB-USDT">
-                  BNB/USDT
-                </option>
-                <option value="SOL-USDT">
-                  SOL/USDT
-                </option>
-                <option value="XRP-USDT">
-                  XRP/USDT
-                </option>
-                <option value="DOGE-USDT">
-                  DOGE/USDT
-                </option>
-                <option value="NCCOGOLD2USD-USDT">
-                  GOLD (XAU) · BingX
-                </option>
+                <option value="BTC-USDT">BTC/USDT</option>
+                <option value="ETH-USDT">ETH/USDT</option>
+                <option value="BNB-USDT">BNB/USDT</option>
+                <option value="SOL-USDT">SOL/USDT</option>
+                <option value="XRP-USDT">XRP/USDT</option>
+                <option value="DOGE-USDT">DOGE/USDT</option>
+                <option value="NCCOGOLD2USD-USDT">GOLD (XAU) · BingX</option>
               </select>
             </label>
 
@@ -261,253 +301,306 @@
               <span>Temporalidad</span>
 
               <select id="interval">
-                <option value="1m">
-                  1 minuto
-                </option>
-                <option value="5m">
-                  5 minutos
-                </option>
-                <option value="15m" selected>
-                  15 minutos
-                </option>
-                <option value="30m">
-                  30 minutos
-                </option>
-                <option value="1h">
-                  1 hora
-                </option>
-                <option value="4h">
-                  4 horas
-                </option>
-                <option value="1d">
-                  1 día
-                </option>
-                <option value="1w">
-                  1 semana
-                </option>
+                <option value="1m">1 minuto</option>
+                <option value="5m">5 minutos</option>
+                <option value="15m" selected>15 minutos</option>
+                <option value="30m">30 minutos</option>
+                <option value="1h">1 hora</option>
+                <option value="4h">4 horas</option>
+                <option value="1d">1 día</option>
+                <option value="1w">1 semana</option>
               </select>
             </label>
+
           </div>
 
           <div class="market-price">
             <strong id="price">—</strong>
             <span id="change">—</span>
           </div>
+
         </div>
 
         <div class="market-bottom">
+
           <div>
             <span>Máximo 24h</span>
             <strong id="high">—</strong>
           </div>
+
           <div>
             <span>Mínimo 24h</span>
             <strong id="low">—</strong>
           </div>
+
           <div>
             <span>Apertura</span>
             <strong id="open">—</strong>
           </div>
+
           <div>
             <span>Volumen 24h</span>
             <strong id="volume">—</strong>
           </div>
+
         </div>
+
       </section>
 
-      <section id="chartSection"
-        class="chart-card">
+      <section id="chartSection" class="chart-card">
 
         <div class="chart-heading">
+
           <div>
-            <h2 id="chartTitle">
-              BTC-USDT · 15m
-            </h2>
+            <h2 id="chartTitle">BTC-USDT · 15m</h2>
             <small>GRÁFICA DE VELAS</small>
           </div>
 
-          <button id="refresh"
-            type="button">↻ Actualizar</button>
+          <button id="refresh" type="button">
+            ↻ Actualizar
+          </button>
+
         </div>
 
         <div class="chart-controls">
+
           <button
             id="chartNavigation"
             type="button"
-            aria-pressed="false">
-            🔒 Desbloquear
-          </button>
+            aria-pressed="false"
+          >🔒 Desbloquear</button>
 
-          <button
-            id="chartReset"
-            type="button">
+          <button id="chartReset" type="button">
             ⟲ Restablecer
           </button>
 
-          <span id="chartTouchStatus"
-            class="chart-control-note">
-            Desliza la página con un dedo.
+          <span
+            id="chartTouchStatus"
+            class="chart-control-note"
+          >
+            Gráfica bloqueada: desliza la página con un dedo.
           </span>
+
         </div>
 
-        <div id="priceChartArea"
-          class="chart-area">
+        <div id="priceChartArea" class="chart-area">
           <div id="chart"></div>
+
           <canvas
             id="zonesCanvas"
-            aria-hidden="true"></canvas>
+            aria-hidden="true"
+          ></canvas>
         </div>
 
         <div class="volume-section">
+
           <div class="volume-heading">
             <strong>Volumen</strong>
             <span id="volumeLabel">BTC</span>
           </div>
 
           <div id="volumeChart"></div>
-          <p id="volumeInterpretation"
-            class="interpretation">
-            Esperando análisis...
+
+          <p
+            id="volumeInterpretation"
+            class="interpretation"
+          >
+            Esperando análisis de volumen...
           </p>
+
         </div>
 
-        <div id="rsiSection"
-          class="oscillator-section">
+        <div id="rsiSection" class="oscillator-section">
 
           <div class="oscillator-heading">
             <strong>RSI 14</strong>
             <span id="rsiChartValue">—</span>
           </div>
 
-          <div id="rsiChart"
-            class="oscillator-chart"></div>
+          <div
+            id="rsiChart"
+            class="oscillator-chart"
+          ></div>
 
-          <p id="rsiInterpretation"
-            class="interpretation">
+          <p
+            id="rsiInterpretation"
+            class="interpretation"
+          >
             Esperando RSI...
           </p>
 
-          <button
-            id="rsiSpeak"
-            type="button"
-            disabled>
-            🔊 Escuchar RSI
+          <button id="rsiSpeak" type="button" disabled>
+            🔊 Escuchar interpretación RSI
           </button>
+
         </div>
 
-        <div id="adxSection"
+        <div
+          id="adxSection"
           class="oscillator-section"
-          hidden>
+          hidden
+        >
 
           <div class="oscillator-heading">
-            <strong>ADX / +DI / −DI</strong>
+            <strong>ADX 14 / +DI / −DI</strong>
             <span id="adxChartValue">—</span>
           </div>
 
-          <div id="adxChart"
-            class="oscillator-chart"></div>
+          <div
+            id="adxChart"
+            class="oscillator-chart"
+          ></div>
 
-          <p id="adxInterpretation"
-            class="interpretation">
+          <p
+            id="adxInterpretation"
+            class="interpretation"
+          >
             Esperando ADX...
           </p>
+
         </div>
 
-        <div id="squeezeSection"
+        <div
+          id="squeezeSection"
           class="oscillator-section"
-          hidden>
-          <strong>Squeeze Momentum</strong>
-          <div id="squeezeChart"></div>
+          hidden
+        >
+
+          <div class="oscillator-heading">
+            <strong>Squeeze Momentum</strong>
+            <span>Pendiente</span>
+          </div>
+
+          <div
+            id="squeezeChart"
+            class="oscillator-chart"
+          ></div>
+
         </div>
 
-        <p id="message"
+        <p
+          id="message"
           class="chart-message"
-          role="status">
+          role="status"
+        >
           Cargando datos...
         </p>
+
       </section>
 
-      <section id="liquiditySection"
-        class="liquidity-card">
+      <section
+        id="liquiditySection"
+        class="liquidity-card"
+      >
 
         <div class="section-heading">
           <h2>Mapa de liquidez</h2>
+
           <span class="muted">
             Profundidad de mercado
           </span>
         </div>
 
-        <div id="liquidityMap"
-          class="liquidity-placeholder">
-          Conectando...
+        <div
+          id="liquidityMap"
+          class="liquidity-placeholder"
+        >
+          Conectando con el libro de órdenes...
         </div>
+
       </section>
 
       <section class="indicator-summary">
+
         <div class="section-heading">
           <h2>Indicadores técnicos</h2>
           <small>Última vela cerrada</small>
         </div>
 
         <div class="indicator-values">
+
           <div>
             <span>EMA 21</span>
             <strong id="ema21Value">—</strong>
           </div>
+
           <div>
             <span>MA 55</span>
             <strong id="ma55Value">—</strong>
           </div>
+
           <div>
             <span>RSI 14</span>
             <strong id="rsiValue">—</strong>
           </div>
+
           <div>
             <span>ADX 14</span>
             <strong id="adxValue">—</strong>
           </div>
+
         </div>
 
-        <p id="indicatorReadout"
-          class="indicator-readout">
+        <p
+          id="indicatorReadout"
+          class="indicator-readout"
+        >
           Esperando cálculos...
         </p>
+
       </section>
 
-      <section id="signalsSection"
-        class="signals-section">
+      <section
+        id="signalsSection"
+        class="signals-section"
+      >
 
         <div class="section-heading">
           <h2>Monitor de señales</h2>
-          <span id="engineState"
-            class="pill">INICIANDO</span>
+
+          <span id="engineState" class="pill">
+            INICIANDO
+          </span>
         </div>
 
         <div class="signal-grid">
+
           <article class="signal-card">
-            <h3>5 minutos</h3>
-            <strong id="state5"
-              class="state">
+
+            <h3>BTC-USDT / 5 minutos</h3>
+
+            <strong id="state5" class="state">
               Esperando datos
             </strong>
+
             <p id="detail5">—</p>
+
             <small id="metrics5">—</small>
+
           </article>
 
           <article class="signal-card">
-            <h3>15 minutos</h3>
-            <strong id="state15"
-              class="state">
+
+            <h3>BTC-USDT / 15 minutos</h3>
+
+            <strong id="state15" class="state">
               Esperando datos
             </strong>
+
             <p id="detail15">—</p>
+
             <small id="metrics15">—</small>
+
           </article>
+
         </div>
+
       </section>
 
-      <section id="historySection"
-        class="history-section">
+      <section
+        id="historySection"
+        class="history-section"
+      >
 
         <div class="section-heading">
           <h2>Historial de señales</h2>
@@ -515,7 +608,9 @@
         </div>
 
         <div class="table-wrap">
+
           <table>
+
             <thead>
               <tr>
                 <th>Hora</th>
@@ -527,93 +622,115 @@
                 <th>Estado</th>
               </tr>
             </thead>
+
             <tbody id="signalLog">
               <tr>
                 <td colspan="7">
-                  Todavía no hay señales.
+                  Todavía no hay señales registradas.
                 </td>
               </tr>
             </tbody>
+
           </table>
+
         </div>
+
       </section>
 
-      <section id="orderbookSection"
-        class="details">
+      <section
+        id="orderbookSection"
+        class="details"
+      >
 
         <article>
+
           <h2>Libro de precios</h2>
-          <p>Bid <strong id="bid">—</strong></p>
-          <p>Ask <strong id="ask">—</strong></p>
+
+          <p>
+            Bid <strong id="bid">—</strong>
+          </p>
+
+          <p>
+            Ask <strong id="ask">—</strong>
+          </p>
+
           <p class="muted">
             Profundidad de diez niveles.
           </p>
+
         </article>
 
         <article>
+
           <h2>Estado del servidor</h2>
+
           <p id="status">
             Comprobando conexión...
           </p>
+
           <small>
             Actualizado:
             <strong id="updated">—</strong>
           </small>
+
         </article>
+
       </section>
 
-      <section id="settingsSection"
-        class="market-settings">
+      <section
+        id="settingsSection"
+        class="market-settings"
+      >
 
         <div class="cl-extra-select">
+
           <label>
             <span>Exchange</span>
 
             <select id="exchange">
-              <option value="bingx">
-                BingX
-              </option>
-              <option value="binance">
-                Binance
-              </option>
-              <option value="bybit">
-                Bybit
-              </option>
-              <option value="okx">
-                OKX
-              </option>
+              <option value="bingx" selected>BingX</option>
+              <option value="binance">Binance</option>
+              <option value="bybit">Bybit</option>
+              <option value="okx">OKX</option>
             </select>
+
           </label>
 
           <label>
             <span>Tipo de mercado</span>
 
             <select id="market">
-              <option value="perpetual">
-                Perpetuos
-              </option>
-              <option value="spot">
-                Spot
-              </option>
+              <option value="perpetual">Perpetuos</option>
+              <option value="spot">Spot</option>
             </select>
+
           </label>
+
         </div>
 
         <p class="muted">
-          GOLD (XAU) se consulta exclusivamente
-          en BingX. El escáner funciona con
-          la página activa. Las notificaciones
-          con la página cerrada requieren
-          un servicio push en el servidor.
+          GOLD (XAU) se consulta exclusivamente en BingX.
+          El escáner analiza los siete activos desde la
+          temporalidad diaria hasta un minuto.
         </p>
+
+        <p class="muted">
+          Los niveles de entrada, stop loss, TP1 y TP2
+          son propuestas técnicas y no representan
+          órdenes ejecutadas. Las notificaciones con
+          la página completamente cerrada requieren
+          un servicio push adicional.
+        </p>
+
       </section>
 
       <footer>
-        CRYPTOLEXUZ PRO · Análisis técnico
-        informativo. No ejecuta operaciones.
+        CRYPTOLEXUZ PRO · Análisis técnico informativo.
+        No ejecuta operaciones ni garantiza resultados.
       </footer>
 
     </main>
+
   </div>
 
   <script>
@@ -630,45 +747,59 @@
       const close =
         document.getElementById("menuClose");
 
-      if(!sidebar||!backdrop||!toggle||!close) {
+      if (
+        !sidebar ||
+        !backdrop ||
+        !toggle ||
+        !close
+      ) {
         return;
       }
 
       function setOpen(open) {
-        sidebar.classList.toggle("is-open",open);
-
-        toggle.setAttribute(
-          "aria-expanded",String(open)
+        sidebar.classList.toggle(
+          "is-open",
+          open
         );
 
-        backdrop.hidden=!open;
+        toggle.setAttribute(
+          "aria-expanded",
+          String(open)
+        );
+
+        backdrop.hidden = !open;
 
         document.body.classList.toggle(
-          "menu-open",open
+          "menu-open",
+          open
         );
       }
 
-      toggle.addEventListener("click",()=>{
+      toggle.addEventListener("click", () => {
         setOpen(
-          !sidebar.classList.contains("is-open")
+          !sidebar.classList.contains(
+            "is-open"
+          )
         );
       });
 
-      close.addEventListener(
-        "click",()=>setOpen(false)
-      );
+      close.addEventListener("click", () => {
+        setOpen(false);
+      });
 
-      backdrop.addEventListener(
-        "click",()=>setOpen(false)
-      );
+      backdrop.addEventListener("click", () => {
+        setOpen(false);
+      });
 
-      sidebar.querySelectorAll(".side-nav a")
-        .forEach(a=>{
-          a.addEventListener(
-            "click",()=>setOpen(false)
-          );
+      sidebar
+        .querySelectorAll(".side-nav a")
+        .forEach(link => {
+          link.addEventListener("click", () => {
+            setOpen(false);
+          });
         });
     })();
   </script>
+
 </body>
 </html>
