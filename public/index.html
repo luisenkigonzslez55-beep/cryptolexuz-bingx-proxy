@@ -11,23 +11,79 @@
   <title>CRYPTOLEXUZ | Trading Terminal</title>
 
   <meta name="description"
-        content="CRYPTOLEXUZ: terminal de análisis técnico de criptomonedas con datos de BingX.">
+        content="CRYPTOLEXUZ - Terminal de análisis técnico de criptomonedas.">
 
-  <link rel="stylesheet" href="styles.css?v=4">
+  <link rel="stylesheet" href="styles.css?v=5">
 
   <script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+
+  <style>
+    /* Encabezado con logo 3D completo */
+    .app-header {
+      display: block;
+      padding: 8px 10px;
+      background: #050912;
+    }
+
+    .brand {
+      display: block;
+      width: 100%;
+    }
+
+    .brand-logo-wrap {
+      display: block;
+      width: 100%;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .logo-3d {
+      display: block;
+      width: 100%;
+      height: auto;
+      max-height: 220px;
+      object-fit: contain;
+      filter: drop-shadow(
+        0 0 8px rgba(160, 65, 255, .45)
+      );
+    }
+
+    .brand-text {
+      display: none;
+    }
+
+    .header-actions {
+      display: flex;
+      justify-content: flex-end;
+      padding: 2px 6px;
+    }
+
+    @media (max-width: 650px) {
+      .app-header {
+        padding: 6px;
+      }
+
+      .logo-3d {
+        max-height: 135px;
+      }
+
+      .connection {
+        font-size: 10px;
+      }
+    }
+  </style>
 </head>
 
 <body>
 
-  <!-- ENCABEZADO CRYPTOLEXUZ -->
+  <!-- LOGO CRYPTOLEXUZ 3D -->
   <header class="app-header">
 
     <div class="brand">
 
       <div class="brand-logo-wrap">
         <img
-          src="logo-cryptolexuz.png"
+          src="file_00000000600881fb8ee48d81ba77b640.png"
           alt="CRYPTOLEXUZ 3D"
           class="logo-3d"
           onerror="this.style.display='none';document.querySelector('.brand-text').style.display='block';"
@@ -35,8 +91,7 @@
       </div>
 
       <div class="brand-text">
-        <strong>CRYPTO<span>LEXUZ</span></strong>
-        <small>BINGX MARKET TERMINAL</small>
+        <strong>CRYPTOLEXUZ</strong>
       </div>
 
     </div>
@@ -51,16 +106,18 @@
 
   <main class="app-container">
 
-    <!-- PRECIO Y MERCADO -->
+    <!-- MERCADO -->
     <section class="market-card">
 
       <div class="market-top">
 
         <div class="market-symbol">
+
           <span class="coin-icon">₿</span>
 
           <label class="compact-field">
             <span>Activo</span>
+
             <select id="symbol">
               <option value="BTC-USDT">BTC/USDT</option>
               <option value="ETH-USDT">ETH/USDT</option>
@@ -69,11 +126,14 @@
               <option value="XRP-USDT">XRP/USDT</option>
               <option value="DOGE-USDT">DOGE/USDT</option>
             </select>
+
           </label>
+
         </div>
 
         <label class="compact-field interval-field">
           <span>Temporalidad</span>
+
           <select id="interval">
             <option value="5m">5m</option>
             <option value="15m" selected>15m</option>
@@ -113,14 +173,15 @@
         </div>
 
       </div>
+
     </section>
 
-    <!-- INDICADORES -->
+    <!-- BOTONES DE INDICADORES -->
     <section class="indicator-toolbar">
 
       <div class="toolbar-head">
         <strong>Indicadores</strong>
-        <small>Selecciona los que quieras visualizar</small>
+        <small>Activa los que quieras visualizar</small>
       </div>
 
       <div id="indicatorButtons"
@@ -226,13 +287,16 @@
 
     </section>
 
-    <!-- GRÁFICA PRINCIPAL -->
+    <!-- GRÁFICA DE VELAS -->
     <section class="chart-card">
 
       <div class="chart-heading">
 
         <div>
-          <h2 id="chartTitle">BTC-USDT · 15m</h2>
+          <h2 id="chartTitle">
+            BTC-USDT · 15m
+          </h2>
+
           <small>VELAS JAPONESAS</small>
         </div>
 
@@ -249,7 +313,7 @@
         <div id="chart"></div>
       </div>
 
-      <!-- VOLUMEN SEPARADO -->
+      <!-- VOLUMEN INDEPENDIENTE -->
       <div class="volume-section">
 
         <div class="volume-heading">
@@ -267,7 +331,7 @@
 
     </section>
 
-    <!-- INDICADORES TÉCNICOS -->
+    <!-- RESUMEN DE INDICADORES -->
     <section class="indicator-summary">
 
       <div class="section-heading">
@@ -299,17 +363,19 @@
 
       </div>
 
-      <p id="indicatorReadout" class="indicator-readout">
+      <p id="indicatorReadout"
+         class="indicator-readout">
         Esperando cálculos...
       </p>
 
     </section>
 
-    <!-- SEÑALES -->
+    <!-- MONITOR DE SEÑALES -->
     <section class="signals-section">
 
       <div class="section-heading">
         <h2>Monitor de señales</h2>
+
         <span id="engineState" class="pill">
           INICIANDO
         </span>
@@ -356,7 +422,9 @@
       </div>
 
       <div class="table-wrap">
+
         <table>
+
           <thead>
             <tr>
               <th>Hora</th>
@@ -376,15 +444,18 @@
               </td>
             </tr>
           </tbody>
+
         </table>
+
       </div>
 
     </section>
 
-    <!-- DATOS ADICIONALES -->
+    <!-- INFORMACIÓN -->
     <section class="details">
 
       <article>
+
         <h2>Libro de precios</h2>
 
         <p>
@@ -396,9 +467,11 @@
           Ask
           <strong id="ask">—</strong>
         </p>
+
       </article>
 
       <article>
+
         <h2>Estado del servidor</h2>
 
         <p id="status">
@@ -409,6 +482,7 @@
           Última actualización:
           <strong id="updated">—</strong>
         </small>
+
       </article>
 
     </section>
@@ -428,22 +502,26 @@
             Spot BingX
           </option>
         </select>
+
       </label>
 
     </section>
 
     <footer>
+
       CRYPTOLEXUZ · Monitor experimental
 
       <p>
-        Análisis informativo. No ejecuta operaciones.
+        Análisis informativo.
+        No ejecuta operaciones.
         Las señales no están validadas.
       </p>
+
     </footer>
 
   </main>
 
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 
 </body>
 </html>
