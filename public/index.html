@@ -1,527 +1,318 @@
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport"
-        content="width=device-width, initial-scale=1">
-
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#080d1b">
-
   <title>CRYPTOLEXUZ | Trading Terminal</title>
-
-  <meta name="description"
-        content="CRYPTOLEXUZ - Terminal de análisis técnico de criptomonedas.">
-
-  <link rel="stylesheet" href="styles.css?v=5">
-
+  <link rel="stylesheet" href="styles.css?v=6">
   <script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
 
   <style>
-    /* Encabezado con logo 3D completo */
     .app-header {
       display: block;
       padding: 8px 10px;
       background: #050912;
     }
-
-    .brand {
-      display: block;
-      width: 100%;
-    }
-
+    .brand { display: block; width: 100%; }
     .brand-logo-wrap {
       display: block;
       width: 100%;
       max-width: 1000px;
       margin: 0 auto;
     }
-
     .logo-3d {
       display: block;
       width: 100%;
       height: auto;
       max-height: 220px;
       object-fit: contain;
-      filter: drop-shadow(
-        0 0 8px rgba(160, 65, 255, .45)
-      );
+      filter: drop-shadow(0 0 8px rgba(160,65,255,.45));
     }
-
-    .brand-text {
-      display: none;
-    }
-
+    .brand-text { display: none; }
     .header-actions {
       display: flex;
       justify-content: flex-end;
       padding: 2px 6px;
     }
 
-    @media (max-width: 650px) {
-      .app-header {
-        padding: 6px;
-      }
+    .chart-controls {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 10px 0;
+    }
+    .chart-controls button {
+      border: 1px solid #52658a;
+      background: #111d35;
+      color: #e5eaff;
+      border-radius: 9px;
+      padding: 10px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      min-height: 40px;
+    }
+    .chart-controls button[aria-pressed="true"] {
+      background: #6434a9;
+      border-color: #bb83ff;
+      color: #fff;
+    }
+    .chart-controls .chart-control-note {
+      color: #9fb1d0;
+      font-size: 11px;
+      flex-basis: 100%;
+    }
 
-      .logo-3d {
-        max-height: 135px;
-      }
-
-      .connection {
-        font-size: 10px;
-      }
+    @media (max-width:650px) {
+      .app-header { padding: 6px; }
+      .logo-3d { max-height: 135px; }
+      .connection { font-size: 10px; }
+      .chart-controls button { flex: 1; }
     }
   </style>
 </head>
 
 <body>
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-logo-wrap">
+      <img
+        src="file_00000000600881fb8ee48d81ba77b640.png"
+        alt="CRYPTOLEXUZ 3D"
+        class="logo-3d"
+        onerror="this.style.display='none';document.querySelector('.brand-text').style.display='block';"
+      >
+    </div>
+    <div class="brand-text">
+      <strong>CRYPTOLEXUZ</strong>
+    </div>
+  </div>
+  <div class="header-actions">
+    <span id="connection" class="connection">● Conectando...</span>
+  </div>
+</header>
 
-  <!-- LOGO CRYPTOLEXUZ 3D -->
-  <header class="app-header">
+<main class="app-container">
 
-    <div class="brand">
-
-      <div class="brand-logo-wrap">
-        <img
-          src="file_00000000600881fb8ee48d81ba77b640.png"
-          alt="CRYPTOLEXUZ 3D"
-          class="logo-3d"
-          onerror="this.style.display='none';document.querySelector('.brand-text').style.display='block';"
-        >
+  <section class="market-card">
+    <div class="market-top">
+      <div class="market-symbol">
+        <span class="coin-icon">₿</span>
+        <label class="compact-field">
+          <span>Activo</span>
+          <select id="symbol">
+            <option value="BTC-USDT">BTC/USDT</option>
+            <option value="ETH-USDT">ETH/USDT</option>
+            <option value="BNB-USDT">BNB/USDT</option>
+            <option value="SOL-USDT">SOL/USDT</option>
+            <option value="XRP-USDT">XRP/USDT</option>
+            <option value="DOGE-USDT">DOGE/USDT</option>
+          </select>
+        </label>
       </div>
 
-      <div class="brand-text">
-        <strong>CRYPTOLEXUZ</strong>
-      </div>
+      <label class="compact-field interval-field">
+        <span>Temporalidad</span>
+        <select id="interval">
+          <option value="5m">5 minutos</option>
+          <option value="15m" selected>15 minutos</option>
+          <option value="30m">30 minutos</option>
+          <option value="1h">1 hora</option>
+          <option value="4h">4 horas</option>
+          <option value="1d">1 día</option>
+          <option value="1w">1 semana</option>
+        </select>
+      </label>
 
+      <div class="market-price">
+        <strong id="price">—</strong>
+        <span id="change">—</span>
+      </div>
     </div>
 
-    <div class="header-actions">
-      <span id="connection" class="connection">
-        ● Conectando...
+    <div class="market-bottom">
+      <div><span>Máximo 24h</span><strong id="high">—</strong></div>
+      <div><span>Mínimo 24h</span><strong id="low">—</strong></div>
+      <div><span>Apertura</span><strong id="open">—</strong></div>
+      <div><span>Volumen 24h</span><strong id="volume">—</strong></div>
+    </div>
+  </section>
+
+  <section class="indicator-toolbar">
+    <div class="toolbar-head">
+      <strong>Indicadores</strong>
+      <small>Activa los que quieras visualizar</small>
+    </div>
+
+    <div id="indicatorButtons" class="indicator-buttons">
+      <button type="button" data-indicator="ema21" aria-pressed="true">EMA 21</button>
+      <button type="button" data-indicator="ma55" aria-pressed="true">MA 55</button>
+      <button type="button" data-indicator="ma100" aria-pressed="false">MA 100</button>
+      <button type="button" data-indicator="ma200" aria-pressed="false">MA 200</button>
+      <button type="button" data-indicator="rsi" aria-pressed="false">RSI 14</button>
+      <button type="button" data-indicator="adx" aria-pressed="false">ADX 14</button>
+      <button type="button" data-indicator="support" aria-pressed="false">Soportes</button>
+      <button type="button" data-indicator="resistance" aria-pressed="false">Resistencias</button>
+      <button type="button" data-indicator="liquidity" disabled>Liquidez · pronto</button>
+      <button type="button" data-indicator="sweeps" disabled>Barridos · pronto</button>
+      <button type="button" data-indicator="fvg" disabled>FVG · pronto</button>
+      <button type="button" data-indicator="ifvg" disabled>IFVG · pronto</button>
+      <button type="button" data-indicator="squeeze" disabled>Squeeze · pronto</button>
+      <button type="button" data-indicator="blocks" disabled>Order Blocks · pronto</button>
+      <button type="button" data-indicator="wedge" disabled>Cuña · pronto</button>
+      <button type="button" data-indicator="range8" disabled>Rango 8 AM · pronto</button>
+    </div>
+  </section>
+
+  <section class="chart-card">
+    <div class="chart-heading">
+      <div>
+        <h2 id="chartTitle">BTC-USDT · 15m</h2>
+        <small>VELAS JAPONESAS</small>
+      </div>
+      <button id="refresh" class="refresh-button" type="button">↻ Actualizar</button>
+    </div>
+
+    <div class="chart-controls">
+      <button
+        id="chartNavigation"
+        type="button"
+        aria-pressed="false"
+      >🔒 Desbloquear gráfica</button>
+
+      <button id="chartReset" type="button">
+        ⟲ Restablecer vista
+      </button>
+
+      <span id="chartTouchStatus" class="chart-control-note">
+        Gráfica bloqueada: desliza la página con un dedo.
       </span>
     </div>
 
-  </header>
+    <div class="chart-area">
+      <div id="chart"></div>
+    </div>
 
-  <main class="app-container">
-
-    <!-- MERCADO -->
-    <section class="market-card">
-
-      <div class="market-top">
-
-        <div class="market-symbol">
-
-          <span class="coin-icon">₿</span>
-
-          <label class="compact-field">
-            <span>Activo</span>
-
-            <select id="symbol">
-              <option value="BTC-USDT">BTC/USDT</option>
-              <option value="ETH-USDT">ETH/USDT</option>
-              <option value="BNB-USDT">BNB/USDT</option>
-              <option value="SOL-USDT">SOL/USDT</option>
-              <option value="XRP-USDT">XRP/USDT</option>
-              <option value="DOGE-USDT">DOGE/USDT</option>
-            </select>
-
-          </label>
-
-        </div>
-
-        <label class="compact-field interval-field">
-          <span>Temporalidad</span>
-
-          <select id="interval">
-            <option value="5m">5m</option>
-            <option value="15m" selected>15m</option>
-            <option value="30m">30m</option>
-            <option value="1h">1h</option>
-            <option value="4h">4h</option>
-          </select>
-        </label>
-
-        <div class="market-price">
-          <strong id="price">—</strong>
-          <span id="change">—</span>
-        </div>
-
+    <div class="volume-section">
+      <div class="volume-heading">
+        <strong>Volumen</strong>
+        <span id="volumeLabel">BTC</span>
       </div>
-
-      <div class="market-bottom">
-
-        <div>
-          <span>Máximo 24h</span>
-          <strong id="high">—</strong>
-        </div>
-
-        <div>
-          <span>Mínimo 24h</span>
-          <strong id="low">—</strong>
-        </div>
-
-        <div>
-          <span>Apertura</span>
-          <strong id="open">—</strong>
-        </div>
-
-        <div>
-          <span>Volumen 24h</span>
-          <strong id="volume">—</strong>
-        </div>
-
-      </div>
-
-    </section>
-
-    <!-- BOTONES DE INDICADORES -->
-    <section class="indicator-toolbar">
-
-      <div class="toolbar-head">
-        <strong>Indicadores</strong>
-        <small>Activa los que quieras visualizar</small>
-      </div>
-
-      <div id="indicatorButtons"
-           class="indicator-buttons">
-
-        <button type="button"
-                data-indicator="ema21"
-                aria-pressed="true">
-          EMA 21
-        </button>
-
-        <button type="button"
-                data-indicator="ma55"
-                aria-pressed="true">
-          MA 55
-        </button>
-
-        <button type="button"
-                data-indicator="ma100"
-                aria-pressed="false">
-          MA 100
-        </button>
-
-        <button type="button"
-                data-indicator="ma200"
-                aria-pressed="false">
-          MA 200
-        </button>
-
-        <button type="button"
-                data-indicator="rsi"
-                aria-pressed="false">
-          RSI 14
-        </button>
-
-        <button type="button"
-                data-indicator="adx"
-                aria-pressed="false">
-          ADX 14
-        </button>
-
-        <button type="button"
-                data-indicator="support"
-                aria-pressed="false">
-          Soportes
-        </button>
-
-        <button type="button"
-                data-indicator="resistance"
-                aria-pressed="false">
-          Resistencias
-        </button>
-
-        <button type="button"
-                data-indicator="liquidity"
-                disabled>
-          Liquidez · pronto
-        </button>
-
-        <button type="button"
-                data-indicator="sweeps"
-                disabled>
-          Barridos · pronto
-        </button>
-
-        <button type="button"
-                data-indicator="fvg"
-                disabled>
-          FVG · pronto
-        </button>
-
-        <button type="button"
-                data-indicator="ifvg"
-                disabled>
-          IFVG · pronto
-        </button>
-
-        <button type="button"
-                data-indicator="squeeze"
-                disabled>
-          Squeeze · pronto
-        </button>
-
-        <button type="button"
-                data-indicator="blocks"
-                disabled>
-          Order Blocks · pronto
-        </button>
-
-        <button type="button"
-                data-indicator="wedge"
-                disabled>
-          Cuña · pronto
-        </button>
-
-        <button type="button"
-                data-indicator="range8"
-                disabled>
-          Rango 8 AM · pronto
-        </button>
-
-      </div>
-
-    </section>
-
-    <!-- GRÁFICA DE VELAS -->
-    <section class="chart-card">
-
-      <div class="chart-heading">
-
-        <div>
-          <h2 id="chartTitle">
-            BTC-USDT · 15m
-          </h2>
-
-          <small>VELAS JAPONESAS</small>
-        </div>
-
-        <button
-          id="refresh"
-          class="refresh-button"
-          type="button">
-          ↻ Actualizar
-        </button>
-
-      </div>
-
-      <div class="chart-area">
-        <div id="chart"></div>
-      </div>
-
-      <!-- VOLUMEN INDEPENDIENTE -->
-      <div class="volume-section">
-
-        <div class="volume-heading">
-          <strong>Volumen</strong>
-          <span id="volumeLabel">BTC</span>
-        </div>
-
-        <div id="volumeChart"></div>
-
-      </div>
-
-      <p id="message" class="chart-message">
-        Cargando datos de BingX...
-      </p>
-
-    </section>
-
-    <!-- RESUMEN DE INDICADORES -->
-    <section class="indicator-summary">
-
-      <div class="section-heading">
-        <h2>Indicadores técnicos</h2>
-        <small>Última vela cerrada</small>
-      </div>
-
-      <div class="indicator-values">
-
-        <div>
-          <span class="purple">EMA 21</span>
-          <strong id="ema21Value">—</strong>
-        </div>
-
-        <div>
-          <span class="orange">MA 55</span>
-          <strong id="ma55Value">—</strong>
-        </div>
-
-        <div>
-          <span class="blue">RSI 14</span>
-          <strong id="rsiValue">—</strong>
-        </div>
-
-        <div>
-          <span class="green">ADX 14</span>
-          <strong id="adxValue">—</strong>
-        </div>
-
-      </div>
-
-      <p id="indicatorReadout"
-         class="indicator-readout">
-        Esperando cálculos...
-      </p>
-
-    </section>
-
-    <!-- MONITOR DE SEÑALES -->
-    <section class="signals-section">
-
-      <div class="section-heading">
-        <h2>Monitor de señales</h2>
-
-        <span id="engineState" class="pill">
-          INICIANDO
-        </span>
-      </div>
-
-      <div class="signal-grid">
-
-        <article class="signal-card">
-
-          <h3>BTC-USDT / 5 minutos</h3>
-
-          <strong id="state5" class="state">
-            Esperando datos
-          </strong>
-
-          <p id="detail5">—</p>
-          <small id="metrics5">—</small>
-
-        </article>
-
-        <article class="signal-card">
-
-          <h3>BTC-USDT / 15 minutos</h3>
-
-          <strong id="state15" class="state">
-            Esperando datos
-          </strong>
-
-          <p id="detail15">—</p>
-          <small id="metrics15">—</small>
-
-        </article>
-
-      </div>
-
-    </section>
-
-    <!-- HISTORIAL -->
-    <section class="history-section">
-
-      <div class="section-heading">
-        <h2>Historial de señales</h2>
-        <small>Últimas 30</small>
-      </div>
-
-      <div class="table-wrap">
-
-        <table>
-
-          <thead>
-            <tr>
-              <th>Hora</th>
-              <th>TF</th>
-              <th>Activo</th>
-              <th>Señal</th>
-              <th>Precio</th>
-              <th>Motivo</th>
-              <th>Estado</th>
-            </tr>
-          </thead>
-
-          <tbody id="signalLog">
-            <tr>
-              <td colspan="7">
-                Todavía no hay señales registradas.
-              </td>
-            </tr>
-          </tbody>
-
-        </table>
-
-      </div>
-
-    </section>
-
-    <!-- INFORMACIÓN -->
-    <section class="details">
-
-      <article>
-
-        <h2>Libro de precios</h2>
-
-        <p>
-          Bid
-          <strong id="bid">—</strong>
-        </p>
-
-        <p>
-          Ask
-          <strong id="ask">—</strong>
-        </p>
-
+      <div id="volumeChart"></div>
+    </div>
+
+    <p id="message" class="chart-message">
+      Cargando datos de BingX...
+    </p>
+  </section>
+
+  <section class="indicator-summary">
+    <div class="section-heading">
+      <h2>Indicadores técnicos</h2>
+      <small>Última vela cerrada</small>
+    </div>
+
+    <div class="indicator-values">
+      <div><span class="purple">EMA 21</span><strong id="ema21Value">—</strong></div>
+      <div><span class="orange">MA 55</span><strong id="ma55Value">—</strong></div>
+      <div><span class="blue">RSI 14</span><strong id="rsiValue">—</strong></div>
+      <div><span class="green">ADX 14</span><strong id="adxValue">—</strong></div>
+    </div>
+
+    <p id="indicatorReadout" class="indicator-readout">
+      Esperando cálculos...
+    </p>
+  </section>
+
+  <section class="signals-section">
+    <div class="section-heading">
+      <h2>Monitor de señales</h2>
+      <span id="engineState" class="pill">INICIANDO</span>
+    </div>
+
+    <div class="signal-grid">
+      <article class="signal-card">
+        <h3>BTC-USDT / 5 minutos</h3>
+        <strong id="state5" class="state">Esperando datos</strong>
+        <p id="detail5">—</p>
+        <small id="metrics5">—</small>
       </article>
 
-      <article>
-
-        <h2>Estado del servidor</h2>
-
-        <p id="status">
-          Comprobando conexión...
-        </p>
-
-        <small>
-          Última actualización:
-          <strong id="updated">—</strong>
-        </small>
-
+      <article class="signal-card">
+        <h3>BTC-USDT / 15 minutos</h3>
+        <strong id="state15" class="state">Esperando datos</strong>
+        <p id="detail15">—</p>
+        <small id="metrics15">—</small>
       </article>
+    </div>
+  </section>
 
-    </section>
+  <section class="history-section">
+    <div class="section-heading">
+      <h2>Historial de señales</h2>
+      <small>Últimas 30</small>
+    </div>
 
-    <!-- TIPO DE MERCADO -->
-    <section class="market-settings">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Hora</th>
+            <th>TF</th>
+            <th>Activo</th>
+            <th>Señal</th>
+            <th>Precio</th>
+            <th>Motivo</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="signalLog">
+          <tr>
+            <td colspan="7">Todavía no hay señales registradas.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 
-      <label>
-        Tipo de mercado
+  <section class="details">
+    <article>
+      <h2>Libro de precios</h2>
+      <p>Bid <strong id="bid">—</strong></p>
+      <p>Ask <strong id="ask">—</strong></p>
+    </article>
 
-        <select id="market">
-          <option value="perpetual">
-            Perpetuos BingX
-          </option>
+    <article>
+      <h2>Estado del servidor</h2>
+      <p id="status">Comprobando conexión...</p>
+      <small>Última actualización:
+        <strong id="updated">—</strong>
+      </small>
+    </article>
+  </section>
 
-          <option value="spot">
-            Spot BingX
-          </option>
-        </select>
+  <section class="market-settings">
+    <label>
+      Tipo de mercado
+      <select id="market">
+        <option value="perpetual">Perpetuos BingX</option>
+        <option value="spot">Spot BingX</option>
+      </select>
+    </label>
+  </section>
 
-      </label>
+  <footer>
+    CRYPTOLEXUZ · Monitor experimental
+    <p>
+      Análisis informativo. No ejecuta operaciones.
+      Las señales no están validadas.
+    </p>
+  </footer>
+</main>
 
-    </section>
-
-    <footer>
-
-      CRYPTOLEXUZ · Monitor experimental
-
-      <p>
-        Análisis informativo.
-        No ejecuta operaciones.
-        Las señales no están validadas.
-      </p>
-
-    </footer>
-
-  </main>
-
-  <script src="app.js?v=5"></script>
-
+<script src="app.js?v=6"></script>
 </body>
 </html>
