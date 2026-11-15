@@ -1,571 +1,475 @@
 
 /*
- CRYPTOLEXUZ PRO — APP.JS V10
- Velas en vivo por WebSocket
- Temporalidades: 1m, 5m, 15m, 30m,
- 1h, 4h, 1d y 1w
- Indicadores, señales y zonas conservados
+ CRYPTOLEXUZ PRO — APP.JS V11
+ Escáner multitemporal: 1d, 4h, 1h,
+ 30m, 15m, 5m y 1m.
+ BTC, ETH, BNB, SOL, XRP, DOGE,
+ GOLD (XAU) de BingX.
+ Compatible con server.js V13.
 */
 "use strict";
 
 (() => {
+  const $ = id => document.getElementById(id);
 
-const $ = id => document.getElementById(id);
+  const C = {
+    green: "#00f5a0",
+    red: "#ff476c",
+    purple: "#bb52ff",
+    orange: "#ff9a35",
+    blue: "#36c5ff",
+    yellow: "#ffe15a",
+    muted: "#a5b0cf"
+  };
 
-const C = {
-  green: '#00f5a0',
-  red: '#ff476c',
-  purple: '#bb52ff',
-  orange: '#ff9a35',
-  blue: '#36c5ff',
-  yellow: '#ffe15a',
-  muted: '#a5b0cf'
-};
+  const TIMEFRAMES = [
+    "1d", "4h", "1h", "30m",
+    "15m", "5m", "1m"
+  ];
 
-const enabled = new Set([
-  'ema21', 'ma55', 'rsi', 'fvg'
-]);
+  const SECONDS = {
+    "1m": 60,
+    "3m": 180,
+    "5m": 300,
+    "15m": 900,
+    "30m": 1800,
+    "1h": 3600,
+    "4h": 14400,
+    "1d": 86400,
+    "1w": 604800
+  };
 
-const supported = new Set([
-  'ema21', 'ma55', 'ma100', 'ma200',
-  'rsi', 'adx', 'fvg', 'ifvg',
-  'liquidity', 'sweeps',
-  'support', 'resistance'
-]);
+  const CRYPTOS = [
+    "BTC-USDT",
+    "ETH-USDT",
+    "BNB-USDT",
+    "SOL-USDT",
+    "XRP-USDT",
+    "DOGE-USDT"
+  ];
 
-const charts = {};
-const series = {};
-const maSeries = {};
-const drawnLines = [];
+  const GOLD_CANDIDATES = [
+    "XAU-USDT",
+    "GOLD-USDT"
+  ];
 
-let rows = [];
-let zones = [];
-let pivots = [];
-let sweeps = [];
+  const supported = new Set([
+    "ema21", "ma55", "ma100",
+    "ma200", "rsi", "adx",
+    "fvg", "ifvg", "liquidity",
+    "sweeps", "support", "resistance"
+  ]);
 
-let chartUnlocked = false;
-let loading = false;
-let requestId = 0;
+  const enabled = new Set([
+    "ema21", "ma55", "rsi", "fvg"
+  ]);
 
-let lastSymbol = '';
-let lastInterval = '';
-let lastMarket = '';
-let lastExchange = '';
+  const charts = {};
+  const series = {};
+  const maSeries = {};
+  const drawnLines = [];
 
-let monitorBusy = false;
-let lastMonitorAt = 0;
-let currentRSIText = '';
+  const cache = new Map();
+  const alertHistory = new Map();
+  const signalHistory = [];
 
-let ws = null;
-let wsTimer = null;
-let wsGeneration = 0;
+  let rows = [];
+  let zones = [];
+  let pivots = [];
+  let sweeps = [];
 
-let lastWsPriceAt = 0;
-let lastPrice = null;
-let lastPriceSource = '';
+  let activeKey = "";
+  let chartUnlocked = false;
+  let loading = false;
+  let requestId = 0;
 
-let tickerTimer = null;
-let chartTimer = null;
+  let ws = null;
+  let wsGeneration = 0;
+  let wsTimer = null;
+  let lastWsPriceAt = 0;
+  let lastLiveEvent = null;
 
-let lastLiveEvent = null;
-let lastLiveAppliedAt = 0;
-let lastIndicatorUpdateAt = 0;
-let indicatorTimer = null;
+  let indicatorTimer = null;
+  let lastIndicatorAt = 0;
+  let currentRSIText = "";
 
-const signalHistory = [];
-const lastStates = {};
+  let monitorBusy = false;
+  let lastMonitorAt = 0;
 
-const num = (v, d = 2) => {
-  if (
-    v === null ||
-    v === undefined ||
-    v === ''
-  ) return '—';
+  let scanBusy = false;
+  let scanLastAt = 0;
+  let scanResults = [];
+  let scanErrors = [];
 
-  const n = Number(v);
+  let chartTimer = null;
+  let tickerTimer = null;
+  let scanTimer = null;
 
-  return Number.isFinite(n)
-    ? n.toLocaleString('en-US', {
+  const num = (v, d = 2) => {
+    if (
+      v === null ||
+      v === undefined ||
+      v === "" ||
+      !Number.isFinite(Number(v))
+    ) return "—";
+
+    return Number(v).toLocaleString(
+      "en-US", {
         minimumFractionDigits: d,
         maximumFractionDigits: d
-      })
-    : '—';
-};
-
-const value = (id, text) => {
-  const el = $(id);
-  if (el) el.textContent = text;
-};
-
-const selected = () => ({
-  exchange: (
-    $('exchange')?.value || 'bingx'
-  ).toLowerCase(),
-
-  symbol: $('symbol')?.value || 'BTC-USDT',
-
-  tf: $('interval')?.value || '15m',
-
-  market: $('market')?.value || 'perpetual'
-});
-
-const sameSelection = a => {
-  const b = selected();
-
-  return (
-    a.exchange === b.exchange &&
-    a.market === b.market &&
-    a.symbol === b.symbol &&
-    a.tf === b.tf
-  );
-};
-
-const setConnection = (
-  text,
-  color = C.green
-) => {
-  const el = $('connection');
-
-  if (el) {
-    el.textContent = '● ' + text;
-    el.style.color = color;
-  }
-};
-
-function toSeconds(t) {
-  const n =
-    typeof t === 'string' &&
-    !/^\d+$/.test(t)
-      ? new Date(t).getTime()
-      : Number(t);
-
-  if (!Number.isFinite(n)) return NaN;
-
-  return n > 1e12
-    ? Math.floor(n / 1000)
-    : Math.floor(n);
-}
-
-function normalize(raw) {
-  let data = raw;
-
-  if (!Array.isArray(data)) {
-    data =
-      data?.data?.data ??
-      data?.data?.list ??
-      data?.data?.candles ??
-      data?.data ??
-      data?.list ??
-      data?.candles ??
-      [];
-  }
-
-  if (!Array.isArray(data)) return [];
-
-  const out = [];
-
-  for (const x of data) {
-    const a = Array.isArray(x);
-
-    const time = toSeconds(
-      a
-        ? x[0]
-        : x.time ??
-          x.timestamp ??
-          x.openTime ??
-          x.t
+      }
     );
-
-    const open = Number(
-      a ? x[1] : x.open ?? x.o
-    );
-
-    const high = Number(
-      a ? x[2] : x.high ?? x.h
-    );
-
-    const low = Number(
-      a ? x[3] : x.low ?? x.l
-    );
-
-    const close = Number(
-      a ? x[4] : x.close ?? x.c
-    );
-
-    const volume = Number(
-      a
-        ? x[5]
-        : x.volume ?? x.vol ?? x.v ?? 0
-    );
-
-    if (
-      [time, open, high, low, close]
-        .every(Number.isFinite) &&
-      time > 0 &&
-      high >= Math.max(open, close) &&
-      low <= Math.min(open, close)
-    ) {
-      out.push({
-        time,
-        open,
-        high,
-        low,
-        close,
-        volume: Number.isFinite(volume)
-          ? volume
-          : 0
-      });
-    }
-  }
-
-  out.sort((a, b) => a.time - b.time);
-
-  return out.filter(
-    (x, i, a) =>
-      !i || x.time !== a[i - 1].time
-  );
-}
-
-/* ====================================
-   TEMPORALIDADES Y VELAS EN VIVO
-==================================== */
-
-const TF_SECONDS = {
-  '1m': 60,
-  '3m': 180,
-  '5m': 300,
-  '15m': 900,
-  '30m': 1800,
-  '1h': 3600,
-  '2h': 7200,
-  '4h': 14400,
-  '6h': 21600,
-  '8h': 28800,
-  '12h': 43200,
-  '1d': 86400,
-  '3d': 259200,
-  '1w': 604800
-};
-
-function candleStart(timestamp, tf) {
-  const seconds = TF_SECONDS[tf];
-
-  if (!seconds) return NaN;
-
-  // Semanas alineadas al lunes UTC.
-  if (tf === '1w') {
-    const mondayOffset = 4 * 86400;
-
-    return (
-      Math.floor(
-        (timestamp - mondayOffset) /
-        seconds
-      ) * seconds +
-      mondayOffset
-    );
-  }
-
-  return Math.floor(
-    timestamp / seconds
-  ) * seconds;
-}
-
-function volumeBar(candle) {
-  return {
-    time: candle.time,
-    value: candle.volume,
-    color: candle.close >= candle.open
-      ? 'rgba(0,245,160,.70)'
-      : 'rgba(255,71,108,.70)'
   };
-}
 
-function scheduleIndicators() {
-  if (indicatorTimer) return;
+  const value = (id, text) => {
+    const el = $(id);
+    if (el) el.textContent = text;
+  };
 
-  const delay = Math.max(
-    0,
-    1500 - (
-      Date.now() - lastIndicatorUpdateAt
-    )
-  );
+  function selected() {
+    const symbol =
+      $("symbol")?.value || "BTC-USDT";
 
-  indicatorTimer = setTimeout(() => {
-    indicatorTimer = null;
-    lastIndicatorUpdateAt = Date.now();
+    const gold =
+      GOLD_CANDIDATES.includes(symbol);
 
-    if (rows.length) {
-      updateIndicators();
-    }
-  }, delay);
-}
+    return {
+      exchange: gold
+        ? "bingx"
+        : ($("exchange")?.value || "bingx")
+            .toLowerCase(),
 
-function applyLiveCandle(
-  price,
-  timestamp = Date.now(),
-  source = 'websocket'
-) {
-  if (
-    !series.price ||
-    !rows.length ||
-    !Number.isFinite(price) ||
-    price <= 0
-  ) return;
+      symbol,
 
-  const selection = selected();
+      tf: $("interval")?.value || "15m",
 
-  if (
-    selection.symbol !== lastSymbol ||
-    selection.tf !== lastInterval ||
-    selection.market !== lastMarket ||
-    selection.exchange !== lastExchange
-  ) return;
-
-  const eventSeconds = Math.floor(
-    timestamp / 1000
-  );
-
-  const bucket = candleStart(
-    eventSeconds,
-    selection.tf
-  );
-
-  if (!Number.isFinite(bucket)) return;
-
-  const last = rows.at(-1);
-
-  if (!last) return;
-
-  const intervalSeconds =
-    TF_SECONDS[selection.tf];
-
-  if (!intervalSeconds) return;
-
-  // No actualizar velas históricas.
-  if (bucket < last.time) return;
-
-  // Si hay un salto excesivo, esperar REST.
-  if (
-    bucket - last.time >
-    intervalSeconds * 2
-  ) {
-    refresh();
-    return;
+      market: gold
+        ? "perpetual"
+        : $("market")?.value || "perpetual"
+    };
   }
 
-  // Evitar datos con tiempo muy adelantado.
-  if (
-    eventSeconds >
-    Math.floor(Date.now() / 1000) + 10
-  ) return;
+  const keyOf = s => [
+    s.exchange, s.market,
+    s.symbol, s.tf
+  ].join("|");
 
-  let candle;
+  function setConnection(text, color = C.green) {
+    const el = $("connection");
 
-  if (bucket === last.time) {
-    candle = {
-      ...last,
-      high: Math.max(last.high, price),
-      low: Math.min(last.low, price),
-      close: price
-    };
+    if (el) {
+      el.textContent = "● " + text;
+      el.style.color = color;
+    }
+  }
 
-    rows[rows.length - 1] = candle;
-  } else {
-    // La primera cotización recibida
-    // inicia la nueva vela.
-    candle = {
-      time: bucket,
-      open: price,
-      high: price,
-      low: price,
-      close: price,
-      volume: 0
-    };
+  function toSeconds(t) {
+    const n =
+      typeof t === "string" &&
+      !/^\d+$/.test(t)
+        ? new Date(t).getTime()
+        : Number(t);
 
-    rows.push(candle);
+    if (!Number.isFinite(n)) return NaN;
 
-    if (rows.length > 350) {
-      rows.shift();
+    return Math.floor(
+      n > 1e12 ? n / 1000 : n
+    );
+  }
 
-      // Al recortar historial se requiere
-      // reconstruir las series.
-      series.price.setData(rows);
+  function normalize(raw) {
+    let data = raw;
 
-      series.volume?.setData(
-        rows.map(volumeBar)
+    if (!Array.isArray(data)) {
+      data =
+        data?.data?.data ??
+        data?.data?.list ??
+        data?.data?.candles ??
+        data?.data ??
+        data?.list ??
+        data?.candles ??
+        [];
+    }
+
+    if (!Array.isArray(data)) return [];
+
+    const out = [];
+    const now = Math.floor(Date.now() / 1000);
+
+    for (const x of data) {
+      if (!x || typeof x !== "object") {
+        continue;
+      }
+
+      const a = Array.isArray(x);
+
+      const time = toSeconds(
+        a ? x[0] :
+        x.time ?? x.timestamp ??
+        x.openTime ?? x.t
       );
 
-      scheduleIndicators();
-      return;
-    }
-  }
+      const open = Number(
+        a ? x[1] : x.open ?? x.o
+      );
 
-  series.price.update(candle);
+      const high = Number(
+        a ? x[2] : x.high ?? x.h
+      );
 
-  // El volumen de una cotización no se
-  // puede deducir del precio.
-  // Se conserva el último volumen REST.
-  series.volume?.update(
-    volumeBar(candle)
-  );
+      const low = Number(
+        a ? x[3] : x.low ?? x.l
+      );
 
-  lastLiveAppliedAt = Date.now();
+      const close = Number(
+        a ? x[4] : x.close ?? x.c
+      );
 
-  // Indicadores recalculados con límite
-  // para evitar sobrecargar el teléfono.
-  scheduleIndicators();
-}
+      const volume = Number(
+        a ? x[5] :
+        x.volume ?? x.vol ?? x.v ?? 0
+      );
 
-function receiveLivePrice(
-  price,
-  source,
-  timestamp,
-  config
-) {
-  const p = Number(price);
-  const ts = Number(timestamp);
+      if (
+        ![
+          time, open, high,
+          low, close, volume
+        ].every(Number.isFinite)
+      ) continue;
 
-  if (
-    !Number.isFinite(p) ||
-    p <= 0
-  ) return;
+      if (
+        time <= 0 ||
+        time > now + 60 ||
+        Math.min(
+          open, high, low, close
+        ) <= 0 ||
+        volume < 0
+      ) continue;
 
-  const current = selected();
+      if (
+        high < Math.max(open, close, low) ||
+        low > Math.min(open, close, high)
+      ) continue;
 
-  if (
-    config.exchange !== current.exchange ||
-    config.market !== current.market ||
-    config.symbol !== current.symbol
-  ) return;
-
-  const eventTime =
-    Number.isFinite(ts) &&
-    Math.abs(ts - Date.now()) < 60000
-      ? ts
-      : Date.now();
-
-  lastLiveEvent = {
-    price: p,
-    timestamp: eventTime,
-    receivedAt: Date.now(),
-    source,
-    exchange: config.exchange,
-    market: config.market,
-    symbol: config.symbol
-  };
-
-  setLivePrice(p, source);
-
-  applyLiveCandle(
-    p,
-    eventTime,
-    source
-  );
-}
-
-/* ====================================
-   INDICADORES MATEMÁTICOS
-==================================== */
-
-function sma(a, p) {
-  const o = Array(a.length).fill(null);
-  let sum = 0;
-
-  for (let i = 0; i < a.length; i++) {
-    sum += a[i];
-
-    if (i >= p) {
-      sum -= a[i - p];
+      out.push({
+        time, open, high,
+        low, close, volume
+      });
     }
 
-    if (i >= p - 1) {
-      o[i] = sum / p;
+    out.sort((a, b) => a.time - b.time);
+
+    return [
+      ...new Map(
+        out.map(x => [x.time, x])
+      ).values()
+    ];
+  }
+
+  function candleStart(timestamp, tf) {
+    const sec = SECONDS[tf];
+
+    if (!sec) return NaN;
+
+    if (tf === "1w") {
+      return Math.floor(
+        (timestamp - 4 * 86400) / sec
+      ) * sec + 4 * 86400;
     }
+
+    return Math.floor(timestamp / sec) * sec;
   }
 
-  return o;
-}
-
-function ema(a, p) {
-  const o = Array(a.length).fill(null);
-
-  if (a.length < p) return o;
-
-  let sum = 0;
-
-  for (let i = 0; i < p; i++) {
-    sum += a[i];
+  function volumeBar(x) {
+    return {
+      time: x.time,
+      value: x.volume,
+      color: x.close >= x.open
+        ? "rgba(0,245,160,.70)"
+        : "rgba(255,71,108,.70)"
+    };
   }
 
-  let prev = sum / p;
+  // ==================================
+  // INDICADORES
+  // ==================================
 
-  o[p - 1] = prev;
+  function sma(a, p) {
+    const out = Array(a.length).fill(null);
+    let sum = 0;
 
-  const k = 2 / (p + 1);
+    for (let i = 0; i < a.length; i++) {
+      sum += a[i];
 
-  for (let i = p; i < a.length; i++) {
-    prev =
-      a[i] * k +
-      prev * (1 - k);
+      if (i >= p) {
+        sum -= a[i - p];
+      }
 
-    o[i] = prev;
+      if (i >= p - 1) {
+        out[i] = sum / p;
+      }
+    }
+
+    return out;
   }
 
-  return o;
-}
+  function ema(a, p) {
+    const out = Array(a.length).fill(null);
 
-function rsi(a, p = 14) {
-  const o = Array(a.length).fill(null);
+    if (a.length < p) return out;
 
-  if (a.length <= p) return o;
+    let sum = 0;
 
-  let g = 0;
-  let l = 0;
+    for (let i = 0; i < p; i++) {
+      sum += a[i];
+    }
 
-  for (let i = 1; i <= p; i++) {
-    const d = a[i] - a[i - 1];
+    let previous = sum / p;
+    out[p - 1] = previous;
 
-    g += Math.max(0, d);
-    l += Math.max(0, -d);
+    const k = 2 / (p + 1);
+
+    for (let i = p; i < a.length; i++) {
+      previous =
+        a[i] * k + previous * (1 - k);
+
+      out[i] = previous;
+    }
+
+    return out;
   }
 
-  g /= p;
-  l /= p;
+  function rsi(a, p = 14) {
+    const out = Array(a.length).fill(null);
 
-  const calc = () =>
-    l === 0
-      ? (g === 0 ? 50 : 100)
-      : 100 - 100 / (1 + g / l);
+    if (a.length <= p) return out;
 
-  o[p] = calc();
+    let gains = 0;
+    let losses = 0;
 
-  for (let i = p + 1; i < a.length; i++) {
-    const d = a[i] - a[i - 1];
+    for (let i = 1; i <= p; i++) {
+      const delta = a[i] - a[i - 1];
 
-    g = (
-      g * (p - 1) +
-      Math.max(0, d)
-    ) / p;
+      gains += Math.max(0, delta);
+      losses += Math.max(0, -delta);
+    }
 
-    l = (
-      l * (p - 1) +
-      Math.max(0, -d)
-    ) / p;
+    gains /= p;
+    losses /= p;
 
-    o[i] = calc();
+    const calculate = () =>
+      losses === 0
+        ? gains === 0 ? 50 : 100
+        : 100 - 100 / (1 + gains / losses);
+
+    out[p] = calculate();
+
+    for (let i = p + 1; i < a.length; i++) {
+      const delta = a[i] - a[i - 1];
+
+      gains = (
+        gains * (p - 1) +
+        Math.max(0, delta)
+      ) / p;
+
+      losses = (
+        losses * (p - 1) +
+        Math.max(0, -delta)
+      ) / p;
+
+      out[i] = calculate();
+    }
+
+    return out;
   }
 
-  return o;
-}
+  function adx(a, p = 14) {
+    const n = a.length;
 
-function adx(a, p = 14) {
-  const n = a.length;
+    const ADX = Array(n).fill(null);
+    const PLUS = Array(n).fill(null);
+    const MINUS = Array(n).fill(null);
 
-  const ADX = Array(n).fill(null);
-  const PLUS = Array(n).fill(null);
-  const MINUS = Array(n).fill(null);
+    if (n < p * 2) {
+      return {
+        adx: ADX,
+        plus: PLUS,
+        minus: MINUS
+      };
+    }
 
-  if (n < p * 2) {
+    const tr = Array(n).fill(0);
+    const pdm = Array(n).fill(0);
+    const mdm = Array(n).fill(0);
+
+    for (let i = 1; i < n; i++) {
+      const up =
+        a[i].high - a[i - 1].high;
+
+      const down =
+        a[i - 1].low - a[i].low;
+
+      pdm[i] =
+        up > down && up > 0 ? up : 0;
+
+      mdm[i] =
+        down > up && down > 0 ? down : 0;
+
+      tr[i] = Math.max(
+        a[i].high - a[i].low,
+        Math.abs(
+          a[i].high - a[i - 1].close
+        ),
+        Math.abs(
+          a[i].low - a[i - 1].close
+        )
+      );
+    }
+
+    let atr = 0;
+    let sp = 0;
+    let sm = 0;
+
+    for (let i = 1; i <= p; i++) {
+      atr += tr[i];
+      sp += pdm[i];
+      sm += mdm[i];
+    }
+
+    const dx = Array(n).fill(null);
+
+    for (let i = p; i < n; i++) {
+      if (i > p) {
+        atr = atr - atr / p + tr[i];
+        sp = sp - sp / p + pdm[i];
+        sm = sm - sm / p + mdm[i];
+      }
+
+      PLUS[i] = atr ? 100 * sp / atr : 0;
+      MINUS[i] = atr ? 100 * sm / atr : 0;
+
+      dx[i] = PLUS[i] + MINUS[i]
+        ? 100 * Math.abs(
+            PLUS[i] - MINUS[i]
+          ) / (PLUS[i] + MINUS[i])
+        : 0;
+    }
+
+    const first = p * 2 - 1;
+    let total = 0;
+
+    for (let i = p; i <= first; i++) {
+      total += dx[i];
+    }
+
+    ADX[first] = total / p;
+
+    for (let i = first + 1; i < n; i++) {
+      ADX[i] = (
+        ADX[i - 1] * (p - 1) + dx[i]
+      ) / p;
+    }
+
     return {
       adx: ADX,
       plus: PLUS,
@@ -573,2565 +477,3107 @@ function adx(a, p = 14) {
     };
   }
 
-  const tr = Array(n).fill(0);
-  const pdm = Array(n).fill(0);
-  const mdm = Array(n).fill(0);
-
-  for (let i = 1; i < n; i++) {
-    const up =
-      a[i].high - a[i - 1].high;
-
-    const down =
-      a[i - 1].low - a[i].low;
-
-    pdm[i] =
-      up > down && up > 0
-        ? up
-        : 0;
-
-    mdm[i] =
-      down > up && down > 0
-        ? down
-        : 0;
-
-    tr[i] = Math.max(
-      a[i].high - a[i].low,
-      Math.abs(
-        a[i].high - a[i - 1].close
-      ),
-      Math.abs(
-        a[i].low - a[i - 1].close
-      )
-    );
-  }
-
-  let atr = 0;
-  let sp = 0;
-  let sm = 0;
-
-  for (let i = 1; i <= p; i++) {
-    atr += tr[i];
-    sp += pdm[i];
-    sm += mdm[i];
-  }
-
-  const dx = Array(n).fill(null);
-
-  for (let i = p; i < n; i++) {
-    if (i > p) {
-      atr = atr - atr / p + tr[i];
-      sp = sp - sp / p + pdm[i];
-      sm = sm - sm / p + mdm[i];
-    }
-
-    const plus = atr
-      ? 100 * sp / atr
-      : 0;
-
-    const minus = atr
-      ? 100 * sm / atr
-      : 0;
-
-    PLUS[i] = plus;
-    MINUS[i] = minus;
-
-    dx[i] = plus + minus
-      ? 100 * Math.abs(
-          plus - minus
-        ) / (plus + minus)
-      : 0;
-  }
-
-  const first = p * 2 - 1;
-  let total = 0;
-
-  for (let i = p; i <= first; i++) {
-    total += dx[i];
-  }
-
-  ADX[first] = total / p;
-
-  for (let i = first + 1; i < n; i++) {
-    ADX[i] = (
-      ADX[i - 1] * (p - 1) +
-      dx[i]
-    ) / p;
-  }
-
-  return {
-    adx: ADX,
-    plus: PLUS,
-    minus: MINUS
-  };
-}
-
-const lineData = (a, v) =>
-  a.flatMap((x, i) =>
-    Number.isFinite(v[i])
-      ? [{
-          time: x.time,
-          value: v[i]
-        }]
-      : []
-  );
-
-/* ====================================
-   CREACIÓN DE GRÁFICAS
-==================================== */
-
-function chartOptions(height) {
-  return {
-    width: 300,
-    height,
-
-    layout: {
-      background: {
-        color: '#080e20'
-      },
-      textColor: '#c9d3ee',
-      fontSize: 11
-    },
-
-    grid: {
-      vertLines: {
-        color: '#15213a'
-      },
-      horzLines: {
-        color: '#15213a'
-      }
-    },
-
-    rightPriceScale: {
-      borderColor: '#34456c',
-      minimumWidth: 65
-    },
-
-    timeScale: {
-      borderColor: '#34456c',
-      timeVisible: true,
-      secondsVisible: false
-    },
-
-    crosshair: {
-      mode:
-        LightweightCharts
-          .CrosshairMode.Normal
-    },
-
-    handleScroll: {
-      mouseWheel: true,
-      pressedMouseMove: true,
-      horzTouchDrag: false,
-      vertTouchDrag: false
-    },
-
-    handleScale: {
-      mouseWheel: true,
-      pinch: false
-    }
-  };
-}
-
-function createCharts() {
-  if (!window.LightweightCharts) {
-    value(
-      'message',
-      'No se pudo cargar la biblioteca de gráficas.'
+  const lineData = (a, values) =>
+    a.flatMap((x, i) =>
+      Number.isFinite(values[i])
+        ? [{
+            time: x.time,
+            value: values[i]
+          }]
+        : []
     );
 
-    setConnection(
-      'Error de gráfica',
-      C.red
-    );
+  // ==================================
+  // GRÁFICAS
+  // ==================================
 
-    return false;
-  }
+  function chartOptions(height) {
+    return {
+      width: 300,
+      height,
 
-  if (!$('chart')) return false;
-
-  charts.price =
-    LightweightCharts.createChart(
-      $('chart'),
-      chartOptions(360)
-    );
-
-  series.price =
-    charts.price.addCandlestickSeries({
-      upColor: C.green,
-      downColor: C.red,
-      wickUpColor: C.green,
-      wickDownColor: C.red,
-      borderVisible: false,
-      priceLineVisible: true
-    });
-
-  for (const [key, color] of Object.entries({
-    ema21: C.purple,
-    ma55: C.orange,
-    ma100: C.red,
-    ma200: C.blue
-  })) {
-    maSeries[key] =
-      charts.price.addLineSeries({
-        color,
-        lineWidth: 2,
-        priceLineVisible: false,
-        lastValueVisible: false,
-        crosshairMarkerVisible: false
-      });
-  }
-
-  for (const [key, id, height] of [
-    ['volume', 'volumeChart', 115],
-    ['rsi', 'rsiChart', 145],
-    ['adx', 'adxChart', 145]
-  ]) {
-    if ($(id)) {
-      charts[key] =
-        LightweightCharts.createChart(
-          $(id),
-          chartOptions(height)
-        );
-    }
-  }
-
-  if (charts.volume) {
-    series.volume =
-      charts.volume.addHistogramSeries({
-        priceFormat: {
-          type: 'volume'
+      layout: {
+        background: {
+          color: "#080e20"
         },
-        priceScaleId: ''
-      });
+        textColor: "#c9d3ee",
+        fontSize: 11
+      },
 
-    series.volume
-      .priceScale()
-      .applyOptions({
-        scaleMargins: {
-          top: .12,
-          bottom: 0
+      grid: {
+        vertLines: {
+          color: "#15213a"
+        },
+        horzLines: {
+          color: "#15213a"
         }
-      });
+      },
+
+      rightPriceScale: {
+        borderColor: "#34456c",
+        minimumWidth: 65
+      },
+
+      timeScale: {
+        borderColor: "#34456c",
+        timeVisible: true,
+        secondsVisible: false
+      },
+
+      crosshair: {
+        mode:
+          LightweightCharts.CrosshairMode.Normal
+      },
+
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: false,
+        vertTouchDrag: false
+      },
+
+      handleScale: {
+        mouseWheel: true,
+        pinch: false
+      }
+    };
   }
 
-  if (charts.rsi) {
-    series.rsi =
-      charts.rsi.addLineSeries({
-        color: C.purple,
-        lineWidth: 2,
-        priceLineVisible: false
+  function createCharts() {
+    if (
+      !window.LightweightCharts ||
+      !$("chart")
+    ) {
+      value(
+        "message",
+        "No se pudo cargar la gráfica."
+      );
+
+      setConnection(
+        "Error de gráfica",
+        C.red
+      );
+
+      return false;
+    }
+
+    charts.price =
+      LightweightCharts.createChart(
+        $("chart"),
+        chartOptions(360)
+      );
+
+    series.price =
+      charts.price.addCandlestickSeries({
+        upColor: C.green,
+        downColor: C.red,
+        wickUpColor: C.green,
+        wickDownColor: C.red,
+        borderVisible: false,
+        priceLineVisible: true
       });
 
-    for (const level of [30, 50, 70]) {
-      series.rsi.createPriceLine({
-        price: level,
-        color: level === 50
-          ? '#607399'
-          : '#a24d9c',
-        lineWidth: 1,
+    for (
+      const [key, color] of Object.entries({
+        ema21: C.purple,
+        ma55: C.orange,
+        ma100: C.red,
+        ma200: C.blue
+      })
+    ) {
+      maSeries[key] =
+        charts.price.addLineSeries({
+          color,
+          lineWidth: 2,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false
+        });
+    }
+
+    for (
+      const [key, id, height] of [
+        ["volume", "volumeChart", 115],
+        ["rsi", "rsiChart", 145],
+        ["adx", "adxChart", 145]
+      ]
+    ) {
+      if ($(id)) {
+        charts[key] =
+          LightweightCharts.createChart(
+            $(id),
+            chartOptions(height)
+          );
+      }
+    }
+
+    if (charts.volume) {
+      series.volume =
+        charts.volume.addHistogramSeries({
+          priceFormat: {
+            type: "volume"
+          },
+          priceScaleId: ""
+        });
+
+      series.volume
+        .priceScale()
+        .applyOptions({
+          scaleMargins: {
+            top: .12,
+            bottom: 0
+          }
+        });
+    }
+
+    if (charts.rsi) {
+      series.rsi =
+        charts.rsi.addLineSeries({
+          color: C.purple,
+          lineWidth: 2,
+          priceLineVisible: false
+        });
+
+      for (const level of [30, 50, 70]) {
+        series.rsi.createPriceLine({
+          price: level,
+          color: level === 50
+            ? "#607399"
+            : "#a24d9c",
+          lineWidth: 1,
+          lineStyle:
+            LightweightCharts.LineStyle.Dashed,
+          axisLabelVisible: true
+        });
+      }
+    }
+
+    if (charts.adx) {
+      for (
+        const [key, color] of [
+          ["adx", C.yellow],
+          ["plus", C.green],
+          ["minus", C.red]
+        ]
+      ) {
+        series[key] =
+          charts.adx.addLineSeries({
+            color,
+            lineWidth: 2,
+            priceLineVisible: false
+          });
+      }
+
+      series.adx.createPriceLine({
+        price: 25,
+        color: "#7d89a8",
         lineStyle:
-          LightweightCharts
-            .LineStyle.Dashed,
+          LightweightCharts.LineStyle.Dashed,
         axisLabelVisible: true
       });
     }
-  }
 
-  if (charts.adx) {
-    series.adx =
-      charts.adx.addLineSeries({
-        color: C.yellow,
-        lineWidth: 2,
-        priceLineVisible: false
-      });
+    const all = Object.values(charts);
+    let syncing = false;
 
-    series.plus =
-      charts.adx.addLineSeries({
-        color: C.green,
-        lineWidth: 2,
-        priceLineVisible: false
-      });
+    for (const chart of all) {
+      chart.timeScale()
+        .subscribeVisibleLogicalRangeChange(
+          range => {
+            if (syncing || !range) return;
 
-    series.minus =
-      charts.adx.addLineSeries({
-        color: C.red,
-        lineWidth: 2,
-        priceLineVisible: false
-      });
+            syncing = true;
 
-    series.adx.createPriceLine({
-      price: 25,
-      color: '#7d89a8',
-      lineStyle:
-        LightweightCharts
-          .LineStyle.Dashed,
-      axisLabelVisible: true
-    });
-  }
-
-  const all = Object.values(charts);
-  let syncing = false;
-
-  for (const chart of all) {
-    chart.timeScale()
-      .subscribeVisibleLogicalRangeChange(
-        range => {
-          if (syncing || !range) return;
-
-          syncing = true;
-
-          for (const other of all) {
-            if (other !== chart) {
-              try {
-                other.timeScale()
-                  .setVisibleLogicalRange(
-                    range
-                  );
-              } catch (_) {}
+            for (const other of all) {
+              if (other !== chart) {
+                try {
+                  other.timeScale()
+                    .setVisibleLogicalRange(
+                      range
+                    );
+                } catch (_) {}
+              }
             }
-          }
 
-          syncing = false;
-          drawZones();
+            syncing = false;
+            drawZones();
+          }
+        );
+    }
+
+    const resize = () => {
+      for (
+        const [key, id] of [
+          ["price", "chart"],
+          ["volume", "volumeChart"],
+          ["rsi", "rsiChart"],
+          ["adx", "adxChart"]
+        ]
+      ) {
+        const el = $(id);
+
+        if (
+          el &&
+          charts[key] &&
+          el.clientWidth > 0 &&
+          el.clientHeight > 0
+        ) {
+          charts[key].resize(
+            el.clientWidth,
+            el.clientHeight
+          );
         }
-      );
+      }
+
+      resizeCanvas();
+    };
+
+    if (window.ResizeObserver) {
+      const observer =
+        new ResizeObserver(resize);
+
+      for (
+        const id of [
+          "chart",
+          "volumeChart",
+          "rsiChart",
+          "adxChart"
+        ]
+      ) {
+        if ($(id)) observer.observe($(id));
+      }
+    }
+
+    window.addEventListener(
+      "resize",
+      resize
+    );
+
+    setTimeout(resize, 100);
+
+    setChartNavigation(false);
+
+    return true;
   }
 
-  const resize = () => {
-    for (const [key, id] of [
-      ['price', 'chart'],
-      ['volume', 'volumeChart'],
-      ['rsi', 'rsiChart'],
-      ['adx', 'adxChart']
-    ]) {
-      const el = $(id);
+  function setChartNavigation(unlocked) {
+    chartUnlocked = unlocked;
+
+    if (!charts.price) return;
+
+    charts.price.applyOptions({
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: unlocked,
+        vertTouchDrag: unlocked
+      },
+
+      handleScale: {
+        mouseWheel: true,
+        pinch: unlocked
+      }
+    });
+
+    value(
+      "chartNavigation",
+      unlocked
+        ? "🔓 Bloquear"
+        : "🔒 Desbloquear"
+    );
+
+    value(
+      "chartTouchStatus",
+      unlocked
+        ? "Gráfica desbloqueada."
+        : "Desliza la página con un dedo."
+    );
+
+    $("chartNavigation")?.setAttribute(
+      "aria-pressed",
+      String(unlocked)
+    );
+  }
+
+  function resetView() {
+    if (
+      !charts.price ||
+      !rows.length
+    ) return;
+
+    charts.price.timeScale()
+      .setVisibleLogicalRange({
+        from: Math.max(
+          0,
+          rows.length - 50
+        ),
+        to: rows.length + 3
+      });
+  }
+
+  // ==================================
+  // PATRONES Y ZONAS
+  // ==================================
+
+  function detectPivots(a) {
+    const found = [];
+
+    for (
+      let i = 4;
+      i < a.length - 4;
+      i++
+    ) {
+      let hi = true;
+      let lo = true;
+
+      for (
+        let j = i - 4;
+        j <= i + 4;
+        j++
+      ) {
+        if (i === j) continue;
+
+        if (
+          a[j].high >= a[i].high
+        ) hi = false;
+
+        if (
+          a[j].low <= a[i].low
+        ) lo = false;
+      }
+
+      if (hi) {
+        found.push({
+          index: i,
+          price: a[i].high,
+          type: "high"
+        });
+      }
+
+      if (lo) {
+        found.push({
+          index: i,
+          price: a[i].low,
+          type: "low"
+        });
+      }
+    }
+
+    return found.slice(-40);
+  }
+
+  function detectFVG(a) {
+    const found = [];
+
+    for (let i = 2; i < a.length; i++) {
+      const bull =
+        a[i].low > a[i - 2].high;
+
+      const bear =
+        a[i].high < a[i - 2].low;
+
+      if (!bull && !bear) continue;
+
+      const top = bull
+        ? a[i].low
+        : a[i - 2].low;
+
+      const bottom = bull
+        ? a[i - 2].high
+        : a[i].high;
+
+      const middle = (top + bottom) / 2;
 
       if (
-        el &&
-        charts[key] &&
-        el.clientWidth > 0 &&
-        el.clientHeight > 0
+        (top - bottom) / middle < .00035
+      ) continue;
+
+      let end = a.length - 1;
+      let filled = false;
+      let inverted = false;
+
+      for (
+        let j = i + 1;
+        j < a.length;
+        j++
       ) {
-        charts[key].resize(
-          el.clientWidth,
-          el.clientHeight
+        if (
+          bull &&
+          a[j].low <= bottom
+        ) {
+          end = j;
+          filled = true;
+          inverted = a[j].close < bottom;
+          break;
+        }
+
+        if (
+          bear &&
+          a[j].high >= top
+        ) {
+          end = j;
+          filled = true;
+          inverted = a[j].close > top;
+          break;
+        }
+      }
+
+      found.push({
+        start: i - 2,
+        end,
+        top,
+        bottom,
+        bull,
+        filled,
+        inverted
+      });
+    }
+
+    return found.slice(-80);
+  }
+
+  function detectSweeps(a) {
+    const found = [];
+
+    for (
+      let i = 20;
+      i < a.length - 1;
+      i++
+    ) {
+      const previous =
+        a.slice(i - 20, i);
+
+      const high = Math.max(
+        ...previous.map(x => x.high)
+      );
+
+      const low = Math.min(
+        ...previous.map(x => x.low)
+      );
+
+      if (
+        a[i].high > high &&
+        a[i].close < high
+      ) {
+        found.push({
+          time: a[i].time,
+          position: "aboveBar",
+          color: C.red,
+          shape: "arrowDown",
+          text: "Barrido ↑"
+        });
+      }
+
+      if (
+        a[i].low < low &&
+        a[i].close > low
+      ) {
+        found.push({
+          time: a[i].time,
+          position: "belowBar",
+          color: C.green,
+          shape: "arrowUp",
+          text: "Barrido ↓"
+        });
+      }
+    }
+
+    return found.slice(-25);
+  }
+
+  function updateLevels() {
+    for (const line of drawnLines) {
+      try {
+        series.price.removePriceLine(line);
+      } catch (_) {}
+    }
+
+    drawnLines.length = 0;
+
+    const recent = pivots.slice(-18);
+
+    const add = (price, color, title) => {
+      if (!Number.isFinite(price)) return;
+
+      drawnLines.push(
+        series.price.createPriceLine({
+          price,
+          color,
+          lineWidth: 1,
+          lineStyle:
+            LightweightCharts.LineStyle.Dashed,
+          axisLabelVisible: true,
+          title
+        })
+      );
+    };
+
+    if (enabled.has("support")) {
+      const x = recent
+        .filter(x => x.type === "low")
+        .at(-1);
+
+      if (x) {
+        add(x.price, C.green, "Soporte");
+      }
+    }
+
+    if (enabled.has("resistance")) {
+      const x = recent
+        .filter(x => x.type === "high")
+        .at(-1);
+
+      if (x) {
+        add(x.price, C.red, "Resistencia");
+      }
+    }
+
+    if (enabled.has("liquidity")) {
+      for (
+        const x of recent
+          .filter(x => x.type === "high")
+          .slice(-2)
+      ) {
+        add(
+          x.price,
+          C.red,
+          "Máximo previo"
+        );
+      }
+
+      for (
+        const x of recent
+          .filter(x => x.type === "low")
+          .slice(-2)
+      ) {
+        add(
+          x.price,
+          C.green,
+          "Mínimo previo"
         );
       }
     }
-
-    resizeCanvas();
-  };
-
-  if (window.ResizeObserver) {
-    const observer =
-      new ResizeObserver(resize);
-
-    for (const id of [
-      'chart',
-      'volumeChart',
-      'rsiChart',
-      'adxChart'
-    ]) {
-      if ($(id)) {
-        observer.observe($(id));
-      }
-    }
   }
 
-  window.addEventListener(
-    'resize',
-    resize
-  );
+  function resizeCanvas() {
+    const canvas = $("zonesCanvas");
+    const area = $("priceChartArea");
 
-  setTimeout(resize, 100);
+    if (!canvas || !area) return;
 
-  setChartNavigation(false);
-
-  return true;
-}
-
-function setChartNavigation(unlocked) {
-  chartUnlocked = unlocked;
-
-  if (!charts.price) return;
-
-  charts.price.applyOptions({
-    handleScroll: {
-      mouseWheel: true,
-      pressedMouseMove: true,
-      horzTouchDrag: unlocked,
-      vertTouchDrag: unlocked
-    },
-
-    handleScale: {
-      mouseWheel: true,
-      pinch: unlocked
-    }
-  });
-
-  value(
-    'chartNavigation',
-    unlocked
-      ? '🔓 Bloquear'
-      : '🔒 Desbloquear'
-  );
-
-  value(
-    'chartTouchStatus',
-    unlocked
-      ? 'Gráfica desbloqueada: arrastra o usa dos dedos.'
-      : 'Gráfica bloqueada: desliza la página con un dedo.'
-  );
-
-  $('chartNavigation')?.setAttribute(
-    'aria-pressed',
-    String(unlocked)
-  );
-}
-
-function resetView() {
-  if (
-    !charts.price ||
-    !rows.length
-  ) return;
-
-  charts.price.timeScale()
-    .setVisibleLogicalRange({
-      from: Math.max(
-        0,
-        rows.length - 50
-      ),
-      to: rows.length + 3
-    });
-}
-
-/* ====================================
-   PATRONES Y ZONAS
-==================================== */
-
-function detectPivots(a) {
-  const found = [];
-
-  for (
-    let i = 4;
-    i < a.length - 4;
-    i++
-  ) {
-    let hi = true;
-    let lo = true;
-
-    for (
-      let j = i - 4;
-      j <= i + 4;
-      j++
-    ) {
-      if (i === j) continue;
-
-      if (
-        a[j].high >= a[i].high
-      ) hi = false;
-
-      if (
-        a[j].low <= a[i].low
-      ) lo = false;
-    }
-
-    if (hi) {
-      found.push({
-        index: i,
-        price: a[i].high,
-        type: 'high'
-      });
-    }
-
-    if (lo) {
-      found.push({
-        index: i,
-        price: a[i].low,
-        type: 'low'
-      });
-    }
-  }
-
-  return found.slice(-40);
-}
-
-function detectFVG(a) {
-  const found = [];
-
-  for (
-    let i = 2;
-    i < a.length;
-    i++
-  ) {
-    const bull =
-      a[i].low > a[i - 2].high;
-
-    const bear =
-      a[i].high < a[i - 2].low;
-
-    if (!bull && !bear) continue;
-
-    const top = bull
-      ? a[i].low
-      : a[i - 2].low;
-
-    const bottom = bull
-      ? a[i - 2].high
-      : a[i].high;
-
-    const middle =
-      (top + bottom) / 2;
-
-    if (
-      (top - bottom) / middle <
-      .00035
-    ) continue;
-
-    let end = a.length - 1;
-    let filled = false;
-    let inverted = false;
-
-    for (
-      let j = i + 1;
-      j < a.length;
-      j++
-    ) {
-      if (
-        bull &&
-        a[j].low <= bottom
-      ) {
-        end = j;
-        filled = true;
-        inverted =
-          a[j].close < bottom;
-        break;
-      }
-
-      if (
-        bear &&
-        a[j].high >= top
-      ) {
-        end = j;
-        filled = true;
-        inverted =
-          a[j].close > top;
-        break;
-      }
-    }
-
-    found.push({
-      start: i - 2,
-      end,
-      top,
-      bottom,
-      bull,
-      filled,
-      inverted
-    });
-  }
-
-  return found.slice(-80);
-}
-
-function detectSweeps(a) {
-  const found = [];
-
-  for (
-    let i = 20;
-    i < a.length - 1;
-    i++
-  ) {
-    const previous =
-      a.slice(i - 20, i);
-
-    const high = Math.max(
-      ...previous.map(x => x.high)
+    const dpr = Math.min(
+      window.devicePixelRatio || 1,
+      2
     );
 
-    const low = Math.min(
-      ...previous.map(x => x.low)
+    canvas.width = Math.round(
+      area.clientWidth * dpr
     );
 
-    if (
-      a[i].high > high &&
-      a[i].close < high
-    ) {
-      found.push({
-        time: a[i].time,
-        position: 'aboveBar',
-        color: C.red,
-        shape: 'arrowDown',
-        text: 'Barrido ↑'
-      });
-    }
+    canvas.height = Math.round(
+      area.clientHeight * dpr
+    );
 
-    if (
-      a[i].low < low &&
-      a[i].close > low
-    ) {
-      found.push({
-        time: a[i].time,
-        position: 'belowBar',
-        color: C.green,
-        shape: 'arrowUp',
-        text: 'Barrido ↓'
-      });
-    }
-  }
-
-  return found.slice(-25);
-}
-
-function clearPriceLines() {
-  for (const line of drawnLines) {
-    try {
-      series.price.removePriceLine(
-        line
-      );
-    } catch (_) {}
-  }
-
-  drawnLines.length = 0;
-}
-
-function addLevel(
-  price,
-  color,
-  title
-) {
-  if (!Number.isFinite(price)) {
-    return;
-  }
-
-  drawnLines.push(
-    series.price.createPriceLine({
-      price,
-      color,
-      lineWidth: 1,
-      lineStyle:
-        LightweightCharts
-          .LineStyle.Dashed,
-      axisLabelVisible: true,
-      title
-    })
-  );
-}
-
-function updateLevels() {
-  clearPriceLines();
-
-  const recent =
-    pivots.slice(-18);
-
-  if (enabled.has('support')) {
-    const x = recent
-      .filter(x => x.type === 'low')
-      .at(-1);
-
-    if (x) {
-      addLevel(
-        x.price,
-        C.green,
-        'Soporte'
-      );
-    }
-  }
-
-  if (enabled.has('resistance')) {
-    const x = recent
-      .filter(x => x.type === 'high')
-      .at(-1);
-
-    if (x) {
-      addLevel(
-        x.price,
-        C.red,
-        'Resistencia'
-      );
-    }
-  }
-
-  if (enabled.has('liquidity')) {
-    for (
-      const x of recent
-        .filter(x => x.type === 'high')
-        .slice(-2)
-    ) {
-      addLevel(
-        x.price,
-        C.red,
-        'Máximo previo'
-      );
-    }
-
-    for (
-      const x of recent
-        .filter(x => x.type === 'low')
-        .slice(-2)
-    ) {
-      addLevel(
-        x.price,
-        C.green,
-        'Mínimo previo'
-      );
-    }
-  }
-}
-
-function resizeCanvas() {
-  const canvas =
-    $('zonesCanvas');
-
-  const area =
-    $('priceChartArea');
-
-  if (
-    !canvas ||
-    !area
-  ) return;
-
-  const dpr = Math.min(
-    window.devicePixelRatio || 1,
-    2
-  );
-
-  canvas.width = Math.round(
-    area.clientWidth * dpr
-  );
-
-  canvas.height = Math.round(
-    area.clientHeight * dpr
-  );
-
-  const ctx =
-    canvas.getContext('2d');
-
-  if (ctx) {
-    ctx.setTransform(
+    canvas.getContext("2d")?.setTransform(
       dpr, 0, 0, dpr, 0, 0
     );
+
+    drawZones();
   }
 
-  drawZones();
-}
-
-function drawZones() {
-  const canvas =
-    $('zonesCanvas');
-
-  const area =
-    $('priceChartArea');
-
-  if (
-    !canvas ||
-    !area ||
-    !charts.price ||
-    !rows.length
-  ) return;
-
-  const ctx =
-    canvas.getContext('2d');
-
-  if (!ctx) return;
-
-  const width =
-    area.clientWidth;
-
-  const height =
-    area.clientHeight;
-
-  ctx.clearRect(
-    0, 0, width, height
-  );
-
-  if (
-    !enabled.has('fvg') &&
-    !enabled.has('ifvg')
-  ) return;
-
-  const scale =
-    charts.price.timeScale();
-
-  const maxX =
-    Math.max(0, width - 70);
-
-  for (
-    const z of zones.filter(
-      z =>
-        (
-          !z.filled &&
-          enabled.has('fvg')
-        ) ||
-        (
-          z.inverted &&
-          enabled.has('ifvg')
-        )
-    ).slice(-18)
-  ) {
-    const x1 =
-      scale.logicalToCoordinate(
-        z.start
-      );
-
-    const x2 =
-      scale.logicalToCoordinate(
-        z.end
-      );
-
-    const y1 =
-      series.price.priceToCoordinate(
-        z.top
-      );
-
-    const y2 =
-      series.price.priceToCoordinate(
-        z.bottom
-      );
+  function drawZones() {
+    const canvas = $("zonesCanvas");
+    const area = $("priceChartArea");
 
     if (
-      ![x1, x2, y1, y2]
-        .every(Number.isFinite)
-    ) continue;
+      !canvas ||
+      !area ||
+      !charts.price
+    ) return;
 
-    const left =
-      Math.max(0, x1);
+    const ctx = canvas.getContext("2d");
 
-    const right =
-      Math.min(maxX, x2);
+    if (!ctx) return;
 
-    const top =
-      Math.max(
+    const width = area.clientWidth;
+    const height = area.clientHeight;
+
+    ctx.clearRect(
+      0, 0, width, height
+    );
+
+    if (
+      !rows.length ||
+      (
+        !enabled.has("fvg") &&
+        !enabled.has("ifvg")
+      )
+    ) return;
+
+    const scale = charts.price.timeScale();
+    const maxX = Math.max(0, width - 70);
+
+    const visibleZones = zones.filter(z =>
+      (
+        !z.filled &&
+        enabled.has("fvg")
+      ) ||
+      (
+        z.inverted &&
+        enabled.has("ifvg")
+      )
+    ).slice(-18);
+
+    for (const z of visibleZones) {
+      const x1 =
+        scale.logicalToCoordinate(z.start);
+
+      const x2 =
+        scale.logicalToCoordinate(z.end);
+
+      const y1 =
+        series.price.priceToCoordinate(z.top);
+
+      const y2 =
+        series.price.priceToCoordinate(z.bottom);
+
+      if (
+        ![x1, x2, y1, y2]
+          .every(Number.isFinite)
+      ) continue;
+
+      const left = Math.max(0, x1);
+      const right = Math.min(maxX, x2);
+
+      const top = Math.max(
         0,
         Math.min(y1, y2)
       );
 
-    const bottom =
-      Math.min(
+      const bottom = Math.min(
         height,
         Math.max(y1, y2)
       );
 
+      if (
+        right <= left ||
+        bottom <= top
+      ) continue;
+
+      ctx.fillStyle = z.inverted
+        ? "rgba(255,225,90,.10)"
+        : z.bull
+          ? "rgba(0,245,160,.09)"
+          : "rgba(255,71,108,.09)";
+
+      ctx.fillRect(
+        left,
+        top,
+        right - left,
+        bottom - top
+      );
+
+      ctx.strokeStyle = z.inverted
+        ? "rgba(255,225,90,.50)"
+        : z.bull
+          ? "rgba(0,245,160,.40)"
+          : "rgba(255,71,108,.40)";
+
+      ctx.lineWidth = 1;
+
+      ctx.strokeRect(
+        left,
+        top,
+        right - left,
+        bottom - top
+      );
+    }
+  }
+
+  // ==================================
+  // INTERPRETACIÓN
+  // ==================================
+
+  function rsiInterpretation(v) {
+    if (!Number.isFinite(v)) {
+      return "RSI no disponible.";
+    }
+
+    if (v < 30) {
+      return "RSI " + num(v, 1) +
+        ": sobreventa; no confirma rebote.";
+    }
+
+    if (v < 40) {
+      return "RSI " + num(v, 1) +
+        ": predominio vendedor.";
+    }
+
+    if (v < 50) {
+      return "RSI " + num(v, 1) +
+        ": impulso ligeramente bajista.";
+    }
+
+    if (v < 60) {
+      return "RSI " + num(v, 1) +
+        ": impulso ligeramente alcista.";
+    }
+
+    if (v < 70) {
+      return "RSI " + num(v, 1) +
+        ": predominio comprador.";
+    }
+
+    return "RSI " + num(v, 1) +
+      ": sobrecompra; no implica caída inmediata.";
+  }
+
+  function adxInterpretation(ax, plus, minus) {
     if (
-      right <= left ||
-      bottom <= top
-    ) continue;
+      ![ax, plus, minus]
+        .every(Number.isFinite)
+    ) {
+      return "ADX no disponible.";
+    }
 
-    ctx.fillStyle = z.inverted
-      ? 'rgba(255,225,90,.10)'
-      : z.bull
-        ? 'rgba(0,245,160,.09)'
-        : 'rgba(255,71,108,.09)';
+    const strength =
+      ax < 20
+        ? "tendencia débil"
+        : ax < 25
+          ? "tendencia en desarrollo"
+          : ax < 40
+            ? "tendencia con fuerza"
+            : "tendencia muy fuerte";
 
-    ctx.fillRect(
-      left,
-      top,
-      right - left,
-      bottom - top
-    );
+    const direction =
+      plus > minus
+        ? "predominio comprador"
+        : minus > plus
+          ? "predominio vendedor"
+          : "equilibrio";
 
-    ctx.strokeStyle = z.inverted
-      ? 'rgba(255,225,90,.50)'
-      : z.bull
-        ? 'rgba(0,245,160,.40)'
-        : 'rgba(255,71,108,.40)';
-
-    ctx.lineWidth = 1;
-
-    ctx.strokeRect(
-      left,
-      top,
-      right - left,
-      bottom - top
+    return (
+      "ADX " + num(ax, 1) +
+      ": " + strength +
+      ". +DI " + num(plus, 1) +
+      " y −DI " + num(minus, 1) +
+      ": " + direction + "."
     );
   }
-}
 
-/* ====================================
-   INTERPRETACIÓN DE INDICADORES
-==================================== */
+  function volumeInterpretation(a) {
+    if (a.length < 22) {
+      return "Volumen insuficiente.";
+    }
 
-function rsiInterpretation(v) {
-  if (!Number.isFinite(v)) {
-    return 'RSI no disponible.';
-  }
+    const closed = a.slice(0, -1);
+    const last = closed.at(-1);
 
-  if (v < 30) {
-    return 'RSI ' + num(v, 1) +
-      ': zona de sobreventa. Puede existir presión vendedora intensa; no confirma un rebote.';
-  }
+    const previous =
+      closed.slice(-21, -1);
 
-  if (v < 40) {
-    return 'RSI ' + num(v, 1) +
-      ': predominio vendedor, todavía sin sobreventa.';
-  }
-
-  if (v < 50) {
-    return 'RSI ' + num(v, 1) +
-      ': impulso ligeramente bajista.';
-  }
-
-  if (v < 60) {
-    return 'RSI ' + num(v, 1) +
-      ': impulso ligeramente alcista.';
-  }
-
-  if (v < 70) {
-    return 'RSI ' + num(v, 1) +
-      ': predominio comprador.';
-  }
-
-  return 'RSI ' + num(v, 1) +
-    ': zona de sobrecompra. No significa que el precio deba caer inmediatamente.';
-}
-
-function adxInterpretation(
-  ax,
-  plus,
-  minus
-) {
-  if (
-    ![ax, plus, minus]
-      .every(Number.isFinite)
-  ) {
-    return 'ADX no disponible.';
-  }
-
-  const strength =
-    ax < 20
-      ? 'tendencia débil o mercado sin fuerza definida'
-      : ax < 25
-        ? 'tendencia en desarrollo'
-        : ax < 40
-          ? 'tendencia con fuerza'
-          : 'tendencia muy fuerte';
-
-  const direction =
-    plus > minus
-      ? 'predominio direccional comprador'
-      : minus > plus
-        ? 'predominio direccional vendedor'
-        : 'equilibrio direccional';
-
-  return 'ADX ' + num(ax, 1) +
-    ': ' + strength +
-    '. +DI ' + num(plus, 1) +
-    ' y −DI ' + num(minus, 1) +
-    ': ' + direction +
-    '. El ADX mide fuerza, no dirección.';
-}
-
-function volumeInterpretation(a) {
-  if (a.length < 22) {
-    return 'Volumen insuficiente.';
-  }
-
-  const closed =
-    a.slice(0, -1);
-
-  const last =
-    closed.at(-1);
-
-  const previous =
-    closed.slice(-21, -1);
-
-  const average =
-    previous.reduce(
-      (s, x) => s + x.volume,
+    const average = previous.reduce(
+      (sum, x) => sum + x.volume,
       0
     ) / previous.length;
 
-  if (!average) {
-    return 'No hay volumen suficiente.';
+    if (!average) {
+      return "No hay volumen suficiente.";
+    }
+
+    const ratio = last.volume / average;
+
+    const strength =
+      ratio >= 1.8
+        ? "volumen muy elevado"
+        : ratio >= 1.3
+          ? "volumen superior al promedio"
+          : ratio < .7
+            ? "volumen reducido"
+            : "volumen cercano al promedio";
+
+    return (
+      "Última vela cerrada " +
+      (
+        last.close >= last.open
+          ? "alcista"
+          : "bajista"
+      ) +
+      ", con " + strength +
+      " (" + num(ratio) +
+      " veces el promedio)."
+    );
   }
 
-  const ratio =
-    last.volume / average;
+  function updateIndicators() {
+    if (
+      !rows.length ||
+      !series.price
+    ) return;
 
-  const direction =
-    last.close >= last.open
-      ? 'alcista'
-      : 'bajista';
+    const closes = rows.map(x => x.close);
 
-  let strength =
-    'volumen cercano al promedio';
+    const e21 = ema(closes, 21);
+    const m55 = sma(closes, 55);
+    const m100 = sma(closes, 100);
+    const m200 = sma(closes, 200);
 
-  if (ratio >= 1.8) {
-    strength = 'volumen muy elevado';
-  } else if (ratio >= 1.3) {
-    strength =
-      'volumen superior al promedio';
-  } else if (ratio < .7) {
-    strength = 'volumen reducido';
-  }
+    const rv = rsi(closes);
+    const av = adx(rows);
 
-  return 'Última vela cerrada ' +
-    direction +
-    ', con ' + strength +
-    ' (' + num(ratio, 2) +
-    ' veces el promedio de veinte velas). ' +
-    'El color de la vela no identifica por sí solo compras y ventas agresoras.';
-}
-
-function updateIndicators() {
-  if (
-    !rows.length ||
-    !series.price
-  ) return;
-
-  const closes =
-    rows.map(x => x.close);
-
-  const e21 =
-    ema(closes, 21);
-
-  const m55 =
-    sma(closes, 55);
-
-  const m100 =
-    sma(closes, 100);
-
-  const m200 =
-    sma(closes, 200);
-
-  const rv =
-    rsi(closes);
-
-  const av =
-    adx(rows);
-
-  for (
-    const [key, arr] of Object.entries({
+    const averages = {
       ema21: e21,
       ma55: m55,
       ma100: m100,
       ma200: m200
-    })
-  ) {
-    maSeries[key]?.setData(
-      enabled.has(key)
-        ? lineData(rows, arr)
+    };
+
+    for (
+      const [key, arr] of Object.entries(
+        averages
+      )
+    ) {
+      maSeries[key]?.setData(
+        enabled.has(key)
+          ? lineData(rows, arr)
+          : []
+      );
+    }
+
+    series.rsi?.setData(
+      enabled.has("rsi")
+        ? lineData(rows, rv)
         : []
     );
-  }
 
-  series.rsi?.setData(
-    enabled.has('rsi')
-      ? lineData(rows, rv)
-      : []
-  );
-
-  series.adx?.setData(
-    enabled.has('adx')
-      ? lineData(rows, av.adx)
-      : []
-  );
-
-  series.plus?.setData(
-    enabled.has('adx')
-      ? lineData(rows, av.plus)
-      : []
-  );
-
-  series.minus?.setData(
-    enabled.has('adx')
-      ? lineData(rows, av.minus)
-      : []
-  );
-
-  // Panel resumen: última vela cerrada.
-  const i = Math.max(
-    0,
-    rows.length - 2
-  );
-
-  value(
-    'ema21Value',
-    num(e21[i])
-  );
-
-  value(
-    'ma55Value',
-    num(m55[i])
-  );
-
-  value(
-    'rsiValue',
-    num(rv[i], 1)
-  );
-
-  value(
-    'adxValue',
-    num(av.adx[i], 1)
-  );
-
-  value(
-    'rsiChartValue',
-    num(rv[i], 1)
-  );
-
-  value(
-    'adxChartValue',
-    num(av.adx[i], 1)
-  );
-
-  currentRSIText =
-    rsiInterpretation(rv[i]);
-
-  value(
-    'rsiInterpretation',
-    currentRSIText
-  );
-
-  value(
-    'adxInterpretation',
-    adxInterpretation(
-      av.adx[i],
-      av.plus[i],
-      av.minus[i]
-    )
-  );
-
-  value(
-    'volumeInterpretation',
-    volumeInterpretation(rows)
-  );
-
-  let trend = 'Mixta';
-
-  if (
-    Number.isFinite(e21[i]) &&
-    Number.isFinite(m55[i])
-  ) {
-    if (
-      closes[i] > e21[i] &&
-      e21[i] > m55[i]
+    for (
+      const [key, arr] of [
+        ["adx", av.adx],
+        ["plus", av.plus],
+        ["minus", av.minus]
+      ]
     ) {
-      trend = 'Sesgo alcista';
-    } else if (
-      closes[i] < e21[i] &&
-      e21[i] < m55[i]
-    ) {
-      trend = 'Sesgo bajista';
-    }
-  }
-
-  value(
-    'indicatorReadout',
-    trend + '. ' + currentRSIText
-  );
-
-  pivots =
-    detectPivots(rows);
-
-  zones =
-    detectFVG(rows);
-
-  sweeps =
-    detectSweeps(rows);
-
-  updateLevels();
-
-  series.price.setMarkers(
-    enabled.has('sweeps')
-      ? sweeps
-      : []
-  );
-
-  if ($('rsiSection')) {
-    $('rsiSection').hidden =
-      !enabled.has('rsi');
-  }
-
-  if ($('adxSection')) {
-    $('adxSection').hidden =
-      !enabled.has('adx');
-  }
-
-  requestAnimationFrame(() => {
-    for (const [key, id] of [
-      ['adx', 'adxChart'],
-      ['rsi', 'rsiChart']
-    ]) {
-      const el = $(id);
-
-      if (
-        enabled.has(key) &&
-        el?.clientWidth &&
-        charts[key]
-      ) {
-        charts[key].resize(
-          el.clientWidth,
-          el.clientHeight
-        );
-      }
-    }
-
-    drawZones();
-  });
-}
-
-/* ====================================
-   MOTOR DE SEÑALES
-==================================== */
-
-function analyzeSignal(a) {
-  const closed =
-    a.slice(0, -1);
-
-  if (closed.length < 60) {
-    return {
-      state: 'SIN DATOS',
-      direction: 'neutral',
-      detail:
-        'No hay suficientes velas cerradas.',
-      metrics:
-        'Esperando historial',
-      price: null
-    };
-  }
-
-  const closes =
-    closed.map(x => x.close);
-
-  const last =
-    closed.at(-1);
-
-  const e =
-    ema(closes, 21).at(-1);
-
-  const m =
-    sma(closes, 55).at(-1);
-
-  const r =
-    rsi(closes).at(-1);
-
-  const aData =
-    adx(closed);
-
-  const ax =
-    aData.adx.at(-1);
-
-  const plus =
-    aData.plus.at(-1);
-
-  const minus =
-    aData.minus.at(-1);
-
-  if (
-    ![e, m, r, ax, plus, minus]
-      .every(Number.isFinite)
-  ) {
-    return {
-      state: 'SIN DATOS',
-      direction: 'neutral',
-      detail:
-        'Indicadores todavía no disponibles.',
-      metrics:
-        'Esperando cálculos',
-      price: last.close
-    };
-  }
-
-  let bull = 0;
-  let bear = 0;
-
-  const reasons = [];
-
-  if (last.close > e) {
-    bull++;
-    reasons.push(
-      'precio sobre EMA 21'
-    );
-  } else {
-    bear++;
-    reasons.push(
-      'precio bajo EMA 21'
-    );
-  }
-
-  if (e > m) {
-    bull++;
-    reasons.push(
-      'EMA 21 sobre MA 55'
-    );
-  } else {
-    bear++;
-    reasons.push(
-      'EMA 21 bajo MA 55'
-    );
-  }
-
-  if (r >= 55) {
-    bull++;
-  } else if (r <= 45) {
-    bear++;
-  }
-
-  if (plus > minus) {
-    bull++;
-  } else if (minus > plus) {
-    bear++;
-  }
-
-  const strong =
-    ax >= 25;
-
-  const developing =
-    ax >= 20;
-
-  let state =
-    'LATERAL / MIXTO';
-
-  let direction =
-    'neutral';
-
-  if (
-    bull >= 3 &&
-    bull > bear
-  ) {
-    state = 'SESGO ALCISTA';
-    direction = 'bullish';
-  } else if (
-    bear >= 3 &&
-    bear > bull
-  ) {
-    state = 'SESGO BAJISTA';
-    direction = 'bearish';
-  }
-
-  const strength =
-    strong
-      ? 'ADX confirma fuerza de tendencia'
-      : developing
-        ? 'ADX muestra fuerza en desarrollo'
-        : 'ADX indica fuerza limitada';
-
-  let opportunity =
-    'Sin entrada confirmada';
-
-  if (
-    direction === 'bullish' &&
-    bull === 4 &&
-    strong &&
-    r < 70
-  ) {
-    opportunity =
-      'Posible LONG; requiere confirmación del precio';
-  }
-
-  if (
-    direction === 'bearish' &&
-    bear === 4 &&
-    strong &&
-    r > 30
-  ) {
-    opportunity =
-      'Posible SHORT; requiere confirmación del precio';
-  }
-
-  return {
-    state,
-    direction,
-
-    detail:
-      reasons.join(' · ') +
-      '. ' + strength +
-      '. ' + opportunity + '.',
-
-    metrics:
-      'RSI ' + num(r, 1) +
-      ' · ADX ' + num(ax, 1) +
-      ' · +DI ' + num(plus, 1) +
-      ' · −DI ' + num(minus, 1) +
-      ' · Confluencia ' +
-      Math.max(bull, bear) +
-      '/4',
-
-    price: last.close
-  };
-}
-
-function recordSignal(
-  tf,
-  symbol,
-  result
-) {
-  const key =
-    symbol + '|' + tf;
-
-  if (
-    lastStates[key] ===
-    result.state
-  ) return;
-
-  lastStates[key] =
-    result.state;
-
-  if (
-    result.state === 'SIN DATOS'
-  ) return;
-
-  signalHistory.unshift({
-    time:
-      new Date()
-        .toLocaleTimeString('es-MX'),
-
-    tf,
-    symbol,
-    state: result.state,
-    price: result.price,
-    detail: result.detail
-  });
-
-  if (
-    signalHistory.length > 30
-  ) {
-    signalHistory.length = 30;
-  }
-
-  renderHistory();
-}
-
-function renderHistory() {
-  const tbody =
-    $('signalLog');
-
-  if (!tbody) return;
-
-  tbody.replaceChildren();
-
-  for (const s of signalHistory) {
-    const tr =
-      document.createElement('tr');
-
-    for (const text of [
-      s.time,
-      s.tf,
-      s.symbol,
-      s.state,
-      num(s.price),
-      s.detail,
-      'Observación'
-    ]) {
-      const td =
-        document.createElement('td');
-
-      td.textContent = text;
-      tr.appendChild(td);
-    }
-
-    tbody.appendChild(tr);
-  }
-}
-
-function showSignal(
-  tf,
-  symbol,
-  result
-) {
-  const suffix =
-    tf === '5m' ? '5' : '15';
-
-  value(
-    'state' + suffix,
-    result.state
-  );
-
-  value(
-    'detail' + suffix,
-    result.detail
-  );
-
-  value(
-    'metrics' + suffix,
-    result.metrics
-  );
-
-  const state =
-    $('state' + suffix);
-
-  if (state) {
-    state.className =
-      'state ' +
-      result.direction;
-  }
-
-  const heading = state
-    ?.closest('.signal-card')
-    ?.querySelector('h3');
-
-  if (heading) {
-    heading.textContent =
-      symbol + ' / ' +
-      (tf === '5m' ? '5' : '15') +
-      ' minutos';
-  }
-
-  recordSignal(
-    tf,
-    symbol,
-    result
-  );
-}
-
-/* ====================================
-   API REST
-==================================== */
-
-async function getJSON(
-  url,
-  timeout = 12000
-) {
-  const controller =
-    new AbortController();
-
-  const timer = setTimeout(
-    () => controller.abort(),
-    timeout
-  );
-
-  try {
-    const response = await fetch(
-      url,
-      {
-        signal: controller.signal,
-        cache: 'no-store'
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        'HTTP ' + response.status
+      series[key]?.setData(
+        enabled.has("adx")
+          ? lineData(rows, arr)
+          : []
       );
     }
 
-    return await response.json();
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-const candleURL = (
-  market,
-  symbol,
-  tf,
-  limit = 300,
-  exchange = 'bingx'
-) =>
-  '/api/exchange/' +
-  encodeURIComponent(exchange) +
-  '/klines/' +
-  encodeURIComponent(symbol) +
-  '?market=' +
-  encodeURIComponent(market) +
-  '&interval=' +
-  encodeURIComponent(tf) +
-  '&limit=' + limit;
-
-const tickerURL = (
-  market,
-  symbol,
-  exchange = 'bingx'
-) =>
-  '/api/exchange/' +
-  encodeURIComponent(exchange) +
-  '/ticker/' +
-  encodeURIComponent(symbol) +
-  '?market=' +
-  encodeURIComponent(market);
-
-function unwrapTicker(raw) {
-  let d =
-    raw?.data ?? raw;
-
-  if (Array.isArray(d)) {
-    d = d[0] ?? {};
-  }
-
-  if (d?.data) {
-    d = d.data;
-  }
-
-  if (Array.isArray(d)) {
-    d = d[0] ?? {};
-  }
-
-  return d || {};
-}
-
-function setLivePrice(
-  price,
-  source = 'websocket'
-) {
-  const p = Number(price);
-
-  if (
-    !Number.isFinite(p) ||
-    p <= 0
-  ) return;
-
-  lastPrice = p;
-  lastPriceSource = source;
-
-  value(
-    'price',
-    num(p)
-  );
-
-  value(
-    'updated',
-    new Date()
-      .toLocaleTimeString('es-MX')
-  );
-
-  if (source === 'websocket') {
-    lastWsPriceAt = Date.now();
-
-    setConnection(
-      selected().exchange
-        .toUpperCase() +
-        ' · en vivo',
-      C.green
+    const i = Math.max(
+      0,
+      rows.length - 2
     );
-  } else if (
-    Date.now() - lastWsPriceAt >
-    7000
+
+    value("ema21Value", num(e21[i]));
+    value("ma55Value", num(m55[i]));
+    value("rsiValue", num(rv[i], 1));
+    value("adxValue", num(av.adx[i], 1));
+
+    value("rsiChartValue", num(rv[i], 1));
+    value("adxChartValue", num(av.adx[i], 1));
+
+    currentRSIText =
+      rsiInterpretation(rv[i]);
+
+    value(
+      "rsiInterpretation",
+      currentRSIText
+    );
+
+    value(
+      "adxInterpretation",
+      adxInterpretation(
+        av.adx[i],
+        av.plus[i],
+        av.minus[i]
+      )
+    );
+
+    value(
+      "volumeInterpretation",
+      volumeInterpretation(rows)
+    );
+
+    let trend = "Mixta";
+
+    if (
+      Number.isFinite(e21[i]) &&
+      Number.isFinite(m55[i])
+    ) {
+      if (
+        closes[i] > e21[i] &&
+        e21[i] > m55[i]
+      ) {
+        trend = "Sesgo alcista";
+      } else if (
+        closes[i] < e21[i] &&
+        e21[i] < m55[i]
+      ) {
+        trend = "Sesgo bajista";
+      }
+    }
+
+    value(
+      "indicatorReadout",
+      trend + ". " + currentRSIText
+    );
+
+    pivots = detectPivots(rows);
+    zones = detectFVG(rows);
+    sweeps = detectSweeps(rows);
+
+    updateLevels();
+
+    series.price.setMarkers(
+      enabled.has("sweeps")
+        ? sweeps
+        : []
+    );
+
+    if ($("rsiSection")) {
+      $("rsiSection").hidden =
+        !enabled.has("rsi");
+    }
+
+    if ($("adxSection")) {
+      $("adxSection").hidden =
+        !enabled.has("adx");
+    }
+
+    requestAnimationFrame(() => {
+      for (
+        const [key, id] of [
+          ["adx", "adxChart"],
+          ["rsi", "rsiChart"]
+        ]
+      ) {
+        const el = $(id);
+
+        if (
+          enabled.has(key) &&
+          el?.clientWidth &&
+          charts[key]
+        ) {
+          charts[key].resize(
+            el.clientWidth,
+            el.clientHeight
+          );
+        }
+      }
+
+      drawZones();
+    });
+  }
+
+  // ==================================
+  // API
+  // ==================================
+
+  async function getJSON(url, timeout = 12000) {
+    const controller =
+      new AbortController();
+
+    const timer = setTimeout(
+      () => controller.abort(),
+      timeout
+    );
+
+    try {
+      const response = await fetch(url, {
+        signal: controller.signal,
+        cache: "no-store"
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          "HTTP " + response.status
+        );
+      }
+
+      return await response.json();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function candleURL(
+    market,
+    symbol,
+    tf,
+    limit = 300,
+    exchange = "bingx"
   ) {
-    setConnection(
-      selected().exchange
-        .toUpperCase() +
-        ' · respaldo REST',
-      C.yellow
+    return (
+      "/api/exchange/" +
+      encodeURIComponent(exchange) +
+      "/klines/" +
+      encodeURIComponent(symbol) +
+      "?market=" +
+      encodeURIComponent(market) +
+      "&interval=" +
+      encodeURIComponent(tf) +
+      "&limit=" + limit
     );
   }
-}
 
-function updateTicker(
-  raw,
-  allowPrice = true
-) {
-  const d =
-    unwrapTicker(raw);
-
-  const price = Number(
-    d.lastPrice ??
-    d.last ??
-    d.price ??
-    d.close ??
-    d.c
-  );
-
-  const high = Number(
-    d.highPrice ??
-    d.high24h ??
-    d.high ??
-    d.h
-  );
-
-  const low = Number(
-    d.lowPrice ??
-    d.low24h ??
-    d.low ??
-    d.l
-  );
-
-  const open = Number(
-    d.openPrice ??
-    d.open24h ??
-    d.open ??
-    d.o
-  );
-
-  const volume = Number(
-    d.volume ??
-    d.volume24h ??
-    d.vol ??
-    d.v
-  );
-
-  let change = Number(
-    d.priceChangePercent ??
-    d.changePercent ??
-    d.changeRate
-  );
-
-  if (
-    !Number.isFinite(change) &&
-    Number.isFinite(price) &&
-    Number.isFinite(open) &&
-    open !== 0
+  function tickerURL(
+    market,
+    symbol,
+    exchange = "bingx"
   ) {
-    change =
-      (price / open - 1) * 100;
+    return (
+      "/api/exchange/" +
+      encodeURIComponent(exchange) +
+      "/ticker/" +
+      encodeURIComponent(symbol) +
+      "?market=" +
+      encodeURIComponent(market)
+    );
   }
 
-  if (
-    allowPrice &&
-    Number.isFinite(price) &&
-    price > 0
+  function unwrapTicker(raw) {
+    let d = raw?.data ?? raw;
+
+    if (Array.isArray(d)) {
+      d = d[0] ?? {};
+    }
+
+    if (d?.data) d = d.data;
+
+    if (Array.isArray(d)) {
+      d = d[0] ?? {};
+    }
+
+    return d || {};
+  }
+
+  function setLivePrice(
+    price,
+    source = "websocket"
   ) {
-    setLivePrice(
-      price,
-      'rest'
+    const p = Number(price);
+
+    if (
+      !Number.isFinite(p) ||
+      p <= 0
+    ) return;
+
+    value("price", num(p));
+
+    value(
+      "updated",
+      new Date().toLocaleTimeString("es-MX")
     );
+
+    if (source === "websocket") {
+      lastWsPriceAt = Date.now();
+
+      setConnection(
+        selected().exchange.toUpperCase() +
+        " · en vivo",
+        C.green
+      );
+    } else if (
+      Date.now() - lastWsPriceAt > 7000
+    ) {
+      setConnection(
+        selected().exchange.toUpperCase() +
+        " · respaldo REST",
+        C.yellow
+      );
+    }
+  }
+
+  function scheduleIndicators() {
+    if (indicatorTimer) return;
+
+    const delay = Math.max(
+      0,
+      1500 - (
+        Date.now() - lastIndicatorAt
+      )
+    );
+
+    indicatorTimer = setTimeout(() => {
+      indicatorTimer = null;
+      lastIndicatorAt = Date.now();
+
+      if (rows.length) {
+        updateIndicators();
+      }
+    }, delay);
+  }
+
+  function applyLiveCandle(
+    price,
+    timestamp = Date.now()
+  ) {
+    if (
+      !series.price ||
+      !rows.length ||
+      !Number.isFinite(price) ||
+      price <= 0 ||
+      activeKey !== keyOf(selected())
+    ) return;
 
     const s = selected();
+    const seconds = Math.floor(
+      timestamp / 1000
+    );
 
-    receiveLivePrice(
-      price,
-      'rest',
-      Date.now(),
-      s
+    const bucket =
+      candleStart(seconds, s.tf);
+
+    const last = rows.at(-1);
+    const interval = SECONDS[s.tf];
+
+    if (
+      !Number.isFinite(bucket) ||
+      !last ||
+      !interval ||
+      bucket < last.time ||
+      seconds >
+        Math.floor(Date.now() / 1000) + 10
+    ) return;
+
+    // Una discrepancia extrema se
+    // verifica con los datos oficiales.
+    if (
+      Math.abs(price / last.close - 1) > .20
+    ) {
+      value(
+        "status",
+        "Precio atípico: verificando datos"
+      );
+
+      return;
+    }
+
+    if (
+      bucket - last.time >
+      interval * 2
+    ) {
+      refresh();
+      return;
+    }
+
+    let candle;
+
+    if (bucket === last.time) {
+      candle = {
+        ...last,
+        high: Math.max(last.high, price),
+        low: Math.min(last.low, price),
+        close: price
+      };
+
+      rows[rows.length - 1] = candle;
+    } else {
+      candle = {
+        time: bucket,
+        open: price,
+        high: price,
+        low: price,
+        close: price,
+        volume: 0
+      };
+
+      rows.push(candle);
+
+      if (rows.length > 350) {
+        rows.shift();
+
+        series.price.setData(rows);
+
+        series.volume?.setData(
+          rows.map(volumeBar)
+        );
+
+        scheduleIndicators();
+        return;
+      }
+    }
+
+    series.price.update(candle);
+
+    series.volume?.update(
+      volumeBar(candle)
+    );
+
+    scheduleIndicators();
+  }
+
+  function receiveLivePrice(
+    price,
+    source,
+    timestamp,
+    config
+  ) {
+    const p = Number(price);
+    const ts = Number(timestamp);
+    const s = selected();
+
+    if (
+      !Number.isFinite(p) ||
+      p <= 0 ||
+      config.exchange !== s.exchange ||
+      config.market !== s.market ||
+      config.symbol !== s.symbol
+    ) return;
+
+    const eventTime =
+      Number.isFinite(ts) &&
+      Math.abs(ts - Date.now()) < 60000
+        ? ts
+        : Date.now();
+
+    lastLiveEvent = {
+      price: p,
+      timestamp: eventTime,
+      receivedAt: Date.now(),
+      key: keyOf(s)
+    };
+
+    setLivePrice(p, source);
+
+    applyLiveCandle(p, eventTime);
+  }
+
+  function updateTicker(
+    raw,
+    allowPrice = true,
+    selection = selected()
+  ) {
+    const d = unwrapTicker(raw);
+
+    const price = Number(
+      d.lastPrice ??
+      d.last ??
+      d.price ??
+      d.close ??
+      d.c
+    );
+
+    const high = Number(
+      d.highPrice ??
+      d.high24h ??
+      d.high ??
+      d.h
+    );
+
+    const low = Number(
+      d.lowPrice ??
+      d.low24h ??
+      d.low ??
+      d.l
+    );
+
+    const open = Number(
+      d.openPrice ??
+      d.open24h ??
+      d.open ??
+      d.o
+    );
+
+    const volume = Number(
+      d.volume ??
+      d.volume24h ??
+      d.vol ??
+      d.v
+    );
+
+    let change = Number(
+      d.priceChangePercent ??
+      d.changePercent ??
+      d.changeRate
+    );
+
+    if (
+      !Number.isFinite(change) &&
+      Number.isFinite(price) &&
+      Number.isFinite(open) &&
+      open !== 0
+    ) {
+      change = (price / open - 1) * 100;
+    }
+
+    if (
+      allowPrice &&
+      Number.isFinite(price) &&
+      price > 0
+    ) {
+      receiveLivePrice(
+        price,
+        "rest",
+        Date.now(),
+        selection
+      );
+    }
+
+    value("high", num(high));
+    value("low", num(low));
+    value("open", num(open));
+    value("volume", num(volume, 0));
+
+    const el = $("change");
+
+    if (el) {
+      el.textContent =
+        Number.isFinite(change)
+          ? (change >= 0 ? "+" : "") +
+            num(change) + "%"
+          : "—";
+
+      el.classList.toggle(
+        "negative",
+        change < 0
+      );
+
+      el.style.color =
+        change < 0 ? C.red : C.green;
+    }
+
+    value(
+      "bid",
+      num(
+        d.bidPrice ??
+        d.bid ??
+        d.bestBid
+      )
+    );
+
+    value(
+      "ask",
+      num(
+        d.askPrice ??
+        d.ask ??
+        d.bestAsk
+      )
     );
   }
 
-  value('high', num(high));
-  value('low', num(low));
-  value('open', num(open));
+  // ==================================
+  // SEÑALES 5M Y 15M
+  // ==================================
 
-  value(
-    'volume',
-    num(volume, 0)
-  );
+  function metricFor(data) {
+    const closed = data.slice(0, -1);
 
-  const el =
-    $('change');
+    if (closed.length < 60) return null;
 
-  if (el) {
-    el.textContent =
-      Number.isFinite(change)
-        ? (
-            change >= 0 ? '+' : ''
-          ) + num(change) + '%'
-        : '—';
+    const closes =
+      closed.map(x => x.close);
 
-    el.classList.toggle(
-      'negative',
-      change < 0
-    );
+    const last = closed.at(-1);
 
-    el.style.color =
-      change < 0
-        ? C.red
-        : C.green;
-  }
+    const e =
+      ema(closes, 21).at(-1);
 
-  value(
-    'bid',
-    num(
-      d.bidPrice ??
-      d.bid ??
-      d.bestBid
-    )
-  );
+    const m =
+      sma(closes, 55).at(-1);
 
-  value(
-    'ask',
-    num(
-      d.askPrice ??
-      d.ask ??
-      d.bestAsk
-    )
-  );
-}
+    const rv =
+      rsi(closes).at(-1);
 
-async function monitor(
-  symbol,
-  market,
-  exchange,
-  force = false
-) {
-  if (monitorBusy) return;
+    const ad = adx(closed);
 
-  if (
-    !force &&
-    Date.now() - lastMonitorAt <
-    60000
-  ) return;
+    const ax = ad.adx.at(-1);
+    const plus = ad.plus.at(-1);
+    const minus = ad.minus.at(-1);
 
-  monitorBusy = true;
+    if (
+      ![e, m, rv, ax, plus, minus]
+        .every(Number.isFinite)
+    ) return null;
 
-  try {
-    const [five, fifteen] =
-      await Promise.all([
-        getJSON(
-          candleURL(
-            market,
-            symbol,
-            '5m',
-            300,
-            exchange
-          )
+    const previousVolumes =
+      closed.slice(-21, -1);
+
+    const averageVolume =
+      previousVolumes.reduce(
+        (sum, x) => sum + x.volume,
+        0
+      ) / previousVolumes.length;
+
+    const volRatio =
+      averageVolume > 0
+        ? last.volume / averageVolume
+        : null;
+
+    let bull = 0;
+    let bear = 0;
+
+    if (last.close > e) bull++;
+    if (last.close < e) bear++;
+
+    if (e > m) bull++;
+    if (e < m) bear++;
+
+    if (rv >= 55) bull++;
+    if (rv <= 45) bear++;
+
+    if (plus > minus) bull++;
+    if (minus > plus) bear++;
+
+    const previous =
+      closed.slice(-7, -1);
+
+    return {
+      bull,
+      bear,
+      adx: ax,
+      rsi: rv,
+      plus,
+      minus,
+      volRatio,
+      close: last.close,
+      closedTime: last.time,
+
+      breakHigh:
+        last.close >
+        Math.max(
+          ...previous.map(x => x.high)
         ),
 
-        getJSON(
-          candleURL(
-            market,
-            symbol,
-            '15m',
-            300,
-            exchange
-          )
+      breakLow:
+        last.close <
+        Math.min(
+          ...previous.map(x => x.low)
         )
-      ]);
-
-    const now = selected();
-
-    if (
-      now.symbol !== symbol ||
-      now.market !== market ||
-      now.exchange !== exchange
-    ) return;
-
-    showSignal(
-      '5m',
-      symbol,
-      analyzeSignal(
-        normalize(five)
-      )
-    );
-
-    showSignal(
-      '15m',
-      symbol,
-      analyzeSignal(
-        normalize(fifteen)
-      )
-    );
-
-    value(
-      'engineState',
-      'ANALIZANDO'
-    );
-
-    lastMonitorAt =
-      Date.now();
-
-  } catch (error) {
-    value(
-      'engineState',
-      'SIN CONEXIÓN'
-    );
-
-    console.warn(
-      'Monitor:',
-      error.message
-    );
-  } finally {
-    monitorBusy = false;
-  }
-}
-
-/* ====================================
-   SINCRONIZACIÓN REST + WEBSOCKET
-==================================== */
-
-function applyCandles(
-  data,
-  symbol,
-  tf,
-  market,
-  exchange
-) {
-  const changed =
-    symbol !== lastSymbol ||
-    tf !== lastInterval ||
-    market !== lastMarket ||
-    exchange !== lastExchange;
-
-  let previousRange = null;
-
-  if (!changed) {
-    try {
-      previousRange =
-        charts.price
-          .timeScale()
-          .getVisibleLogicalRange();
-    } catch (_) {}
+    };
   }
 
-  rows = data;
+  function analyzeSignal(data) {
+    const m = metricFor(data);
 
-  lastSymbol = symbol;
-  lastInterval = tf;
-  lastMarket = market;
-  lastExchange = exchange;
-
-  series.price.setData(rows);
-
-  series.volume?.setData(
-    rows.map(volumeBar)
-  );
-
-  updateIndicators();
-
-  if (changed) {
-    resetView();
-  } else if (previousRange) {
-    try {
-      charts.price
-        .timeScale()
-        .setVisibleLogicalRange(
-          previousRange
-        );
-    } catch (_) {}
-  }
-
-  value(
-    'chartTitle',
-    symbol + ' · ' + tf
-  );
-
-  value(
-    'volumeLabel',
-    symbol.split('-')[0]
-  );
-
-  const area =
-    $('priceChartArea');
-
-  if (
-    area &&
-    !$('zonesCanvas')?.width
-  ) {
-    resizeCanvas();
-  } else {
-    drawZones();
-  }
-}
-
-async function refresh() {
-  if (
-    loading ||
-    !series.price
-  ) return;
-
-  loading = true;
-
-  const id =
-    ++requestId;
-
-  const selection =
-    selected();
-
-  const {
-    symbol,
-    tf,
-    market,
-    exchange
-  } = selection;
-
-  const requestStartedAt =
-    Date.now();
-
-  value(
-    'status',
-    'Consultando velas de ' +
-    exchange.toUpperCase() +
-    '...'
-  );
-
-  try {
-    const candleResult =
-      await getJSON(
-        candleURL(
-          market,
-          symbol,
-          tf,
-          300,
-          exchange
-        )
-      );
-
-    if (
-      id !== requestId ||
-      !sameSelection(selection)
-    ) return;
-
-    const data =
-      normalize(candleResult);
-
-    if (!data.length) {
-      throw new Error(
-        'No se recibieron velas válidas'
-      );
+    if (!m) {
+      return {
+        state: "SIN DATOS",
+        direction: "neutral",
+        detail: "Historial insuficiente.",
+        metrics: "Esperando indicadores",
+        price: null
+      };
     }
 
-    applyCandles(
-      data,
-      symbol,
-      tf,
-      market,
-      exchange
-    );
-
-    // Si llegó una cotización nueva
-    // durante la consulta REST, se
-    // aplica de nuevo para no retroceder
-    // visualmente el precio.
-    const live = lastLiveEvent;
+    let state = "LATERAL / MIXTO";
+    let direction = "neutral";
 
     if (
-      live &&
-      live.receivedAt >=
-        requestStartedAt &&
-      live.exchange === exchange &&
-      live.market === market &&
-      live.symbol === symbol
+      m.bull >= 3 &&
+      m.bull > m.bear
     ) {
-      applyLiveCandle(
-        live.price,
-        live.timestamp,
-        live.source
-      );
+      state = "SESGO ALCISTA";
+      direction = "bullish";
+    } else if (
+      m.bear >= 3 &&
+      m.bear > m.bull
+    ) {
+      state = "SESGO BAJISTA";
+      direction = "bearish";
     }
 
-    value(
-      'status',
-      'Velas de ' +
-      exchange.toUpperCase() +
-      ' actualizadas'
-    );
+    const opportunity =
+      m.bull === 4 &&
+      m.adx >= 25 &&
+      m.rsi < 70
+        ? "Posible LONG"
+        : m.bear === 4 &&
+          m.adx >= 25 &&
+          m.rsi > 30
+          ? "Posible SHORT"
+          : "Sin entrada confirmada";
 
-    value(
-      'message',
-      ''
-    );
+    return {
+      state,
+      direction,
 
-    monitor(
-      symbol,
-      market,
-      exchange
-    );
+      detail:
+        opportunity +
+        ". Requiere confirmación del precio.",
 
-  } catch (error) {
-    console.warn(
-      'CRYPTOLEXUZ velas:',
-      error
-    );
+      metrics:
+        "RSI " + num(m.rsi, 1) +
+        " · ADX " + num(m.adx, 1) +
+        " · +DI " + num(m.plus, 1) +
+        " · −DI " + num(m.minus, 1),
 
-    value(
-      'status',
-      'Error de velas: ' +
-      error.message
-    );
-
-    value(
-      'message',
-      'No se pudieron actualizar las velas. Comprueba la conexión y el servidor.'
-    );
-  } finally {
-    loading = false;
+      price: m.close
+    };
   }
-}
 
-async function refreshTicker() {
-  const selection =
-    selected();
+  function recordSignal(tf, symbol, result) {
+    if (
+      result.state === "SIN DATOS"
+    ) return;
 
-  const {
+    const key = symbol + "|" + tf;
+    const previous = signalHistory[0];
+
+    if (
+      previous?.key === key &&
+      previous.state === result.state
+    ) return;
+
+    signalHistory.unshift({
+      key,
+      time:
+        new Date().toLocaleTimeString("es-MX"),
+      tf,
+      symbol,
+      state: result.state,
+      price: result.price,
+      detail: result.detail
+    });
+
+    if (signalHistory.length > 30) {
+      signalHistory.length = 30;
+    }
+
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const tbody = $("signalLog");
+
+    if (!tbody) return;
+
+    tbody.replaceChildren();
+
+    for (const s of signalHistory) {
+      const tr = document.createElement("tr");
+
+      for (
+        const text of [
+          s.time,
+          s.tf,
+          s.symbol,
+          s.state,
+          num(s.price),
+          s.detail,
+          "Observación"
+        ]
+      ) {
+        const td =
+          document.createElement("td");
+
+        td.textContent = text;
+        tr.appendChild(td);
+      }
+
+      tbody.appendChild(tr);
+    }
+  }
+
+  function showSignal(tf, symbol, result) {
+    const suffix = tf === "5m" ? "5" : "15";
+
+    value(
+      "state" + suffix,
+      result.state
+    );
+
+    value(
+      "detail" + suffix,
+      result.detail
+    );
+
+    value(
+      "metrics" + suffix,
+      result.metrics
+    );
+
+    const state = $("state" + suffix);
+
+    if (state) {
+      state.className =
+        "state " + result.direction;
+
+      const heading = state
+        .closest(".signal-card")
+        ?.querySelector("h3");
+
+      if (heading) {
+        heading.textContent =
+          symbol + " / " +
+          (tf === "5m" ? "5" : "15") +
+          " minutos";
+      }
+    }
+
+    recordSignal(tf, symbol, result);
+  }
+
+  async function monitor(
     symbol,
     market,
     exchange
-  } = selection;
+  ) {
+    if (
+      monitorBusy ||
+      Date.now() - lastMonitorAt < 60000
+    ) return;
 
-  try {
-    const raw =
-      await getJSON(
+    monitorBusy = true;
+
+    try {
+      const [five, fifteen] =
+        await Promise.all([
+          getJSON(
+            candleURL(
+              market, symbol,
+              "5m", 300, exchange
+            )
+          ),
+
+          getJSON(
+            candleURL(
+              market, symbol,
+              "15m", 300, exchange
+            )
+          )
+        ]);
+
+      const now = selected();
+
+      if (
+        now.symbol !== symbol ||
+        now.market !== market ||
+        now.exchange !== exchange
+      ) return;
+
+      showSignal(
+        "5m",
+        symbol,
+        analyzeSignal(normalize(five))
+      );
+
+      showSignal(
+        "15m",
+        symbol,
+        analyzeSignal(normalize(fifteen))
+      );
+
+      value(
+        "engineState",
+        "ANALIZANDO"
+      );
+
+      lastMonitorAt = Date.now();
+
+    } catch (error) {
+      value(
+        "engineState",
+        "SIN CONEXIÓN"
+      );
+
+      console.warn(
+        "Monitor:",
+        error.message
+      );
+    } finally {
+      monitorBusy = false;
+    }
+  }
+
+  // ==================================
+  // HISTORIAL REST
+  // ==================================
+
+  function applyCandles(data, s) {
+    const changed =
+      activeKey !== keyOf(s);
+
+    let previousRange = null;
+
+    if (!changed) {
+      try {
+        previousRange =
+          charts.price.timeScale()
+            .getVisibleLogicalRange();
+      } catch (_) {}
+    }
+
+    rows = data;
+    activeKey = keyOf(s);
+
+    series.price.setData(rows);
+
+    series.volume?.setData(
+      rows.map(volumeBar)
+    );
+
+    updateIndicators();
+
+    if (changed) {
+      resetView();
+    } else if (previousRange) {
+      try {
+        charts.price.timeScale()
+          .setVisibleLogicalRange(
+            previousRange
+          );
+      } catch (_) {}
+    }
+
+    value(
+      "chartTitle",
+      s.symbol + " · " + s.tf
+    );
+
+    value(
+      "volumeLabel",
+      s.symbol.split("-")[0]
+    );
+
+    if (
+      $("priceChartArea") &&
+      !$("zonesCanvas")?.width
+    ) {
+      resizeCanvas();
+    } else {
+      drawZones();
+    }
+  }
+
+  async function refresh() {
+    if (
+      loading ||
+      !series.price
+    ) return;
+
+    loading = true;
+
+    const id = ++requestId;
+    const s = selected();
+    const started = Date.now();
+
+    value(
+      "status",
+      "Consultando velas de " +
+      s.exchange.toUpperCase() + "..."
+    );
+
+    try {
+      const result = await getJSON(
+        candleURL(
+          s.market,
+          s.symbol,
+          s.tf,
+          300,
+          s.exchange
+        )
+      );
+
+      if (
+        id !== requestId ||
+        keyOf(s) !== keyOf(selected())
+      ) return;
+
+      const data = normalize(result);
+
+      if (!data.length) {
+        throw new Error(
+          "No se recibieron velas válidas"
+        );
+      }
+
+      const live = lastLiveEvent;
+
+      if (
+        live &&
+        live.key === keyOf(s) &&
+        live.receivedAt >= started
+      ) {
+        const bucket = candleStart(
+          Math.floor(
+            live.timestamp / 1000
+          ),
+          s.tf
+        );
+
+        const last = data.at(-1);
+
+        if (
+          bucket === last.time &&
+          live.price > 0 &&
+          Math.abs(
+            live.price / last.close - 1
+          ) < .20
+        ) {
+          last.high = Math.max(
+            last.high,
+            live.price
+          );
+
+          last.low = Math.min(
+            last.low,
+            live.price
+          );
+
+          last.close = live.price;
+        } else if (
+          bucket > last.time &&
+          bucket - last.time <=
+            SECONDS[s.tf] * 2 &&
+          Math.abs(
+            live.price / last.close - 1
+          ) < .20
+        ) {
+          data.push({
+            time: bucket,
+            open: live.price,
+            high: live.price,
+            low: live.price,
+            close: live.price,
+            volume: 0
+          });
+        }
+      }
+
+      applyCandles(data, s);
+
+      value(
+        "status",
+        "Velas actualizadas"
+      );
+
+      value("message", "");
+
+      monitor(
+        s.symbol,
+        s.market,
+        s.exchange
+      );
+
+    } catch (error) {
+      if (
+        id === requestId &&
+        keyOf(s) === keyOf(selected())
+      ) {
+        value(
+          "status",
+          "Error de velas: " +
+          error.message
+        );
+
+        value(
+          "message",
+          "Comprueba la conexión y el servidor."
+        );
+      }
+
+      console.warn(
+        "CRYPTOLEXUZ velas:",
+        error
+      );
+    } finally {
+      loading = false;
+    }
+  }
+
+  async function refreshTicker() {
+    const s = selected();
+
+    try {
+      const raw = await getJSON(
         tickerURL(
-          market,
-          symbol,
-          exchange
+          s.market,
+          s.symbol,
+          s.exchange
         ),
         8000
       );
 
-    if (
-      !sameSelection(selection)
-    ) return;
+      if (
+        keyOf(s) !== keyOf(selected())
+      ) return;
 
-    updateTicker(
-      raw,
-      Date.now() -
-        lastWsPriceAt > 7000
-    );
-
-  } catch (error) {
-    console.warn(
-      'Ticker REST:',
-      error.message
-    );
-  }
-}
-
-/* ====================================
-   WEBSOCKET
-==================================== */
-
-function disconnectWS() {
-  wsGeneration++;
-
-  if (wsTimer) {
-    clearTimeout(wsTimer);
-    wsTimer = null;
+      updateTicker(
+        raw,
+        Date.now() - lastWsPriceAt > 7000,
+        s
+      );
+    } catch (error) {
+      console.warn(
+        "Ticker REST:",
+        error.message
+      );
+    }
   }
 
-  if (ws) {
-    const old = ws;
+  // ==================================
+  // WEBSOCKET
+  // ==================================
 
-    ws = null;
+  function disconnectWS() {
+    wsGeneration++;
 
-    old.onopen = null;
-    old.onmessage = null;
-    old.onerror = null;
-    old.onclose = null;
+    if (wsTimer) {
+      clearTimeout(wsTimer);
+      wsTimer = null;
+    }
 
-    try {
-      old.close();
-    } catch (_) {}
-  }
-}
+    if (ws) {
+      const old = ws;
+      ws = null;
 
-function connectWS() {
-  disconnectWS();
+      old.onopen = null;
+      old.onmessage = null;
+      old.onerror = null;
+      old.onclose = null;
 
-  const generation =
-    wsGeneration;
-
-  const {
-    exchange,
-    symbol,
-    market
-  } = selected();
-
-  const config = {
-    exchange,
-    symbol,
-    market
-  };
-
-  const scheme =
-    location.protocol === 'https:'
-      ? 'wss:'
-      : 'ws:';
-
-  const url =
-    scheme + '//' +
-    location.host +
-    '/ws?exchange=' +
-    encodeURIComponent(exchange) +
-    '&market=' +
-    encodeURIComponent(market) +
-    '&symbol=' +
-    encodeURIComponent(symbol);
-
-  lastWsPriceAt = 0;
-
-  setConnection(
-    exchange.toUpperCase() +
-    ' · conectando',
-    C.yellow
-  );
-
-  let socket;
-
-  try {
-    socket =
-      new WebSocket(url);
-  } catch (error) {
-    scheduleReconnect(
-      generation
-    );
-    return;
+      try {
+        old.close();
+      } catch (_) {}
+    }
   }
 
-  ws = socket;
+  function connectWS() {
+    disconnectWS();
 
-  socket.onopen = () => {
-    if (
-      generation !== wsGeneration
-    ) return;
+    const generation = wsGeneration;
+
+    const {
+      exchange,
+      symbol,
+      market
+    } = selected();
+
+    const config = {
+      exchange,
+      symbol,
+      market
+    };
+
+    const scheme =
+      location.protocol === "https:"
+        ? "wss:"
+        : "ws:";
+
+    const url =
+      scheme + "//" +
+      location.host +
+      "/ws?exchange=" +
+      encodeURIComponent(exchange) +
+      "&market=" +
+      encodeURIComponent(market) +
+      "&symbol=" +
+      encodeURIComponent(symbol);
+
+    lastWsPriceAt = 0;
 
     setConnection(
       exchange.toUpperCase() +
-      ' · esperando precios',
+      " · conectando",
       C.yellow
     );
-  };
 
-  socket.onmessage = event => {
-    if (
-      generation !== wsGeneration
-    ) return;
-
-    let data;
+    let socket;
 
     try {
-      data =
-        JSON.parse(event.data);
+      socket = new WebSocket(url);
     } catch (_) {
+      scheduleReconnect(generation);
       return;
     }
 
-    if (data.type === 'price') {
+    ws = socket;
+
+    socket.onopen = () => {
       if (
-        data.exchange !== exchange ||
-        data.market !== market ||
-        data.symbol !== symbol
+        generation !== wsGeneration
       ) return;
 
-      const source =
-        data.source === 'websocket'
-          ? 'websocket'
-          : 'rest';
-
-      receiveLivePrice(
-        Number(data.price),
-        source,
-        Number(data.timestamp),
-        config
+      setConnection(
+        exchange.toUpperCase() +
+        " · esperando precios",
+        C.yellow
       );
+    };
 
-    } else if (
-      data.type === 'status'
-    ) {
+    socket.onmessage = event => {
       if (
-        data.status ===
-        'reconnecting'
+        generation !== wsGeneration
+      ) return;
+
+      let data;
+
+      try {
+        data = JSON.parse(event.data);
+      } catch (_) {
+        return;
+      }
+
+      if (data.type === "price") {
+        if (
+          data.exchange !== exchange ||
+          data.market !== market ||
+          data.symbol !== symbol
+        ) return;
+
+        receiveLivePrice(
+          Number(data.price),
+          data.source === "websocket"
+            ? "websocket"
+            : "rest",
+          Number(data.timestamp),
+          config
+        );
+
+      } else if (
+        data.type === "status" &&
+        data.status === "reconnecting"
       ) {
         setConnection(
           exchange.toUpperCase() +
-          ' · reconectando',
+          " · reconectando",
           C.yellow
         );
       }
-    }
-  };
+    };
 
-  socket.onerror = () => {
-    if (
-      generation === wsGeneration
-    ) {
+    socket.onerror = () => {
+      if (
+        generation === wsGeneration
+      ) {
+        setConnection(
+          exchange.toUpperCase() +
+          " · conexión interrumpida",
+          C.yellow
+        );
+      }
+    };
+
+    socket.onclose = () => {
+      if (
+        generation !== wsGeneration
+      ) return;
+
+      ws = null;
+
       setConnection(
         exchange.toUpperCase() +
-        ' · conexión interrumpida',
+        " · reconectando",
         C.yellow
       );
-    }
-  };
 
-  socket.onclose = () => {
+      scheduleReconnect(generation);
+    };
+  }
+
+  function scheduleReconnect(generation) {
     if (
       generation !== wsGeneration
     ) return;
 
-    ws = null;
-
-    setConnection(
-      exchange.toUpperCase() +
-      ' · reconectando',
-      C.yellow
-    );
-
-    scheduleReconnect(
-      generation
-    );
-  };
-}
-
-function scheduleReconnect(
-  generation
-) {
-  if (
-    generation !== wsGeneration
-  ) return;
-
-  if (wsTimer) {
-    clearTimeout(wsTimer);
-  }
-
-  wsTimer = setTimeout(() => {
-    if (
-      generation === wsGeneration &&
-      !document.hidden
-    ) {
-      connectWS();
+    if (wsTimer) {
+      clearTimeout(wsTimer);
     }
-  }, 3000);
-}
 
-/* ====================================
-   CONTROLES
-==================================== */
-
-function toggleIndicator(key) {
-  if (
-    !supported.has(key)
-  ) return;
-
-  if (enabled.has(key)) {
-    enabled.delete(key);
-  } else {
-    enabled.add(key);
-  }
-
-  updateButtons();
-  updateIndicators();
-}
-
-function updateButtons() {
-  document
-    .querySelectorAll(
-      '[data-indicator]'
-    )
-    .forEach(button => {
-      const key =
-        button.dataset.indicator;
-
+    wsTimer = setTimeout(() => {
       if (
-        !supported.has(key)
+        generation === wsGeneration &&
+        !document.hidden
       ) {
-        button.disabled = true;
-        return;
+        connectWS();
       }
-
-      const active =
-        enabled.has(key);
-
-      button.classList.toggle(
-        'active',
-        active
-      );
-
-      button.setAttribute(
-        'aria-pressed',
-        String(active)
-      );
-    });
-}
-
-function speakRSI() {
-  if (
-    !('speechSynthesis' in window)
-  ) return;
-
-  speechSynthesis.cancel();
-
-  const speech =
-    new SpeechSynthesisUtterance(
-      currentRSIText ||
-      'El RSI no está disponible.'
-    );
-
-  speech.lang = 'es-MX';
-  speech.rate = .95;
-
-  speechSynthesis.speak(
-    speech
-  );
-}
-
-function resetMarketState() {
-  requestId++;
-
-  loading = false;
-
-  lastWsPriceAt = 0;
-  lastPrice = null;
-  lastPriceSource = '';
-
-  lastLiveEvent = null;
-  lastLiveAppliedAt = 0;
-
-  lastSymbol = '';
-  lastInterval = '';
-  lastMarket = '';
-  lastExchange = '';
-
-  rows = [];
-  zones = [];
-  pivots = [];
-  sweeps = [];
-
-  if (indicatorTimer) {
-    clearTimeout(
-      indicatorTimer
-    );
-
-    indicatorTimer = null;
+    }, 3000);
   }
 
-  value(
-    'price',
-    '—'
-  );
+  // ==================================
+  // ESCÁNER MULTITEMPORAL
+  // ==================================
 
-  value(
-    'message',
-    'Cargando nueva temporalidad...'
-  );
-}
+  function ensureGoldOption() {
+    const select = $("symbol");
 
-function setupEvents() {
-  document
-    .querySelectorAll(
-      '[data-indicator]'
-    )
-    .forEach(button => {
-      button.addEventListener(
-        'click',
-        () => {
-          toggleIndicator(
-            button.dataset.indicator
+    if (!select) return;
+
+    const existing = [
+      ...select.options
+    ].find(option =>
+      GOLD_CANDIDATES.includes(
+        option.value
+      )
+    );
+
+    if (existing) {
+      existing.textContent =
+        "GOLD (XAU) · BingX";
+
+      return;
+    }
+
+    const option =
+      document.createElement("option");
+
+    option.value = GOLD_CANDIDATES[0];
+
+    option.textContent =
+      "GOLD (XAU) · BingX";
+
+    select.appendChild(option);
+  }
+
+  function ensureScannerUI() {
+    if ($("clScanner")) return;
+
+    const section =
+      document.createElement("section");
+
+    section.id = "clScanner";
+
+    section.style.cssText = [
+      "margin:16px 0",
+      "padding:16px",
+      "background:#0c1529",
+      "color:#dbe7ff",
+      "border:1px solid #263b60",
+      "border-radius:14px",
+      "font:14px system-ui,sans-serif"
+    ].join(";");
+
+    section.innerHTML = `
+      <div style="
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        flex-wrap:wrap
+      ">
+        <div>
+          <strong style="font-size:17px">
+            📡 Escáner CRYPTOLEXUZ V11
+          </strong>
+          <div
+            id="clScanStatus"
+            style="
+              color:#a5b0cf;
+              font-size:12px;
+              margin-top:4px
+            "
+          >
+            Esperando primer análisis...
+          </div>
+        </div>
+
+        <div style="
+          display:flex;
+          gap:8px;
+          flex-wrap:wrap
+        ">
+          <button
+            type="button"
+            id="clNotify"
+            style="
+              background:#243b60;
+              color:white;
+              border:0;
+              border-radius:8px;
+              padding:9px
+            "
+          >
+            🔔 Activar avisos
+          </button>
+
+          <button
+            type="button"
+            id="clScanNow"
+            style="
+              background:#166c60;
+              color:white;
+              border:0;
+              border-radius:8px;
+              padding:9px
+            "
+          >
+            ↻ Escanear
+          </button>
+        </div>
+      </div>
+
+      <div style="
+        font-size:12px;
+        color:#a5b0cf;
+        margin:12px 0
+      ">
+        7 activos · Diario a 1 minuto ·
+        Ranking LONG/SHORT ·
+        Actualización cada minuto con
+        la página activa.
+      </div>
+
+      <div style="overflow-x:auto">
+        <table style="
+          border-collapse:collapse;
+          width:100%;
+          font-size:12px;
+          min-width:560px
+        ">
+          <thead>
+            <tr style="
+              color:#a5b0cf;
+              text-align:left
+            ">
+              <th style="padding:8px">#</th>
+              <th>Activo</th>
+              <th>Dirección</th>
+              <th>Puntos</th>
+              <th>Estado</th>
+              <th>Confirmaciones</th>
+            </tr>
+          </thead>
+
+          <tbody id="clScanBody">
+            <tr>
+              <td
+                colspan="6"
+                style="padding:12px"
+              >
+                Iniciando escáner...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div
+        id="clScanErrors"
+        style="
+          color:#ff9a35;
+          font-size:12px;
+          margin-top:10px
+        "
+      ></div>
+    `;
+
+    const main =
+      document.querySelector("main") ||
+      document.body;
+
+    const intro =
+      main.querySelector(".intro");
+
+    if (intro) {
+      intro.insertAdjacentElement(
+        "afterend",
+        section
+      );
+    } else {
+      main.insertBefore(
+        section,
+        main.firstChild
+      );
+    }
+
+    $("clScanNow").addEventListener(
+      "click",
+      () => runScanner(true)
+    );
+
+    $("clNotify").addEventListener(
+      "click",
+      async () => {
+        if (!("Notification" in window)) {
+          alert(
+            "Este navegador no admite " +
+            "notificaciones web."
+          );
+
+          return;
+        }
+
+        try {
+          const permission =
+            await Notification.requestPermission();
+
+          $("clNotify").textContent =
+            permission === "granted"
+              ? "🔔 Avisos activos"
+              : "🔕 Permiso no concedido";
+        } catch (error) {
+          console.warn(
+            "Notificaciones:",
+            error
           );
         }
-      );
+      }
+    );
+
+    if (
+      "Notification" in window &&
+      Notification.permission === "granted"
+    ) {
+      $("clNotify").textContent =
+        "🔔 Avisos activos";
+    }
+  }
+
+  function scanMarkets() {
+    const s = selected();
+
+    const markets = CRYPTOS.map(
+      symbol => ({
+        symbol,
+        exchange: s.exchange,
+        market: s.market,
+        label: symbol.replace("-", "/")
+      })
+    );
+
+    markets.push({
+      symbol: GOLD_CANDIDATES[0],
+      exchange: "bingx",
+      market: "perpetual",
+      label: "GOLD (XAU)",
+      gold: true
     });
 
-  $('refresh')?.addEventListener(
-    'click',
-    () => {
-      refresh();
-      refreshTicker();
-    }
-  );
+    return markets;
+  }
 
-  $('chartNavigation')
-    ?.addEventListener(
-      'click',
-      () => {
-        setChartNavigation(
-          !chartUnlocked
+  function rankAsset(market, frames) {
+    const metrics = {};
+
+    for (const tf of TIMEFRAMES) {
+      metrics[tf] = metricFor(
+        frames[tf] || []
+      );
+    }
+
+    if (
+      !metrics["1m"] ||
+      !metrics["5m"] ||
+      !metrics["15m"]
+    ) {
+      return {
+        market,
+        score: 0,
+        state: "DATOS INSUFICIENTES",
+        direction: "NEUTRAL",
+        confirmations: "—",
+        metrics
+      };
+    }
+
+    const weights = {
+      "1d": 5,
+      "4h": 7,
+      "1h": 9,
+      "30m": 10,
+      "15m": 13,
+      "5m": 17,
+      "1m": 19
+    };
+
+    let bull = 0;
+    let bear = 0;
+    let available = 0;
+
+    for (const tf of TIMEFRAMES) {
+      const m = metrics[tf];
+
+      if (!m) continue;
+
+      available++;
+
+      bull += weights[tf] * (
+        m.bull / 4
+      );
+
+      bear += weights[tf] * (
+        m.bear / 4
+      );
+    }
+
+    const direction =
+      bull >= bear ? "LONG" : "SHORT";
+
+    const fast = metrics["1m"];
+    const mid = metrics["5m"];
+    const confirm = metrics["15m"];
+
+    const aligned = [
+      fast,
+      mid,
+      confirm
+    ].filter(m =>
+      direction === "LONG"
+        ? m.bull >= 3
+        : m.bear >= 3
+    ).length;
+
+    const breakout =
+      direction === "LONG"
+        ? fast.breakHigh
+        : fast.breakLow;
+
+    let score = Math.round(
+      Math.max(bull, bear)
+    );
+
+    score +=
+      aligned === 3
+        ? 8
+        : aligned === 2
+          ? 4
+          : 0;
+
+    score +=
+      fast.adx >= 25
+        ? 5
+        : fast.adx >= 20
+          ? 2
+          : 0;
+
+    if (
+      Number.isFinite(fast.volRatio) &&
+      fast.volRatio >= 1.3
+    ) {
+      score += 5;
+    }
+
+    if (breakout) {
+      score += 4;
+    }
+
+    score = Math.min(100, score);
+
+    const confirmed =
+      aligned === 3 &&
+      fast.adx >= 20 &&
+      score >= 65 &&
+      (
+        direction === "LONG"
+          ? fast.rsi < 75
+          : fast.rsi > 25
+      );
+
+    const state = confirmed
+      ? "CONFIRMADA"
+      : score >= 55
+        ? "EN OBSERVACIÓN"
+        : "SIN ENTRADA";
+
+    return {
+      market,
+      score,
+      state,
+      direction,
+
+      confirmations:
+        aligned + "/3 rápidas · " +
+        available + "/7 marcos",
+
+      metrics,
+      closedTime: fast.closedTime,
+      price: fast.close
+    };
+  }
+
+  async function fetchFrames(market) {
+    const frames = {};
+
+    for (const tf of TIMEFRAMES) {
+      const cacheKey = [
+        market.exchange,
+        market.market,
+        market.symbol,
+        tf
+      ].join("|");
+
+      const cached = cache.get(cacheKey);
+
+      const ttl =
+        SECONDS[tf] >= 3600
+          ? 180000
+          : SECONDS[tf] >= 900
+            ? 90000
+            : 50000;
+
+      if (
+        cached &&
+        Date.now() - cached.at < ttl
+      ) {
+        frames[tf] = cached.data;
+        continue;
+      }
+
+      const raw = await getJSON(
+        candleURL(
+          market.market,
+          market.symbol,
+          tf,
+          130,
+          market.exchange
+        ),
+        12000
+      );
+
+      const data = normalize(raw);
+
+      if (data.length < 60) {
+        throw new Error(
+          tf + ": historial insuficiente"
         );
+      }
+
+      frames[tf] = data;
+
+      cache.set(cacheKey, {
+        at: Date.now(),
+        data
+      });
+    }
+
+    return frames;
+  }
+
+  async function resolveGold(market) {
+    let lastError = null;
+
+    for (const symbol of GOLD_CANDIDATES) {
+      try {
+        const raw = await getJSON(
+          candleURL(
+            "perpetual",
+            symbol,
+            "1m",
+            80,
+            "bingx"
+          ),
+          10000
+        );
+
+        const data = normalize(raw);
+
+        if (data.length >= 60) {
+          return {
+            ...market,
+            symbol
+          };
+        }
+
+        lastError =
+          new Error("Sin velas válidas");
+
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw new Error(
+      "No se pudo verificar el " +
+      "contrato GOLD (XAU): " +
+      (lastError?.message || "sin datos")
+    );
+  }
+
+  async function scanOne(market) {
+    const m = market.gold
+      ? await resolveGold(market)
+      : market;
+
+    const frames = await fetchFrames(m);
+
+    return rankAsset(m, frames);
+  }
+
+  function renderScanner() {
+    const body = $("clScanBody");
+
+    if (!body) return;
+
+    body.replaceChildren();
+
+    for (
+      const [i, r] of scanResults.entries()
+    ) {
+      const tr =
+        document.createElement("tr");
+
+      tr.style.borderTop =
+        "1px solid #233452";
+
+      const texts = [
+        String(i + 1),
+        r.market.label,
+        r.direction,
+        r.score + "/100",
+        r.state,
+        r.confirmations
+      ];
+
+      texts.forEach((text, j) => {
+        const td =
+          document.createElement("td");
+
+        td.textContent = text;
+        td.style.padding = "10px 8px";
+
+        if (j === 2) {
+          td.style.color =
+            r.direction === "LONG"
+              ? C.green
+              : r.direction === "SHORT"
+                ? C.red
+                : C.muted;
+        }
+
+        if (
+          j === 4 &&
+          r.state === "CONFIRMADA"
+        ) {
+          td.style.color = C.green;
+        }
+
+        tr.appendChild(td);
+      });
+
+      body.appendChild(tr);
+    }
+
+    if (!scanResults.length) {
+      const tr =
+        document.createElement("tr");
+
+      const td =
+        document.createElement("td");
+
+      td.colSpan = 6;
+      td.textContent =
+        "No se obtuvieron resultados válidos";
+
+      td.style.padding = "12px";
+
+      tr.appendChild(td);
+      body.appendChild(tr);
+    }
+
+    value(
+      "clScanErrors",
+      scanErrors.length
+        ? "Sin datos: " +
+          scanErrors.join(" · ")
+        : ""
+    );
+  }
+
+  function notifySignal(r) {
+    if (
+      r.state !== "CONFIRMADA" ||
+      !r.closedTime
+    ) return;
+
+    const key = [
+      r.market.exchange,
+      r.market.symbol,
+      r.direction,
+      r.closedTime
+    ].join("|");
+
+    if (alertHistory.has(key)) return;
+
+    alertHistory.set(key, Date.now());
+
+    if (alertHistory.size > 150) {
+      const old = [
+        ...alertHistory.keys()
+      ].slice(0, 50);
+
+      for (const k of old) {
+        alertHistory.delete(k);
+      }
+    }
+
+    if (
+      !("Notification" in window) ||
+      Notification.permission !== "granted"
+    ) return;
+
+    try {
+      const notification =
+        new Notification(
+          "CRYPTOLEXUZ · " +
+          r.market.label +
+          " · " + r.direction,
+          {
+            body:
+              "Señal técnica " +
+              r.score + "/100 · " +
+              r.confirmations +
+              " · Precio " +
+              num(r.price),
+
+            tag: key
+          }
+        );
+
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+      };
+    } catch (error) {
+      console.warn(
+        "Aviso:",
+        error.message
+      );
+    }
+  }
+
+  async function runScanner(force = false) {
+    if (
+      scanBusy ||
+      document.hidden
+    ) return;
+
+    if (
+      !force &&
+      Date.now() - scanLastAt < 55000
+    ) return;
+
+    scanBusy = true;
+
+    const markets = scanMarkets();
+    const results = [];
+    const errors = [];
+
+    value(
+      "clScanStatus",
+      "Analizando " +
+      markets.length +
+      " activos y siete temporalidades..."
+    );
+
+    let index = 0;
+
+    async function worker() {
+      while (index < markets.length) {
+        const market = markets[index++];
+
+        try {
+          const result =
+            await scanOne(market);
+
+          results.push(result);
+        } catch (error) {
+          errors.push(
+            market.label +
+            ": " + error.message
+          );
+        }
+      }
+    }
+
+    try {
+      // Dos trabajadores para no
+      // saturar el servidor.
+      await Promise.all([
+        worker(),
+        worker()
+      ]);
+
+      scanResults = results.sort(
+        (a, b) => b.score - a.score
+      );
+
+      scanErrors = errors;
+      scanLastAt = Date.now();
+
+      renderScanner();
+
+      value(
+        "clScanStatus",
+        "Última revisión: " +
+        new Date().toLocaleTimeString(
+          "es-MX"
+        ) +
+        " · " +
+        results.length +
+        "/" +
+        markets.length +
+        " activos"
+      );
+
+      for (const r of scanResults) {
+        notifySignal(r);
+      }
+
+    } finally {
+      scanBusy = false;
+    }
+  }
+
+  // ==================================
+  // CONTROLES
+  // ==================================
+
+  function toggleIndicator(key) {
+    if (!supported.has(key)) return;
+
+    if (enabled.has(key)) {
+      enabled.delete(key);
+    } else {
+      enabled.add(key);
+    }
+
+    updateButtons();
+    updateIndicators();
+  }
+
+  function updateButtons() {
+    document
+      .querySelectorAll(
+        "[data-indicator]"
+      )
+      .forEach(button => {
+        const key =
+          button.dataset.indicator;
+
+        if (!supported.has(key)) {
+          button.disabled = true;
+          return;
+        }
+
+        const active =
+          enabled.has(key);
+
+        button.classList.toggle(
+          "active",
+          active
+        );
+
+        button.setAttribute(
+          "aria-pressed",
+          String(active)
+        );
+      });
+  }
+
+  function speakRSI() {
+    if (
+      !("speechSynthesis" in window)
+    ) return;
+
+    speechSynthesis.cancel();
+
+    const speech =
+      new SpeechSynthesisUtterance(
+        currentRSIText ||
+        "El RSI no está disponible."
+      );
+
+    speech.lang = "es-MX";
+    speech.rate = .95;
+
+    speechSynthesis.speak(speech);
+  }
+
+  function resetMarketState() {
+    requestId++;
+    loading = false;
+
+    lastWsPriceAt = 0;
+    lastLiveEvent = null;
+
+    activeKey = "";
+
+    rows = [];
+    zones = [];
+    pivots = [];
+    sweeps = [];
+
+    if (indicatorTimer) {
+      clearTimeout(indicatorTimer);
+      indicatorTimer = null;
+    }
+
+    series.price?.setData([]);
+    series.volume?.setData([]);
+
+    for (
+      const s of Object.values(maSeries)
+    ) {
+      s.setData([]);
+    }
+
+    for (
+      const key of [
+        "rsi", "adx", "plus", "minus"
+      ]
+    ) {
+      series[key]?.setData([]);
+    }
+
+    value("price", "—");
+
+    value(
+      "message",
+      "Cargando nuevo activo o temporalidad..."
+    );
+  }
+
+  function setupEvents() {
+    document
+      .querySelectorAll(
+        "[data-indicator]"
+      )
+      .forEach(button => {
+        button.addEventListener(
+          "click",
+          () => toggleIndicator(
+            button.dataset.indicator
+          )
+        );
+      });
+
+    $("refresh")?.addEventListener(
+      "click",
+      () => {
+        refresh();
+        refreshTicker();
       }
     );
 
-  $('chartReset')
-    ?.addEventListener(
-      'click',
-      resetView
+    $("chartNavigation")
+      ?.addEventListener(
+        "click",
+        () => setChartNavigation(
+          !chartUnlocked
+        )
+      );
+
+    $("chartReset")
+      ?.addEventListener(
+        "click",
+        resetView
+      );
+
+    $("rsiSpeak")
+      ?.addEventListener(
+        "click",
+        speakRSI
+      );
+
+    if (
+      $("rsiSpeak") &&
+      "speechSynthesis" in window
+    ) {
+      $("rsiSpeak").disabled = false;
+
+      $("rsiSpeak").textContent =
+        "🔊 Escuchar interpretación RSI";
+    }
+
+    for (
+      const id of [
+        "symbol",
+        "interval",
+        "market",
+        "exchange"
+      ]
+    ) {
+      $(id)?.addEventListener(
+        "change",
+        () => {
+          lastMonitorAt = 0;
+
+          resetMarketState();
+          connectWS();
+          refresh();
+          refreshTicker();
+          runScanner(true);
+        }
+      );
+    }
+
+    updateButtons();
+  }
+
+  // ==================================
+  // INICIO
+  // ==================================
+
+  function init() {
+    ensureGoldOption();
+    ensureScannerUI();
+    setupEvents();
+
+    if (!createCharts()) return;
+
+    connectWS();
+    refresh();
+    refreshTicker();
+    runScanner(true);
+
+    chartTimer = setInterval(
+      () => {
+        if (!document.hidden) {
+          refresh();
+        }
+      },
+      15000
     );
 
-  $('rsiSpeak')
-    ?.addEventListener(
-      'click',
-      speakRSI
+    tickerTimer = setInterval(
+      () => {
+        if (!document.hidden) {
+          refreshTicker();
+        }
+      },
+      10000
     );
+
+    scanTimer = setInterval(
+      () => {
+        if (!document.hidden) {
+          runScanner();
+        }
+      },
+      60000
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (document.hidden) {
+          disconnectWS();
+        } else {
+          connectWS();
+          refresh();
+          refreshTicker();
+          runScanner(true);
+        }
+      }
+    );
+
+    window.addEventListener(
+      "beforeunload",
+      () => {
+        disconnectWS();
+
+        if (indicatorTimer) {
+          clearTimeout(indicatorTimer);
+        }
+
+        clearInterval(chartTimer);
+        clearInterval(tickerTimer);
+        clearInterval(scanTimer);
+      }
+    );
+  }
 
   if (
-    $('rsiSpeak') &&
-    'speechSynthesis' in window
+    document.readyState === "loading"
   ) {
-    $('rsiSpeak').disabled = false;
-
-    $('rsiSpeak').textContent =
-      '🔊 Escuchar interpretación RSI';
-  }
-
-  for (const id of [
-    'symbol',
-    'interval',
-    'market',
-    'exchange'
-  ]) {
-    $(id)?.addEventListener(
-      'change',
-      () => {
-        lastMonitorAt = 0;
-
-        resetMarketState();
-
-        connectWS();
-        refresh();
-        refreshTicker();
-      }
+    document.addEventListener(
+      "DOMContentLoaded",
+      init
     );
+  } else {
+    init();
   }
-
-  updateButtons();
-}
-
-/* ====================================
-   INICIO DE LA APLICACIÓN
-==================================== */
-
-function init() {
-  setupEvents();
-
-  if (!createCharts()) {
-    return;
-  }
-
-  connectWS();
-  refresh();
-  refreshTicker();
-
-  // Sincronización periódica de velas
-  // oficiales, volumen y máximos/mínimos.
-  chartTimer = setInterval(
-    () => {
-      if (!document.hidden) {
-        refresh();
-      }
-    },
-    15000
-  );
-
-  // Respaldo de ticker y estadísticas.
-  tickerTimer = setInterval(
-    () => {
-      if (!document.hidden) {
-        refreshTicker();
-      }
-    },
-    10000
-  );
-
-  document.addEventListener(
-    'visibilitychange',
-    () => {
-      if (document.hidden) {
-        disconnectWS();
-      } else {
-        connectWS();
-        refresh();
-        refreshTicker();
-      }
-    }
-  );
-
-  window.addEventListener(
-    'beforeunload',
-    () => {
-      disconnectWS();
-
-      if (indicatorTimer) {
-        clearTimeout(
-          indicatorTimer
-        );
-      }
-
-      clearInterval(
-        chartTimer
-      );
-
-      clearInterval(
-        tickerTimer
-      );
-    }
-  );
-}
-
-if (
-  document.readyState === 'loading'
-) {
-  document.addEventListener(
-    'DOMContentLoaded',
-    init
-  );
-} else {
-  init();
-}
 
 })();
