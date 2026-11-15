@@ -1,154 +1,410 @@
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#0b1020">
-<title>CRYPTOLEXUZ</title>
-<link rel="stylesheet" href="styles.css">
-<script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080d1b">
+
+  <title>CRYPTOLEXUZ | Trading Terminal</title>
+
+  <meta name="description"
+        content="CRYPTOLEXUZ: plataforma de análisis técnico de criptomonedas con datos de BingX, indicadores y monitor de señales.">
+
+  <link rel="stylesheet" href="styles.css?v=3">
+
+  <script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
 </head>
+
 <body>
-<header>
-  <div class="logo">CL</div>
-  <div>
-    <b>CRYPTOLEXUZ</b>
-    <small>BINGX MARKET TERMINAL · MONITOR DE SEÑALES</small>
-  </div>
-  <span id="connection">● Conectando...</span>
-</header>
-<main>
-<section class="intro">
-  <div>
-    <small>ANÁLISIS MULTITEMPORAL</small>
-    <h1>Monitor de mercado</h1>
-    <p>Datos públicos de BingX · Análisis informativo, sin ejecución de órdenes</p>
-  </div>
-  <div>Actualizado: <b id="updated">—</b></div>
-</section>
 
-<section class="controls">
-  <label>Activo
-    <select id="symbol">
-      <option>BTC-USDT</option>
-      <option>ETH-USDT</option>
-      <option>BNB-USDT</option>
-      <option>SOL-USDT</option>
-      <option>XRP-USDT</option>
-      <option>DOGE-USDT</option>
-    </select>
-  </label>
-  <label>Mercado
-    <select id="market">
-      <option value="perpetual">Perpetuos</option>
-      <option value="spot">Spot</option>
-    </select>
-  </label>
-  <label>Gráfico principal
-    <select id="interval">
-      <option>5m</option>
-      <option selected>15m</option>
-      <option>30m</option>
-      <option>1h</option>
-      <option>4h</option>
-    </select>
-  </label>
-  <button id="refresh">Actualizar ahora</button>
-</section>
+  <!-- ENCABEZADO -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="logo">CL</div>
 
-<section class="stats">
-  <article><span>Último precio</span><b id="price">—</b></article>
-  <article><span>Cambio 24 h</span><b id="change">—</b></article>
-  <article><span>Máximo 24 h</span><b id="high">—</b></article>
-  <article><span>Mínimo 24 h</span><b id="low">—</b></article>
-  <article><span>Volumen 24 h</span><b id="volume">—</b></article>
-</section>
+      <div class="brand-text">
+        <strong>CRYPTO<span>LEXUZ</span></strong>
+        <small>BINGX MARKET TERMINAL</small>
+      </div>
+    </div>
 
-<section class="indicator-toolbar">
-  <div class="toolbar-head">
-    <strong>Indicadores técnicos</strong>
-    <small>Toca para mostrar u ocultar</small>
-  </div>
-  <div class="indicator-buttons" id="indicatorButtons">
-    <button type="button" data-indicator="ema21" aria-pressed="true">EMA 21</button>
-    <button type="button" data-indicator="ma55" aria-pressed="true">MA 55</button>
-    <button type="button" data-indicator="ma100" aria-pressed="false">MA 100</button>
-    <button type="button" data-indicator="ma200" aria-pressed="false">MA 200</button>
-    <button type="button" data-indicator="rsi" aria-pressed="false">RSI 14</button>
-    <button type="button" data-indicator="adx" aria-pressed="false">ADX aprox.</button>
-    <button type="button" data-indicator="squeeze" disabled>Squeeze · pronto</button>
-    <button type="button" data-indicator="fvg" disabled>FVG / IFVG · pronto</button>
-    <button type="button" data-indicator="support" aria-pressed="false">Soporte</button>
-    <button type="button" data-indicator="resistance" aria-pressed="false">Resistencia</button>
-    <button type="button" data-indicator="range8" disabled>Rango 8 AM · pronto</button>
-    <button type="button" data-indicator="blocks" disabled>Order Blocks · pronto</button>
-    <button type="button" data-indicator="wedge" disabled>Cuña · pronto</button>
-  </div>
-  <p class="indicator-readout" id="indicatorReadout">Activa RSI o ADX para consultar su último valor calculado.</p>
-</section>
+    <div class="header-actions">
+      <span id="connection" class="connection">
+        ● Conectando...
+      </span>
+    </div>
+  </header>
 
-<section class="panel">
-  <div class="panelhead">
-    <h2 id="chartTitle">BTC-USDT · 15m</h2>
-    <small>VELAS + VOLUMEN</small>
-  </div>
-  <div id="chart"></div>
-  <p id="message">Cargando datos...</p>
-</section>
+  <main class="app-container">
 
-<section class="signal-panel">
-  <div class="panelhead">
-    <h2>Motor de señales · 5m y 15m</h2>
-    <span id="engineState" class="pill">INICIANDO</span>
-  </div>
-  <p class="muted">El motor evalúa tendencia, EMA 21/55, RSI, ADX, Squeeze Momentum aproximado, barridos de máximos/mínimos y FVG. Las cuñas y Order Blocks quedan pendientes de validación.</p>
-  <div class="signal-grid">
-    <article>
-      <h3>BTC / 5 minutos</h3>
-      <b id="state5" class="state">Esperando datos</b>
-      <p id="detail5">—</p>
-      <small id="metrics5">—</small>
-    </article>
-    <article>
-      <h3>BTC / 15 minutos</h3>
-      <b id="state15" class="state">Esperando datos</b>
-      <p id="detail15">—</p>
-      <small id="metrics15">—</small>
-    </article>
-  </div>
-  <h3>Registro de señales de prueba</h3>
-  <div class="table-wrap">
-    <table>
-      <thead>
-        <tr>
-          <th>Hora</th><th>Marco</th><th>Activo</th>
-          <th>Señal</th><th>Precio</th><th>Motivo</th><th>Estado</th>
-        </tr>
-      </thead>
-      <tbody id="signalLog">
-        <tr><td colspan="7">Todavía no hay señales registradas.</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <p class="muted" id="testNote">Las señales se registran una sola vez por vela cerrada. El seguimiento de resultados y el backtest estadístico se incorporarán después.</p>
-</section>
+    <!-- PRECIO Y CONTROLES -->
+    <section class="market-card">
 
-<section class="details">
-  <article>
-    <h2>Datos del mercado</h2>
-    <p>Bid <b id="bid">—</b></p>
-    <p>Ask <b id="ask">—</b></p>
-    <p>Apertura <b id="open">—</b></p>
-  </article>
-  <article>
-    <h2>Conexión</h2>
-    <p id="status">Comprobando servidor...</p>
-    <small>Este panel no opera, no solicita claves privadas y no sustituye la gestión de riesgo.</small>
-  </article>
-</section>
-<footer>CRYPTOLEXUZ · Monitor experimental de señales</footer>
-</main>
-<script src="app.js"></script>
+      <div class="market-top">
+
+        <div class="market-symbol">
+          <span class="coin-icon">₿</span>
+
+          <label class="compact-field">
+            <span>Activo</span>
+            <select id="symbol">
+              <option value="BTC-USDT">BTC/USDT</option>
+              <option value="ETH-USDT">ETH/USDT</option>
+              <option value="BNB-USDT">BNB/USDT</option>
+              <option value="SOL-USDT">SOL/USDT</option>
+              <option value="XRP-USDT">XRP/USDT</option>
+              <option value="DOGE-USDT">DOGE/USDT</option>
+            </select>
+          </label>
+        </div>
+
+        <label class="compact-field interval-field">
+          <span>Temporalidad</span>
+          <select id="interval">
+            <option value="5m">5m</option>
+            <option value="15m" selected>15m</option>
+            <option value="30m">30m</option>
+            <option value="1h">1h</option>
+            <option value="4h">4h</option>
+          </select>
+        </label>
+
+        <div class="market-price">
+          <strong id="price">—</strong>
+          <span id="change">—</span>
+        </div>
+
+      </div>
+
+      <div class="market-bottom">
+        <div>
+          <span>Máximo 24h</span>
+          <strong id="high">—</strong>
+        </div>
+
+        <div>
+          <span>Mínimo 24h</span>
+          <strong id="low">—</strong>
+        </div>
+
+        <div>
+          <span>Apertura</span>
+          <strong id="open">—</strong>
+        </div>
+
+        <div>
+          <span>Volumen 24h</span>
+          <strong id="volume">—</strong>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- BARRA DE INDICADORES -->
+    <section class="indicator-toolbar">
+
+      <div class="toolbar-head">
+        <strong>Indicadores</strong>
+        <small>Activa los que quieras visualizar</small>
+      </div>
+
+      <div id="indicatorButtons"
+           class="indicator-buttons">
+
+        <button type="button"
+                data-indicator="ema21"
+                aria-pressed="true">
+          EMA 21
+        </button>
+
+        <button type="button"
+                data-indicator="ma55"
+                aria-pressed="true">
+          MA 55
+        </button>
+
+        <button type="button"
+                data-indicator="ma100"
+                aria-pressed="false">
+          MA 100
+        </button>
+
+        <button type="button"
+                data-indicator="ma200"
+                aria-pressed="false">
+          MA 200
+        </button>
+
+        <button type="button"
+                data-indicator="rsi"
+                aria-pressed="false">
+          RSI 14
+        </button>
+
+        <button type="button"
+                data-indicator="adx"
+                aria-pressed="false">
+          ADX
+        </button>
+
+        <button type="button"
+                data-indicator="support"
+                aria-pressed="false">
+          Soportes
+        </button>
+
+        <button type="button"
+                data-indicator="resistance"
+                aria-pressed="false">
+          Resistencias
+        </button>
+
+        <button type="button"
+                data-indicator="squeeze"
+                disabled>
+          Squeeze · pronto
+        </button>
+
+        <button type="button"
+                data-indicator="fvg"
+                disabled>
+          FVG / IFVG · pronto
+        </button>
+
+        <button type="button"
+                data-indicator="blocks"
+                disabled>
+          Order Blocks · pronto
+        </button>
+
+        <button type="button"
+                data-indicator="wedge"
+                disabled>
+          Cuña · pronto
+        </button>
+
+        <button type="button"
+                data-indicator="range8"
+                disabled>
+          Rango 8 AM · pronto
+        </button>
+
+      </div>
+
+    </section>
+
+    <!-- GRÁFICA PRINCIPAL -->
+    <section class="chart-card">
+
+      <div class="chart-heading">
+        <div>
+          <h2 id="chartTitle">BTC-USDT · 15m</h2>
+          <small>VELAS JAPONESAS</small>
+        </div>
+
+        <button id="refresh"
+                class="refresh-button"
+                type="button">
+          ↻ Actualizar
+        </button>
+      </div>
+
+      <div class="chart-area">
+        <div id="chart"></div>
+      </div>
+
+      <!-- VOLUMEN INDEPENDIENTE -->
+      <div class="volume-section">
+
+        <div class="volume-heading">
+          <strong>Volumen</strong>
+          <span id="volumeLabel">BTC</span>
+        </div>
+
+        <div id="volumeChart"></div>
+
+      </div>
+
+      <p id="message" class="chart-message">
+        Cargando datos de BingX...
+      </p>
+
+    </section>
+
+    <!-- INDICADORES CALCULADOS -->
+    <section class="indicator-summary">
+
+      <div class="section-heading">
+        <h2>Indicadores técnicos</h2>
+        <small>Última vela cerrada</small>
+      </div>
+
+      <div class="indicator-values">
+
+        <div>
+          <span class="purple">EMA 21</span>
+          <strong id="ema21Value">—</strong>
+        </div>
+
+        <div>
+          <span class="orange">MA 55</span>
+          <strong id="ma55Value">—</strong>
+        </div>
+
+        <div>
+          <span class="blue">RSI 14</span>
+          <strong id="rsiValue">—</strong>
+        </div>
+
+        <div>
+          <span class="green">ADX aprox.</span>
+          <strong id="adxValue">—</strong>
+        </div>
+
+      </div>
+
+      <p id="indicatorReadout" class="indicator-readout">
+        Esperando cálculos...
+      </p>
+
+    </section>
+
+    <!-- MONITOR DE SEÑALES -->
+    <section class="signals-section">
+
+      <div class="section-heading">
+        <h2>Monitor de señales</h2>
+        <span id="engineState" class="pill">
+          INICIANDO
+        </span>
+      </div>
+
+      <div class="signal-grid">
+
+        <article class="signal-card">
+          <h3>BTC-USDT / 5 minutos</h3>
+
+          <strong id="state5" class="state">
+            Esperando datos
+          </strong>
+
+          <p id="detail5">—</p>
+
+          <small id="metrics5">—</small>
+        </article>
+
+        <article class="signal-card">
+          <h3>BTC-USDT / 15 minutos</h3>
+
+          <strong id="state15" class="state">
+            Esperando datos
+          </strong>
+
+          <p id="detail15">—</p>
+
+          <small id="metrics15">—</small>
+        </article>
+
+      </div>
+
+    </section>
+
+    <!-- HISTORIAL -->
+    <section class="history-section">
+
+      <div class="section-heading">
+        <h2>Historial de señales</h2>
+        <small>Últimas 30</small>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>TF</th>
+              <th>Activo</th>
+              <th>Señal</th>
+              <th>Precio</th>
+              <th>Motivo</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+
+          <tbody id="signalLog">
+            <tr>
+              <td colspan="7">
+                Todavía no hay señales registradas.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+    <!-- CONEXIÓN Y DATOS -->
+    <section class="details">
+
+      <article>
+        <h2>Libro de precios</h2>
+
+        <p>
+          Bid
+          <strong id="bid">—</strong>
+        </p>
+
+        <p>
+          Ask
+          <strong id="ask">—</strong>
+        </p>
+      </article>
+
+      <article>
+        <h2>Estado del servidor</h2>
+
+        <p id="status">
+          Comprobando conexión...
+        </p>
+
+        <small>
+          Última actualización:
+          <strong id="updated">—</strong>
+        </small>
+      </article>
+
+    </section>
+
+    <!-- SELECTOR DE MERCADO -->
+    <section class="market-settings">
+      <label>
+        Tipo de mercado
+
+        <select id="market">
+          <option value="perpetual">
+            Perpetuos BingX
+          </option>
+
+          <option value="spot">
+            Spot BingX
+          </option>
+        </select>
+      </label>
+    </section>
+
+    <footer>
+      CRYPTOLEXUZ · Monitor experimental
+      <p>
+        Análisis informativo. No ejecuta operaciones.
+        Las señales no están validadas.
+      </p>
+    </footer>
+
+  </main>
+
+  <script src="app.js?v=3"></script>
+
 </body>
 </html>
