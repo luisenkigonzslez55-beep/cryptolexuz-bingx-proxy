@@ -5,29 +5,40 @@
   <meta charset="UTF-8">
   <meta name="viewport"
         content="width=device-width, initial-scale=1">
+
   <meta name="theme-color" content="#080d1b">
 
   <title>CRYPTOLEXUZ | Trading Terminal</title>
 
   <meta name="description"
-        content="CRYPTOLEXUZ: plataforma de análisis técnico de criptomonedas con datos de BingX, indicadores y monitor de señales.">
+        content="CRYPTOLEXUZ: terminal de análisis técnico de criptomonedas con datos de BingX.">
 
-  <link rel="stylesheet" href="styles.css?v=3">
+  <link rel="stylesheet" href="styles.css?v=4">
 
   <script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 
 <body>
 
-  <!-- ENCABEZADO -->
+  <!-- ENCABEZADO CRYPTOLEXUZ -->
   <header class="app-header">
+
     <div class="brand">
-      <div class="logo">CL</div>
+
+      <div class="brand-logo-wrap">
+        <img
+          src="logo-cryptolexuz.png"
+          alt="CRYPTOLEXUZ 3D"
+          class="logo-3d"
+          onerror="this.style.display='none';document.querySelector('.brand-text').style.display='block';"
+        >
+      </div>
 
       <div class="brand-text">
         <strong>CRYPTO<span>LEXUZ</span></strong>
         <small>BINGX MARKET TERMINAL</small>
       </div>
+
     </div>
 
     <div class="header-actions">
@@ -35,11 +46,12 @@
         ● Conectando...
       </span>
     </div>
+
   </header>
 
   <main class="app-container">
 
-    <!-- PRECIO Y CONTROLES -->
+    <!-- PRECIO Y MERCADO -->
     <section class="market-card">
 
       <div class="market-top">
@@ -79,6 +91,7 @@
       </div>
 
       <div class="market-bottom">
+
         <div>
           <span>Máximo 24h</span>
           <strong id="high">—</strong>
@@ -98,16 +111,16 @@
           <span>Volumen 24h</span>
           <strong id="volume">—</strong>
         </div>
-      </div>
 
+      </div>
     </section>
 
-    <!-- BARRA DE INDICADORES -->
+    <!-- INDICADORES -->
     <section class="indicator-toolbar">
 
       <div class="toolbar-head">
         <strong>Indicadores</strong>
-        <small>Activa los que quieras visualizar</small>
+        <small>Selecciona los que quieras visualizar</small>
       </div>
 
       <div id="indicatorButtons"
@@ -146,7 +159,7 @@
         <button type="button"
                 data-indicator="adx"
                 aria-pressed="false">
-          ADX
+          ADX 14
         </button>
 
         <button type="button"
@@ -162,15 +175,33 @@
         </button>
 
         <button type="button"
-                data-indicator="squeeze"
+                data-indicator="liquidity"
                 disabled>
-          Squeeze · pronto
+          Liquidez · pronto
+        </button>
+
+        <button type="button"
+                data-indicator="sweeps"
+                disabled>
+          Barridos · pronto
         </button>
 
         <button type="button"
                 data-indicator="fvg"
                 disabled>
-          FVG / IFVG · pronto
+          FVG · pronto
+        </button>
+
+        <button type="button"
+                data-indicator="ifvg"
+                disabled>
+          IFVG · pronto
+        </button>
+
+        <button type="button"
+                data-indicator="squeeze"
+                disabled>
+          Squeeze · pronto
         </button>
 
         <button type="button"
@@ -199,23 +230,26 @@
     <section class="chart-card">
 
       <div class="chart-heading">
+
         <div>
           <h2 id="chartTitle">BTC-USDT · 15m</h2>
           <small>VELAS JAPONESAS</small>
         </div>
 
-        <button id="refresh"
-                class="refresh-button"
-                type="button">
+        <button
+          id="refresh"
+          class="refresh-button"
+          type="button">
           ↻ Actualizar
         </button>
+
       </div>
 
       <div class="chart-area">
         <div id="chart"></div>
       </div>
 
-      <!-- VOLUMEN INDEPENDIENTE -->
+      <!-- VOLUMEN SEPARADO -->
       <div class="volume-section">
 
         <div class="volume-heading">
@@ -233,7 +267,7 @@
 
     </section>
 
-    <!-- INDICADORES CALCULADOS -->
+    <!-- INDICADORES TÉCNICOS -->
     <section class="indicator-summary">
 
       <div class="section-heading">
@@ -259,7 +293,7 @@
         </div>
 
         <div>
-          <span class="green">ADX aprox.</span>
+          <span class="green">ADX 14</span>
           <strong id="adxValue">—</strong>
         </div>
 
@@ -271,7 +305,7 @@
 
     </section>
 
-    <!-- MONITOR DE SEÑALES -->
+    <!-- SEÑALES -->
     <section class="signals-section">
 
       <div class="section-heading">
@@ -284,6 +318,7 @@
       <div class="signal-grid">
 
         <article class="signal-card">
+
           <h3>BTC-USDT / 5 minutos</h3>
 
           <strong id="state5" class="state">
@@ -291,11 +326,12 @@
           </strong>
 
           <p id="detail5">—</p>
-
           <small id="metrics5">—</small>
+
         </article>
 
         <article class="signal-card">
+
           <h3>BTC-USDT / 15 minutos</h3>
 
           <strong id="state15" class="state">
@@ -303,8 +339,8 @@
           </strong>
 
           <p id="detail15">—</p>
-
           <small id="metrics15">—</small>
+
         </article>
 
       </div>
@@ -345,7 +381,7 @@
 
     </section>
 
-    <!-- CONEXIÓN Y DATOS -->
+    <!-- DATOS ADICIONALES -->
     <section class="details">
 
       <article>
@@ -377,8 +413,9 @@
 
     </section>
 
-    <!-- SELECTOR DE MERCADO -->
+    <!-- TIPO DE MERCADO -->
     <section class="market-settings">
+
       <label>
         Tipo de mercado
 
@@ -392,10 +429,12 @@
           </option>
         </select>
       </label>
+
     </section>
 
     <footer>
       CRYPTOLEXUZ · Monitor experimental
+
       <p>
         Análisis informativo. No ejecuta operaciones.
         Las señales no están validadas.
@@ -404,7 +443,7 @@
 
   </main>
 
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 
 </body>
 </html>
