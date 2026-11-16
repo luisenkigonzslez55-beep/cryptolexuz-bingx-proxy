@@ -1,150 +1,194 @@
 
 /*
- CRYPTOLEXUZ PRO — TRADE PLANS V2
- Tarjetas móviles: entrada, stop loss, TP1, TP2.
- Precisión de mercado cuando la API la permite.
- No ejecuta órdenes ni confirma operaciones.
+ CRYPTOLEXUZ PRO — TRADE PLANS V4
+ Filtro de estructura, ruptura, retesteo y volumen.
+ Auditoría con velas cerradas de un minuto.
+ No ejecuta órdenes reales.
 */
 "use strict";
 
 (() => {
   const $ = id => document.getElementById(id);
+
   const GOLD = "NCCOGOLD2USD-USDT";
+  const OIL = "NCCO1OILWTI2USD-USDT";
 
-  const plans = new Map();
+  const KEY = "cryptolexuz.trade-audit.v4";
+  const MAX_LOG = 250;
+  const WAIT_SECONDS = 8 * 60;
+  const TRACK_SECONDS = 2 * 60 * 60;
+
+  const cache = new Map();
   const precisionCache = new Map();
-  const candlesCache = new Map();
-  const alerted = new Set();
 
-  let metadataPromise = null;
+  let history = [];
+  let storageAvailable = true;
   let busy = false;
-  let pending = false;
-  let observer = null;
+  let rerun = false;
+  let recheckTimer = null;
+  let contractsPromise = null;
+  let contractsAt = 0;
 
-  const terminal = new Set([
-    "EXPIRADA",
+  const finalStates = new Set([
+    "NO ACTIVADA",
     "INVALIDADA",
-    "STOP ALCANZADO",
+    "STOP ANTES DE TP1",
     "TP2 ALCANZADO",
-    "SECUENCIA INCIERTA",
+    "TP1 Y STOP",
+    "SIN VERIFICAR",
+    "SECUENCIA AMBIGUA",
     "SEGUIMIENTO FINALIZADO"
   ]);
 
-  function number(v) {
-    if (
-      v === null ||
-      v === undefined ||
-      v === ""
-    ) return NaN;
-
-    const n = Number(v);
-
-    return Number.isFinite(n) && n > 0
-      ? n
-      : NaN;
-  }
-
-  function seconds(v) {
-    const n =
-      typeof v === "string" &&
-      !/^\d+$/.test(v)
-        ? Date.parse(v)
-        : Number(v);
-
-    if (!Number.isFinite(n)) return NaN;
-
-    return Math.floor(
-      n > 1e12 ? n / 1000 : n
+  function validRecord(x) {
+    return (
+      x &&
+      typeof x.id === "string" &&
+      typeof x.symbol === "string" &&
+      ["LONG", "SHORT"].includes(x.side) &&
+      Number.isFinite(x.createdAt) &&
+      [x.entry, x.stop, x.tp1, x.tp2]
+        .every(Number.isFinite)
     );
   }
 
-  function normalize(raw) {
-    let list = raw;
+  function load() {
+    try {
+      const parsed = JSON.parse(
+        localStorage.getItem(KEY) || "[]"
+      );
 
-    if (!Array.isArray(list)) {
-      list =
-        raw?.data?.data ??
+      history = Array.isArray(parsed)
+        ? parsed.filter(validRecord).slice(0, MAX_LOG)
+        : [];
+
+    } catch (_) {
+      history = [];
+      storageAvailable = false;
+    }
+  }
+
+  function save() {
+    try {
+      localStorage.setItem(
+        KEY,
+        JSON.stringify(history.slice(0, MAX_LOG))
+      );
+
+    } catch (_) {
+      storageAvailable = false;
+    }
+  }
+
+  const n = v =>
+    v === null || v === undefined || v === ""
+      ? NaN
+      : Number(v);
+
+  const now = () =>
+    Math.floor(Date.now() / 1000);
+
+  function norm(raw) {
+    let arr = Array.isArray(raw)
+      ? raw
+      : raw?.data?.data ??
         raw?.data?.list ??
         raw?.data?.candles ??
         raw?.data ??
         raw?.list ??
         [];
-    }
 
-    if (!Array.isArray(list)) return [];
+    if (!Array.isArray(arr)) return [];
 
-    const now = Math.floor(Date.now() / 1000);
-    const arr = [];
+    const out = [];
 
-    for (const c of list) {
+    for (const c of arr) {
       if (!c || typeof c !== "object") continue;
 
-      const isArray = Array.isArray(c);
+      const a = Array.isArray(c);
 
-      const time = seconds(
-        isArray
-          ? c[0]
-          : c.time ??
-            c.timestamp ??
-            c.openTime ??
-            c.t
+      let t = a
+        ? c[0]
+        : c.time ??
+          c.timestamp ??
+          c.openTime ??
+          c.t;
+
+      t = typeof t === "string" &&
+        !/^\d+$/.test(t)
+        ? Date.parse(t)
+        : Number(t);
+
+      t = t > 1e12
+        ? Math.floor(t / 1000)
+        : Math.floor(t);
+
+      const open = n(
+        a ? c[1] : c.open ?? c.o
       );
 
-      const open = number(
-        isArray ? c[1] : c.open ?? c.o
+      const high = n(
+        a ? c[2] : c.high ?? c.h
       );
 
-      const high = number(
-        isArray ? c[2] : c.high ?? c.h
+      const low = n(
+        a ? c[3] : c.low ?? c.l
       );
 
-      const low = number(
-        isArray ? c[3] : c.low ?? c.l
+      const close = n(
+        a ? c[4] : c.close ?? c.c
       );
 
-      const close = number(
-        isArray ? c[4] : c.close ?? c.c
+      const volume = n(
+        a ? c[5] :
+          c.volume ?? c.vol ?? c.v ?? 0
       );
 
       if (
-        ![time, open, high, low, close]
-          .every(Number.isFinite) ||
-        time <= 0 ||
-        time > now + 60 ||
-        high < Math.max(open, close, low) ||
-        low > Math.min(open, close, high)
-      ) continue;
+        ![
+          t, open, high, low, close, volume
+        ].every(Number.isFinite) ||
+        t <= 0 ||
+        t > now() + 60 ||
+        Math.min(open, high, low, close) <= 0 ||
+        volume < 0 ||
+        high < Math.max(open, close) ||
+        low > Math.min(open, close)
+      ) {
+        continue;
+      }
 
-      arr.push({
-        time,
+      out.push({
+        time: t,
         open,
         high,
         low,
-        close
+        close,
+        volume
       });
     }
 
-    arr.sort((a, b) => a.time - b.time);
+    out.sort((a, b) => a.time - b.time);
 
     return [
       ...new Map(
-        arr.map(x => [x.time, x])
+        out.map(c => [c.time, c])
       ).values()
     ];
   }
 
-  async function getJSON(url, ms = 10000) {
+  async function json(url, timeout = 11000) {
     const controller = new AbortController();
 
     const timer = setTimeout(
       () => controller.abort(),
-      ms
+      timeout
     );
 
     try {
       const res = await fetch(url, {
-        signal: controller.signal,
-        cache: "no-store"
+        cache: "no-store",
+        signal: controller.signal
       });
 
       if (!res.ok) {
@@ -158,7 +202,7 @@
         ![0, "0"].includes(data.code)
       ) {
         throw Error(
-          data.msg || "API rechazó consulta"
+          String(data.msg || "API no disponible")
         );
       }
 
@@ -169,599 +213,57 @@
     }
   }
 
-  function endpoint(s, tf) {
-    return (
-      "/api/exchange/" +
-      encodeURIComponent(s.exchange) +
-      "/klines/" +
-      encodeURIComponent(s.symbol) +
-      "?market=" +
-      encodeURIComponent(s.market) +
-      "&interval=" + tf +
-      "&limit=110"
-    );
-  }
-
-  async function candles(s, tf) {
-    const key = [
-      s.exchange,
-      s.market,
-      s.symbol,
-      tf
-    ].join("|");
-
-    const cached = candlesCache.get(key);
-
-    const ttl = tf === "1m"
-      ? 40000
-      : 75000;
-
-    if (
-      cached &&
-      Date.now() - cached.at < ttl
-    ) {
-      return cached.data;
-    }
-
-    const data = normalize(
-      await getJSON(endpoint(s, tf))
-    );
-
-    if (data.length < 40) {
-      throw Error(
-        "Velas insuficientes: " + tf
-      );
-    }
-
-    candlesCache.set(key, {
-      at: Date.now(),
-      data
-    });
-
-    return data;
-  }
-
-  const contractKey = s => [
-    s.exchange,
-    s.market,
-    s.symbol
+  const marketId = x => [
+    x.exchange,
+    x.market,
+    x.symbol
   ].join("|");
 
-  // PRECISIÓN DEL CONTRATO
+  async function candles(x, tf) {
+    const key = marketId(x) + "|" + tf;
 
-  function decimalsOf(n) {
-    const txt = String(n).toLowerCase();
+    const ttl = tf === "1m"
+      ? 30000
+      : 70000;
 
-    if (txt.includes("e-")) {
-      return Number(txt.split("e-")[1]);
-    }
-
-    return (
-      txt.split(".")[1] || ""
-    ).length;
-  }
-
-  function estimatedRule(data) {
-    let decimals = 1;
-
-    for (const c of data.slice(-30)) {
-      for (const val of [
-        c.open,
-        c.high,
-        c.low,
-        c.close
-      ]) {
-        const clean = Number(val)
-          .toFixed(8)
-          .replace(/0+$/, "");
-
-        decimals = Math.max(
-          decimals,
-          (
-            clean.split(".")[1] || ""
-          ).length
-        );
-      }
-    }
-
-    decimals = Math.min(decimals, 8);
-
-    return {
-      step: 10 ** (-decimals),
-      decimals,
-      verified: false,
-      tickVerified: false,
-      source:
-        "Precisión estimada a partir de velas"
-    };
-  }
-
-  async function bingxMetadata() {
-    if (!metadataPromise) {
-      metadataPromise = getJSON(
-        "https://open-api.bingx.com/openApi/swap/v2/quote/contracts",
-        8000
-      ).catch(err => {
-        metadataPromise = null;
-        throw err;
-      });
-    }
-
-    return metadataPromise;
-  }
-
-  async function ruleFor(s, data) {
-    const key = contractKey(s);
-    const old = precisionCache.get(key);
+    const old = cache.get(key);
 
     if (
       old &&
-      Date.now() - old.at < 15 * 60 * 1000
+      Date.now() - old.at < ttl
     ) {
-      return old.rule;
+      return old.data;
     }
 
-    let rule = null;
+    const url =
+      "/api/exchange/" +
+      encodeURIComponent(x.exchange) +
+      "/klines/" +
+      encodeURIComponent(x.symbol) +
+      "?market=" +
+      encodeURIComponent(x.market) +
+      "&interval=" + tf +
+      "&limit=300";
 
-    try {
-      let tick = NaN;
-      let precision = NaN;
-      let name = s.exchange.toUpperCase();
+    const arr = norm(
+      await json(url)
+    );
 
-      if (
-        s.exchange === "bingx" &&
-        s.market === "perpetual"
-      ) {
-        const res = await bingxMetadata();
-
-        const all = Array.isArray(res.data)
-          ? res.data
-          : [res.data];
-
-        const item = all.find(
-          x => x?.symbol === s.symbol
-        );
-
-        if (item) {
-          tick = number(
-            item.tickSize ??
-            item.priceStep
-          );
-
-          precision = Number(
-            item.pricePrecision
-          );
-
-          name = "BingX";
-        }
-
-      } else if (s.exchange === "binance") {
-        const sym = s.symbol.replace("-", "");
-
-        const url = s.market === "spot"
-          ? "https://api.binance.com/api/v3/exchangeInfo?symbol="
-          : "https://fapi.binance.com/fapi/v1/exchangeInfo?symbol=";
-
-        const res = await getJSON(
-          url + encodeURIComponent(sym),
-          8000
-        );
-
-        tick = number(
-          res.symbols?.[0]?.filters?.find(
-            f => f.filterType === "PRICE_FILTER"
-          )?.tickSize
-        );
-
-      } else if (s.exchange === "bybit") {
-        const url =
-          "https://api.bybit.com/v5/market/instruments-info?category=" +
-          (
-            s.market === "spot"
-              ? "spot"
-              : "linear"
-          ) +
-          "&symbol=" +
-          encodeURIComponent(
-            s.symbol.replace("-", "")
-          );
-
-        const res = await getJSON(url, 8000);
-
-        tick = number(
-          res.result?.list?.[0]
-            ?.priceFilter?.tickSize
-        );
-
-      } else if (s.exchange === "okx") {
-        const instrument =
-          s.symbol +
-          (
-            s.market === "spot"
-              ? ""
-              : "-SWAP"
-          );
-
-        const url =
-          "https://www.okx.com/api/v5/public/instruments?instType=" +
-          (
-            s.market === "spot"
-              ? "SPOT"
-              : "SWAP"
-          ) +
-          "&instId=" +
-          encodeURIComponent(instrument);
-
-        const res = await getJSON(url, 8000);
-
-        tick = number(
-          res.data?.[0]?.tickSz
-        );
-      }
-
-      if (
-        Number.isFinite(tick) &&
-        tick > 0
-      ) {
-        rule = {
-          step: tick,
-          decimals: Math.min(
-            10,
-            decimalsOf(tick)
-          ),
-          verified: true,
-          tickVerified: true,
-          source:
-            name + ": tick publicado"
-        };
-
-      } else if (
-        Number.isInteger(precision) &&
-        precision >= 0 &&
-        precision <= 10
-      ) {
-        rule = {
-          step: 10 ** (-precision),
-          decimals: precision,
-          verified: true,
-          tickVerified: false,
-          source:
-            name +
-            ": decimales oficiales (tick sin verificar)"
-        };
-      }
-
-    } catch (err) {
-      console.info(
-        "CRYPTOLEXUZ: precisión de",
-        s.symbol,
-        "no consultable desde el navegador:",
-        err.message
+    if (arr.length < 65) {
+      throw Error(
+        "faltan velas de " + tf
       );
     }
 
-    rule ??= estimatedRule(data);
-
-    precisionCache.set(key, {
-      rule,
-      at: Date.now()
+    cache.set(key, {
+      at: Date.now(),
+      data: arr
     });
 
-    return rule;
+    return arr;
   }
 
-  function quantize(
-    price,
-    rule,
-    direction = "nearest"
-  ) {
-    const raw = price / rule.step;
-
-    const units = direction === "up"
-      ? Math.ceil(raw - 1e-8)
-      : direction === "down"
-        ? Math.floor(raw + 1e-8)
-        : Math.round(raw);
-
-    return Number(
-      (units * rule.step).toFixed(
-        Math.min(rule.decimals, 10)
-      )
-    );
-  }
-
-  function fmt(n, rule) {
-    return Number.isFinite(n)
-      ? n.toLocaleString("en-US", {
-          minimumFractionDigits:
-            rule.decimals,
-          maximumFractionDigits:
-            rule.decimals
-        })
-      : "—";
-  }
-
-  // VOLATILIDAD Y NIVELES
-
-  function ATR(data, period = 14) {
-    const closed = data.slice(0, -1);
-
-    if (
-      closed.length < period + 2
-    ) return NaN;
-
-    const ranges = [];
-
-    for (
-      let i = 1;
-      i < closed.length;
-      i++
-    ) {
-      ranges.push(
-        Math.max(
-          closed[i].high - closed[i].low,
-          Math.abs(
-            closed[i].high -
-            closed[i - 1].close
-          ),
-          Math.abs(
-            closed[i].low -
-            closed[i - 1].close
-          )
-        )
-      );
-    }
-
-    let result = ranges
-      .slice(0, period)
-      .reduce((a, b) => a + b, 0)
-      / period;
-
-    for (
-      let i = period;
-      i < ranges.length;
-      i++
-    ) {
-      result = (
-        result * (period - 1) +
-        ranges[i]
-      ) / period;
-    }
-
-    return result;
-  }
-
-  function createPlan(
-    signal,
-    one,
-    five,
-    rule
-  ) {
-    const closed1 = one.slice(0, -1);
-    const closed5 = five.slice(0, -1);
-
-    if (
-      closed1.length < 30 ||
-      closed5.length < 20
-    ) return null;
-
-    const last = closed1.at(-1);
-
-    if (
-      Math.floor(Date.now() / 1000) -
-      last.time > 210
-    ) return null;
-
-    const volatility = ATR(five);
-
-    if (
-      !Number.isFinite(volatility) ||
-      volatility <= rule.step
-    ) return null;
-
-    const long = signal.side === "LONG";
-
-    const recent = closed1.slice(-6);
-    const swing1 = closed1.slice(-12);
-    const swing5 = closed5.slice(-4);
-
-    const entry = long
-      ? quantize(
-          Math.max(
-            ...recent.map(c => c.high)
-          ) + rule.step,
-          rule,
-          "up"
-        )
-      : quantize(
-          Math.min(
-            ...recent.map(c => c.low)
-          ) - rule.step,
-          rule,
-          "down"
-        );
-
-    const swingLow = Math.min(
-      ...swing1.map(c => c.low),
-      ...swing5.map(c => c.low)
-    );
-
-    const swingHigh = Math.max(
-      ...swing1.map(c => c.high),
-      ...swing5.map(c => c.high)
-    );
-
-    const stop = long
-      ? quantize(
-          Math.min(
-            swingLow,
-            entry - .85 * volatility
-          ) - rule.step,
-          rule,
-          "down"
-        )
-      : quantize(
-          Math.max(
-            swingHigh,
-            entry + .85 * volatility
-          ) + rule.step,
-          rule,
-          "up"
-        );
-
-    const risk = Math.abs(entry - stop);
-    const riskPct = 100 * risk / entry;
-
-    if (
-      !Number.isFinite(riskPct) ||
-      risk < 3 * rule.step ||
-      riskPct < .015 ||
-      riskPct > 2.5 ||
-      entry <= 0 ||
-      stop <= 0
-    ) return null;
-
-    const tp1 = quantize(
-      entry +
-      (long ? 1 : -1) *
-      risk * 1.5,
-      rule,
-      long ? "up" : "down"
-    );
-
-    const tp2 = quantize(
-      entry +
-      (long ? 1 : -1) *
-      risk * 2.5,
-      rule,
-      long ? "up" : "down"
-    );
-
-    if (
-      !(tp1 > 0 && tp2 > 0)
-    ) return null;
-
-    return {
-      key: contractKey(signal.s),
-      s: signal.s,
-      side: signal.side,
-      entry,
-      stop,
-      tp1,
-      tp2,
-      riskPct,
-      rule,
-      score: signal.score,
-      status: "ESPERAR ENTRADA",
-      createdAt: Date.now(),
-      lastClosed: last.time,
-      checkedClosed: last.time
-    };
-  }
-
-  // SEGUIMIENTO DE LA ENTRADA
-
-  function advancePlan(plan, one) {
-    if (
-      terminal.has(plan.status)
-    ) return;
-
-    const long = plan.side === "LONG";
-
-    const closed = one
-      .slice(0, -1)
-      .filter(
-        c => c.time > plan.checkedClosed
-      );
-
-    for (const candle of closed) {
-      const entryHit = long
-        ? candle.high >= plan.entry
-        : candle.low <= plan.entry;
-
-      const stopHit = long
-        ? candle.low <= plan.stop
-        : candle.high >= plan.stop;
-
-      const t1 = long
-        ? candle.high >= plan.tp1
-        : candle.low <= plan.tp1;
-
-      const t2 = long
-        ? candle.high >= plan.tp2
-        : candle.low <= plan.tp2;
-
-      if (
-        plan.status === "ESPERAR ENTRADA"
-      ) {
-        if (
-          entryHit &&
-          (stopHit || t1 || t2)
-        ) {
-          plan.status =
-            "SECUENCIA INCIERTA";
-
-        } else if (stopHit) {
-          plan.status = "INVALIDADA";
-
-        } else if (entryHit) {
-          plan.status = "NIVEL ALCANZADO";
-
-        } else if (
-          candle.time -
-          plan.lastClosed >= 180
-        ) {
-          plan.status = "EXPIRADA";
-        }
-
-      } else if (
-        [
-          "NIVEL ALCANZADO",
-          "TP1 ALCANZADO"
-        ].includes(plan.status)
-      ) {
-        if (
-          stopHit &&
-          (t1 || t2)
-        ) {
-          plan.status =
-            "SECUENCIA INCIERTA";
-
-        } else if (stopHit) {
-          plan.status =
-            "STOP ALCANZADO";
-
-        } else if (t2) {
-          plan.status =
-            "TP2 ALCANZADO";
-
-        } else if (t1) {
-          plan.status =
-            "TP1 ALCANZADO";
-        }
-      }
-
-      plan.checkedClosed = candle.time;
-
-      if (
-        terminal.has(plan.status)
-      ) break;
-    }
-
-    if (
-      !terminal.has(plan.status) &&
-      plan.status !== "ESPERAR ENTRADA" &&
-      Date.now() - plan.createdAt >
-        30 * 60000
-    ) {
-      plan.status =
-        "SEGUIMIENTO FINALIZADO";
-    }
-  }
-
-  // LEER EL ESCÁNER V12
-
-  function getSignals() {
+  function scanSignals() {
     const tbody = $("clScanBody");
 
     if (!tbody) return [];
@@ -770,270 +272,1139 @@
       $("exchange")?.value || "bingx"
     ).toLowerCase();
 
-    const market = (
-      $("market")?.value || "perpetual"
-    );
+    const market =
+      $("market")?.value || "perpetual";
 
-    const result = [];
+    const results = [];
 
     for (
-      const tr of tbody.querySelectorAll(
+      const row of tbody.querySelectorAll(
         ":scope > tr"
       )
     ) {
-      if (tr.dataset.tradeplanRow) {
+      if (row.dataset.tradeplanRow) {
         continue;
       }
 
-      const cells = [...tr.children];
+      const c = [...row.children];
 
       if (
-        cells.length < 6 ||
+        c.length < 6 ||
         !/^\d+$/.test(
-          cells[0].textContent.trim()
+          c[0].textContent.trim()
         )
-      ) continue;
+      ) {
+        continue;
+      }
 
       const label =
-        cells[1].textContent.trim();
+        c[1].textContent.trim();
 
-      const gold =
+      const isGold =
         label.includes("GOLD");
 
-      const side =
-        cells[2].textContent.trim();
+      const isOil =
+        label.includes("OIL WTI");
 
-      result.push({
+      const special =
+        isGold || isOil;
+
+      results.push({
         label,
-        side,
+
+        side:
+          c[2].textContent.trim(),
 
         score: Number(
-          cells[3].textContent.split("/")[0]
+          c[3].textContent.split("/")[0]
         ),
 
         state:
-          cells[4].textContent.trim(),
+          c[4].textContent.trim(),
 
-        s: {
-          exchange: gold
-            ? "bingx"
-            : exchange,
+        exchange: special
+          ? "bingx"
+          : exchange,
 
-          market: gold
-            ? "perpetual"
-            : market,
+        market: special
+          ? "perpetual"
+          : market,
 
-          symbol: gold
-            ? GOLD
+        symbol: isGold
+          ? GOLD
+          : isOil
+            ? OIL
             : label.replace("/", "-")
-        }
       });
     }
+
+    return results;
+  }
+
+  function ema(values, length) {
+    if (values.length < length) {
+      return NaN;
+    }
+
+    let v = values
+      .slice(0, length)
+      .reduce((a, b) => a + b, 0) /
+      length;
+
+    for (
+      let i = length;
+      i < values.length;
+      i++
+    ) {
+      v =
+        values[i] * 2 / (length + 1) +
+        v * (length - 1) / (length + 1);
+    }
+
+    return v;
+  }
+
+  function ma(values, length) {
+    if (values.length < length) {
+      return NaN;
+    }
+
+    return values
+      .slice(-length)
+      .reduce((a, b) => a + b, 0) /
+      length;
+  }
+
+  function atr(c, period = 14) {
+    if (c.length < period + 2) {
+      return NaN;
+    }
+
+    const ranges = [];
+
+    for (let i = 1; i < c.length; i++) {
+      ranges.push(
+        Math.max(
+          c[i].high - c[i].low,
+          Math.abs(
+            c[i].high - c[i - 1].close
+          ),
+          Math.abs(
+            c[i].low - c[i - 1].close
+          )
+        )
+      );
+    }
+
+    return ma(ranges, period);
+  }
+
+  function tickGuess(c) {
+    let dec = 2;
+
+    for (const x of c.slice(-40)) {
+      for (const p of [
+        x.open,
+        x.high,
+        x.low,
+        x.close
+      ]) {
+        const str = Number(p)
+          .toFixed(8)
+          .replace(/0+$/, "");
+
+        dec = Math.max(
+          dec,
+          (str.split(".")[1] || "").length
+        );
+      }
+    }
+
+    dec = Math.min(dec, 8);
+
+    return {
+      tick: 10 ** -dec,
+      decimals: dec,
+      verified: false
+    };
+  }
+
+  function bingxContracts() {
+    if (
+      !contractsPromise ||
+      Date.now() - contractsAt >
+        15 * 60000
+    ) {
+      contractsAt = Date.now();
+
+      contractsPromise = json(
+        "https://open-api.bingx.com/openApi/swap/v2/quote/contracts",
+        7000
+      ).catch(() => ({
+        data: []
+      }));
+    }
+
+    return contractsPromise;
+  }
+
+  async function rule(x, c) {
+    const k = marketId(x);
+    const old = precisionCache.get(k);
+
+    if (
+      old &&
+      Date.now() - old.at <
+        15 * 60000
+    ) {
+      return old.rule;
+    }
+
+    let result = tickGuess(c);
+
+    try {
+      if (
+        x.exchange === "bingx" &&
+        x.market === "perpetual"
+      ) {
+        const data =
+          await bingxContracts();
+
+        const list = Array.isArray(
+          data.data
+        ) ? data.data : [];
+
+        const contract = list.find(
+          z => z.symbol === x.symbol
+        );
+
+        const tick = Number(
+          contract?.tickSize ??
+          contract?.priceStep
+        );
+
+        const precision = Number(
+          contract?.pricePrecision
+        );
+
+        if (
+          Number.isFinite(tick) &&
+          tick > 0
+        ) {
+          const txt = String(tick);
+
+          const dec = txt.includes("e-")
+            ? Number(
+                txt.split("e-")[1]
+              )
+            : (
+                txt.split(".")[1] || ""
+              ).length;
+
+          result = {
+            tick,
+            decimals: Math.min(10, dec),
+            verified: true
+          };
+
+        } else if (
+          contract &&
+          Number.isInteger(precision) &&
+          precision >= 0 &&
+          precision <= 10
+        ) {
+          result = {
+            tick: 10 ** -precision,
+            decimals: precision,
+            verified: false
+          };
+        }
+      }
+
+    } catch (_) {
+      // Si no responde, usar
+      // precisión estimada.
+    }
+
+    precisionCache.set(k, {
+      at: Date.now(),
+      rule: result
+    });
 
     return result;
   }
 
-  function snapshot(signals) {
-    return JSON.stringify({
-      selection: [
-        $("exchange")?.value,
-        $("market")?.value
-      ],
+  function round(p, r, method = "round") {
+    const v = p / r.tick;
 
-      signals: signals.map(s => [
-        contractKey(s.s),
-        s.side,
-        s.score,
-        s.state
-      ])
-    });
+    const units = method === "up"
+      ? Math.ceil(v - 1e-8)
+      : method === "down"
+        ? Math.floor(v + 1e-8)
+        : Math.round(v);
+
+    return Number(
+      (units * r.tick).toFixed(
+        r.decimals
+      )
+    );
   }
 
-  // TARJETAS ADAPTADAS AL TELÉFONO
+  function price(v, digits = 2) {
+    return Number(v).toLocaleString(
+      "en-US",
+      {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      }
+    );
+  }
 
-  function ensureCards() {
-    let root = $("clTradePlans");
+  function pivots(c) {
+    const out = [];
+
+    for (
+      let i = 3;
+      i < c.length - 3;
+      i++
+    ) {
+      const around = c.slice(
+        i - 3,
+        i + 4
+      );
+
+      if (
+        around.every(
+          (x, j) =>
+            j === 3 ||
+            x.high < c[i].high
+        )
+      ) {
+        out.push({
+          type: "high",
+          p: c[i].high
+        });
+      }
+
+      if (
+        around.every(
+          (x, j) =>
+            j === 3 ||
+            x.low > c[i].low
+        )
+      ) {
+        out.push({
+          type: "low",
+          p: c[i].low
+        });
+      }
+    }
+
+    return out;
+  }
+
+  // FILTRO DE CALIDAD
+
+  function validateSetup(
+    x, a1, a5, a15, r
+  ) {
+    // No utilizar la vela actual.
+    const c1 = a1.slice(0, -1);
+    const c5 = a5.slice(0, -1);
+    const c15 = a15.slice(0, -1);
+
+    if (
+      c1.length < 60 ||
+      c5.length < 65 ||
+      c15.length < 65
+    ) {
+      return {
+        reason: "Historial incompleto"
+      };
+    }
+
+    const long =
+      x.side === "LONG";
+
+    const five =
+      c5.map(z => z.close);
+
+    const fifteen =
+      c15.map(z => z.close);
+
+    const e5 = ema(five, 21);
+    const m5 = ma(five, 55);
+
+    const e15 = ema(fifteen, 21);
+    const m15 = ma(fifteen, 55);
+
+    const aligned = long
+      ? five.at(-1) > e5 &&
+        e5 > m5 &&
+        fifteen.at(-1) > e15 &&
+        e15 > m15
+      : five.at(-1) < e5 &&
+        e5 < m5 &&
+        fifteen.at(-1) < e15 &&
+        e15 < m15;
+
+    if (!aligned) {
+      return {
+        reason:
+          "Tendencia de 5 y 15 minutos sin alinear"
+      };
+    }
+
+    const volatility = atr(c1);
+
+    if (
+      !Number.isFinite(volatility) ||
+      volatility < r.tick
+    ) {
+      return {
+        reason: "Volatilidad insuficiente"
+      };
+    }
+
+    const last = c1.at(-1);
+    const age = now() - last.time;
+
+    if (age > 200) {
+      return {
+        reason:
+          "Velas de 1 minuto desactualizadas"
+      };
+    }
+
+    let setup = null;
+
+    // Ruptura reciente y retesteo
+    // en la última vela cerrada.
+
+    for (
+      let back = 1;
+      back <= 3;
+      back++
+    ) {
+      const idx =
+        c1.length - 1 - back;
+
+      if (idx < 25) continue;
+
+      const breakout = c1[idx];
+
+      const previous = c1.slice(
+        idx - 10,
+        idx
+      );
+
+      const level = long
+        ? Math.max(
+            ...previous.map(z => z.high)
+          )
+        : Math.min(
+            ...previous.map(z => z.low)
+          );
+
+      const twenty = c1.slice(
+        idx - 20,
+        idx
+      );
+
+      const avgv = twenty.reduce(
+        (sum, z) => sum + z.volume,
+        0
+      ) / twenty.length;
+
+      const volOk =
+        avgv > 0 &&
+        breakout.volume >= avgv * 1.3;
+
+      const broke = long
+        ? breakout.close >
+          level + .04 * volatility
+        : breakout.close <
+          level - .04 * volatility;
+
+      const held = c1
+        .slice(idx + 1, -1)
+        .every(z => long
+          ? z.close >=
+            level - .16 * volatility
+          : z.close <=
+            level + .16 * volatility
+        );
+
+      const retest = long
+        ? last.low <=
+            level + .20 * volatility &&
+          last.low >=
+            level - .25 * volatility &&
+          last.close > level
+        : last.high >=
+            level - .20 * volatility &&
+          last.high <=
+            level + .25 * volatility &&
+          last.close < level;
+
+      if (
+        volOk &&
+        broke &&
+        held &&
+        retest
+      ) {
+        setup = {
+          level,
+          candle: last,
+          breakTime: breakout.time
+        };
+
+        break;
+      }
+    }
+
+    if (!setup) {
+      return {
+        reason:
+          "Esperando ruptura, retesteo y volumen confirmado"
+      };
+    }
+
+    const buffer = Math.max(
+      r.tick,
+      .2 * volatility
+    );
+
+    const entry = long
+      ? round(
+          last.high + r.tick,
+          r,
+          "up"
+        )
+      : round(
+          last.low - r.tick,
+          r,
+          "down"
+        );
+
+    const recent = c1.slice(-4);
+
+    const stop = long
+      ? round(
+          Math.min(
+            ...recent.map(z => z.low)
+          ) - buffer,
+          r,
+          "down"
+        )
+      : round(
+          Math.max(
+            ...recent.map(z => z.high)
+          ) + buffer,
+          r,
+          "up"
+        );
+
+    const risk =
+      Math.abs(entry - stop);
+
+    const riskPct =
+      100 * risk / entry;
+
+    if (
+      !Number.isFinite(riskPct) ||
+      risk < 3 * r.tick ||
+      riskPct < .035 ||
+      riskPct > 1.5 ||
+      stop <= 0
+    ) {
+      return {
+        reason:
+          "Stop o distancia de riesgo no aceptable"
+      };
+    }
+
+    const tp1 = round(
+      entry +
+      (long ? 1 : -1) * risk * 1.5,
+      r,
+      long ? "up" : "down"
+    );
+
+    const tp2 = round(
+      entry +
+      (long ? 1 : -1) * risk * 2.5,
+      r,
+      long ? "up" : "down"
+    );
+
+    if (
+      tp1 <= 0 ||
+      tp2 <= 0
+    ) {
+      return {
+        reason: "Objetivos no válidos"
+      };
+    }
+
+    // Revisar barreras estructurales
+    // de cinco minutos.
+
+    const levels = pivots(
+      c5.slice(-110)
+    );
+
+    const barrier = long
+      ? levels
+          .filter(
+            z =>
+              z.type === "high" &&
+              z.p > entry
+          )
+          .sort(
+            (a, b) => a.p - b.p
+          )[0]
+      : levels
+          .filter(
+            z =>
+              z.type === "low" &&
+              z.p < entry
+          )
+          .sort(
+            (a, b) => b.p - a.p
+          )[0];
+
+    if (
+      barrier &&
+      (
+        long
+          ? barrier.p < tp1
+          : barrier.p > tp1
+      )
+    ) {
+      return {
+        reason:
+          "Soporte/resistencia bloquea el primer objetivo"
+      };
+    }
+
+    return {
+      plan: {
+        id: [
+          marketId(x),
+          x.side,
+          setup.candle.time
+        ].join("|"),
+
+        exchange: x.exchange,
+        market: x.market,
+        symbol: x.symbol,
+        label: x.label,
+        side: x.side,
+        score: x.score,
+
+        entry,
+        stop,
+        tp1,
+        tp2,
+        riskPct,
+
+        decimals: r.decimals,
+        verifiedTick: r.verified,
+
+        createdAt: Date.now(),
+        createdTime: setup.candle.time,
+        lastChecked: setup.candle.time,
+
+        status: "ESPERAR ACTIVACIÓN",
+        activatedAt: null,
+
+        tp1Hit: false,
+        tp2Hit: false,
+        stopBeforeTP1: false
+      }
+    };
+  }
+
+  // SEGUIMIENTO DE ENTRADAS
+
+  function follow(p, arr) {
+    if (
+      finalStates.has(p.status)
+    ) {
+      return false;
+    }
+
+    const closed =
+      arr.slice(0, -1);
+
+    if (!closed.length) {
+      return false;
+    }
+
+    const oldest =
+      closed[0].time;
+
+    if (
+      oldest > p.lastChecked + 70
+    ) {
+      p.status = "SIN VERIFICAR";
+      return true;
+    }
+
+    const fresh = closed.filter(
+      c => c.time > p.lastChecked
+    );
+
+    let changed = false;
+
+    for (const c of fresh) {
+      if (
+        c.time > p.lastChecked + 90
+      ) {
+        p.status = "SIN VERIFICAR";
+        changed = true;
+        break;
+      }
+
+      const long =
+        p.side === "LONG";
+
+      const entry = long
+        ? c.high >= p.entry
+        : c.low <= p.entry;
+
+      const stop = long
+        ? c.low <= p.stop
+        : c.high >= p.stop;
+
+      const tp1 = long
+        ? c.high >= p.tp1
+        : c.low <= p.tp1;
+
+      const tp2 = long
+        ? c.high >= p.tp2
+        : c.low <= p.tp2;
+
+      if (
+        p.status ===
+        "ESPERAR ACTIVACIÓN"
+      ) {
+        if (
+          entry &&
+          (stop || tp1 || tp2)
+        ) {
+          p.status =
+            "SECUENCIA AMBIGUA";
+
+        } else if (entry) {
+          p.status = "ACTIVADA";
+          p.activatedAt = c.time;
+
+        } else if (stop) {
+          p.status = "INVALIDADA";
+
+        } else if (
+          c.time - p.createdTime >=
+          WAIT_SECONDS
+        ) {
+          p.status = "NO ACTIVADA";
+        }
+
+      } else if (
+        p.status === "ACTIVADA"
+      ) {
+        if (
+          stop &&
+          (tp1 || tp2)
+        ) {
+          p.status =
+            "SECUENCIA AMBIGUA";
+
+        } else if (stop) {
+          p.status =
+            "STOP ANTES DE TP1";
+
+          p.stopBeforeTP1 = true;
+
+        } else if (tp2) {
+          p.tp1Hit = true;
+          p.tp2Hit = true;
+
+          p.status =
+            "TP2 ALCANZADO";
+
+        } else if (tp1) {
+          p.tp1Hit = true;
+
+          p.status =
+            "TP1 ALCANZADO";
+        }
+
+      } else if (
+        p.status ===
+        "TP1 ALCANZADO"
+      ) {
+        if (tp2 && stop) {
+          p.status =
+            "SEGUIMIENTO FINALIZADO";
+
+        } else if (tp2) {
+          p.tp2Hit = true;
+
+          p.status =
+            "TP2 ALCANZADO";
+
+        } else if (stop) {
+          p.status =
+            "TP1 Y STOP";
+        }
+      }
+
+      p.lastChecked = c.time;
+      changed = true;
+
+      if (
+        finalStates.has(p.status)
+      ) {
+        break;
+      }
+
+      if (
+        c.time - p.createdTime >=
+        TRACK_SECONDS &&
+        p.status !==
+        "ESPERAR ACTIVACIÓN"
+      ) {
+        p.status =
+          "SEGUIMIENTO FINALIZADO";
+
+        break;
+      }
+    }
+
+    return changed;
+  }
+
+  function addRecord(p) {
+    if (
+      history.some(
+        z => z.id === p.id
+      )
+    ) {
+      return false;
+    }
+
+    if (
+      history.some(
+        z =>
+          marketId(z) === marketId(p) &&
+          z.side === p.side &&
+          !finalStates.has(z.status)
+      )
+    ) {
+      return false;
+    }
+
+    const prev = history.find(
+      z =>
+        marketId(z) === marketId(p) &&
+        z.side === p.side
+    );
+
+    if (
+      prev &&
+      p.createdAt - prev.createdAt <
+        12 * 60000
+    ) {
+      return false;
+    }
+
+    history.unshift(p);
+
+    if (history.length > MAX_LOG) {
+      history.length = MAX_LOG;
+    }
+
+    save();
+
+    return true;
+  }
+
+  function metrics() {
+    const successes = history.filter(
+      x => x.tp1Hit
+    ).length;
+
+    const losses = history.filter(
+      x => x.stopBeforeTP1
+    ).length;
+
+    const decided =
+      successes + losses;
+
+    return {
+      successes,
+      losses,
+      decided,
+
+      activated: history.filter(
+        x => x.activatedAt !== null
+      ).length,
+
+      untriggered: history.filter(
+        x => [
+          "NO ACTIVADA",
+          "INVALIDADA"
+        ].includes(x.status)
+      ).length,
+
+      uncertain: history.filter(
+        x => [
+          "SIN VERIFICAR",
+          "SECUENCIA AMBIGUA"
+        ].includes(x.status)
+      ).length,
+
+      tp2: history.filter(
+        x => x.tp2Hit
+      ).length,
+
+      rate: decided
+        ? (
+            100 * successes / decided
+          ).toFixed(1) + "%"
+        : "Sin muestra"
+    };
+  }
+
+  // INTERFAZ
+
+  function node(
+    tag,
+    cls,
+    content
+  ) {
+    const el =
+      document.createElement(tag);
+
+    if (cls) {
+      el.className = cls;
+    }
+
+    if (content !== undefined) {
+      el.textContent =
+        String(content);
+    }
+
+    return el;
+  }
+
+  function ui() {
+    let root = $("clAuditV4");
 
     if (root) return root;
 
-    const scanner = $("clScanner");
+    const scanner =
+      $("clScanner");
 
     if (!scanner) return null;
 
-    root = document.createElement("div");
-    root.id = "clTradePlans";
+    root = node(
+      "section",
+      "cl-audit"
+    );
 
-    root.innerHTML = `
-      <h3 class="cltp-title">
-        🎯 Planes de entrada
-      </h3>
+    root.id = "clAuditV4";
 
-      <p class="cltp-explainer">
-        Niveles calculados con velas cerradas
-        de uno y cinco minutos. No se envían
-        órdenes al exchange.
-      </p>
+    root.appendChild(
+      node(
+        "h3",
+        "",
+        "🎯 Entradas validadas · V4"
+      )
+    );
 
-      <div id="clTradeCards"></div>
-    `;
+    root.appendChild(
+      node(
+        "p",
+        "cl-small",
+        "CONFIRMADA en el ranking significa coincidencia de indicadores, no una orden. Aquí exigimos ruptura, retesteo, volumen y espacio hasta soporte o resistencia."
+      )
+    );
+
+    const cards = node(
+      "div",
+      "cl-cards"
+    );
+
+    cards.id = "clAuditCards";
+    root.appendChild(cards);
+
+    root.appendChild(
+      node(
+        "h3",
+        "",
+        "📊 Auditoría de señales"
+      )
+    );
+
+    root.appendChild(
+      node(
+        "p",
+        "cl-small",
+        "Se mide TP1 antes del stop o stop antes de TP1. Las entradas no activadas y las velas ambiguas no se cuentan como pérdidas."
+      )
+    );
+
+    const stats = node(
+      "div",
+      "cl-stats"
+    );
+
+    stats.id = "clAuditStats";
+    root.appendChild(stats);
+
+    const status = node(
+      "p",
+      "cl-small"
+    );
+
+    status.id = "clAuditStorage";
+    root.appendChild(status);
+
+    const detail = node(
+      "div",
+      "cl-log"
+    );
+
+    detail.id = "clAuditLog";
+    root.appendChild(detail);
 
     scanner.appendChild(root);
 
-    if (!$("clTradeStyle")) {
-      const style =
-        document.createElement("style");
-
-      style.id = "clTradeStyle";
+    if (!$("clAuditStyle")) {
+      const style = node("style");
+      style.id = "clAuditStyle";
 
       style.textContent = `
-        #clTradePlans {
-          margin-top: 18px;
-          padding-top: 16px;
-          border-top: 1px solid #304468;
-          min-width: 0;
+        .cl-audit {
+          border-top:1px solid #334463;
+          margin-top:20px;
+          padding-top:14px;
+          color:#dce6ff;
         }
 
-        .cltp-title {
-          margin: 0 0 6px;
-          font-size: 16px;
-          color: #e6edff;
+        .cl-audit h3 {
+          font-size:16px;
+          margin:8px 0;
         }
 
-        .cltp-explainer {
-          margin: 0 0 13px;
-          font-size: 12px;
-          color: #a5b0cf;
-          line-height: 1.5;
+        .cl-small {
+          color:#a8b5d4;
+          font-size:12px;
+          line-height:1.55;
+          margin:5px 0 13px;
         }
 
-        #clTradeCards {
-          display: grid;
-          gap: 12px;
-          min-width: 0;
+        .cl-cards {
+          display:grid;
+          gap:12px;
         }
 
-        .cltp-card {
-          min-width: 0;
-          max-width: 100%;
-          overflow: hidden;
-          box-sizing: border-box;
-          background: #101d36;
-          border: 1px solid #304566;
-          border-radius: 12px;
-          padding: 14px;
+        .cl-card {
+          background:#101d36;
+          border:1px solid #334463;
+          border-radius:13px;
+          padding:13px;
+          min-width:0;
         }
 
-        .cltp-head {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
-          margin-bottom: 11px;
+        .cl-head {
+          display:flex;
+          justify-content:space-between;
+          gap:8px;
+          flex-wrap:wrap;
+          font-weight:700;
+          margin-bottom:9px;
         }
 
-        .cltp-asset {
-          font-size: 15px;
-          font-weight: 750;
-          color: #f3f6ff;
-          overflow-wrap: anywhere;
+        .cl-note {
+          font-size:12px;
+          color:#ffc971;
+          line-height:1.5;
+          margin:5px 0;
         }
 
-        .cltp-side {
-          font-size: 12px;
-          font-weight: 750;
-        }
-
-        .cltp-long {
-          color: #00f5a0;
-        }
-
-        .cltp-short {
-          color: #ff6381;
-        }
-
-        .cltp-state {
-          font-size: 12px;
-          color: #ffe15a;
-          margin: 0 0 12px;
-          overflow-wrap: anywhere;
-        }
-
-        .cltp-levels {
-          display: grid;
+        .cl-prices {
+          display:grid;
           grid-template-columns:
-            repeat(2, minmax(0, 1fr));
-          gap: 9px;
+            repeat(2,minmax(0,1fr));
+          gap:8px;
+          margin-top:10px;
         }
 
-        .cltp-level {
-          min-width: 0;
-          box-sizing: border-box;
-          background: #0b1429;
-          border: 1px solid #263857;
-          border-radius: 8px;
-          padding: 9px 10px;
+        .cl-price {
+          background:#0b1429;
+          border:1px solid #293b58;
+          border-radius:9px;
+          padding:10px;
+          min-width:0;
         }
 
-        .cltp-label {
-          display: block;
-          font-size: 11px;
-          color: #a5b0cf;
-          margin-bottom: 4px;
+        .cl-price small {
+          display:block;
+          color:#9eafcc;
+          font-size:11px;
         }
 
-        .cltp-price {
-          display: block;
-          font-size: clamp(
-            13px, 3.5vw, 17px
-          );
-          font-weight: 700;
-          color: #f3f6ff;
-          overflow-wrap: anywhere;
-          word-break: break-word;
-          font-variant-numeric: tabular-nums;
+        .cl-price strong {
+          display:block;
+          color:#e7eeff;
+          font-size:clamp(13px,3.4vw,17px);
+          overflow-wrap:anywhere;
         }
 
-        .cltp-entry .cltp-price {
-          color: #36c5ff;
+        .cl-stats {
+          display:grid;
+          grid-template-columns:
+            repeat(2,minmax(0,1fr));
+          gap:8px;
         }
 
-        .cltp-stop .cltp-price {
-          color: #ff6c86;
+        .cl-stat {
+          border:1px solid #304467;
+          background:#0b1429;
+          border-radius:10px;
+          padding:12px;
         }
 
-        .cltp-target .cltp-price {
-          color: #00f5a0;
+        .cl-stat small {
+          display:block;
+          font-size:11px;
+          color:#a5b4d0;
         }
 
-        .cltp-foot {
-          font-size: 11px;
-          line-height: 1.6;
-          color: #b8c8e3;
-          margin-top: 11px;
-          overflow-wrap: anywhere;
+        .cl-stat strong {
+          font-size:19px;
         }
 
-        .cltp-warning {
-          color: #ffe15a;
+        .cl-log {
+          max-height:340px;
+          overflow:auto;
+          font-size:12px;
         }
 
-        .cltp-empty {
-          padding: 12px;
-          border: 1px dashed #34456c;
-          border-radius: 10px;
-          color: #b8c8e3;
-          font-size: 12px;
-          line-height: 1.6;
+        .cl-row {
+          padding:9px 3px;
+          border-bottom:1px solid #263856;
+          line-height:1.6;
         }
 
-        @media(max-width:355px) {
-          .cltp-levels {
-            grid-template-columns: 1fr;
-          }
-
-          .cltp-card {
-            padding: 11px;
+        @media(max-width:350px) {
+          .cl-prices,
+          .cl-stats {
+            grid-template-columns:1fr;
           }
         }
       `;
@@ -1044,386 +1415,417 @@
     return root;
   }
 
-  function boxText(tag, className, content) {
-    const el = document.createElement(tag);
+  function render(
+    signals,
+    reasons = {}
+  ) {
+    if (!ui()) return;
 
-    el.className = className;
-    el.textContent = content;
+    const cards =
+      $("clAuditCards");
 
-    return el;
-  }
-
-  function renderCard(signal, plan) {
-    const card =
-      document.createElement("article");
-
-    card.className = "cltp-card";
-
-    const head =
-      document.createElement("div");
-
-    head.className = "cltp-head";
-
-    head.appendChild(
-      boxText(
-        "span",
-        "cltp-asset",
-        signal.label
-      )
-    );
-
-    head.appendChild(
-      boxText(
-        "span",
-        "cltp-side " +
-        (
-          signal.side === "LONG"
-            ? "cltp-long"
-            : "cltp-short"
-        ),
-        signal.side +
-        " · " +
-        signal.score + "/100"
-      )
-    );
-
-    card.appendChild(head);
-
-    if (!plan) {
-      card.appendChild(
-        boxText(
-          "p",
-          "cltp-state",
-          "Sin plan válido: revisar estructura, volatilidad o datos recientes."
-        )
-      );
-
-      return card;
-    }
-
-    card.appendChild(
-      boxText(
-        "p",
-        "cltp-state",
-        "Estado: " + plan.status
-      )
-    );
-
-    const grid =
-      document.createElement("div");
-
-    grid.className = "cltp-levels";
-
-    for (
-      const [label, val, cls] of [
-        [
-          "🎯 Entrada",
-          plan.entry,
-          "cltp-entry"
-        ],
-        [
-          "🛑 Stop Loss",
-          plan.stop,
-          "cltp-stop"
-        ],
-        [
-          "✅ Take Profit 1",
-          plan.tp1,
-          "cltp-target"
-        ],
-        [
-          "✅ Take Profit 2",
-          plan.tp2,
-          "cltp-target"
-        ]
-      ]
-    ) {
-      const level =
-        document.createElement("div");
-
-      level.className =
-        "cltp-level " + cls;
-
-      level.appendChild(
-        boxText(
-          "span",
-          "cltp-label",
-          label
-        )
-      );
-
-      level.appendChild(
-        boxText(
-          "strong",
-          "cltp-price",
-          fmt(val, plan.rule)
-        )
-      );
-
-      grid.appendChild(level);
-    }
-
-    card.appendChild(grid);
-
-    const foot =
-      document.createElement("div");
-
-    foot.className = "cltp-foot";
-
-    foot.appendChild(
-      boxText(
-        "div",
-        "",
-        "Distancia entrada–stop: " +
-        plan.riskPct.toFixed(2) +
-        "% · TP1 1.5R · TP2 2.5R"
-      )
-    );
-
-    const precision = boxText(
-      "div",
-      plan.rule.verified
-        ? ""
-        : "cltp-warning",
-
-      (
-        plan.rule.verified
-          ? "✓ "
-          : "⚠ "
-      ) +
-      plan.rule.source +
-      (
-        plan.rule.tickVerified
-          ? ""
-          : " · Verifica el incremento mínimo antes de operar"
-      )
-    );
-
-    foot.appendChild(precision);
-
-    foot.appendChild(
-      boxText(
-        "div",
-        "",
-        "Nivel alcanzado ≠ orden ejecutada. Sin comisiones, deslizamiento ni liquidación."
-      )
-    );
-
-    card.appendChild(foot);
-
-    return card;
-  }
-
-  function render(signals) {
-    if (!ensureCards()) return;
-
-    const area = $("clTradeCards");
-    area.replaceChildren();
+    cards.replaceChildren();
 
     const candidates = signals.filter(
       s =>
         s.state === "CONFIRMADA" &&
-        ["LONG", "SHORT"].includes(s.side)
+        s.score >= 65 &&
+        ["LONG", "SHORT"].includes(
+          s.side
+        )
     );
 
     if (!candidates.length) {
-      area.appendChild(
-        boxText(
+      cards.appendChild(
+        node(
           "div",
-          "cltp-empty",
-          "Todavía no hay oportunidades confirmadas con niveles operativos. El escáner seguirá revisando el mercado."
-        )
-      );
-
-      return;
-    }
-
-    for (const signal of candidates) {
-      const plan = plans.get(
-        contractKey(signal.s)
-      );
-
-      area.appendChild(
-        renderCard(
-          signal,
-          plan?.side === signal.side
-            ? plan
-            : null
+          "cl-card cl-small",
+          "Sin configuraciones técnicas candidatas por ahora. Esperando la siguiente revisión."
         )
       );
     }
-  }
 
-  // NOTIFICACIONES
+    for (const s of candidates) {
+      const card = node(
+        "article",
+        "cl-card"
+      );
 
-  function notify(plan) {
-    if (
-      plan.status !== "NIVEL ALCANZADO" ||
-      !plan.rule.verified
-    ) return;
+      const header = node(
+        "div",
+        "cl-head"
+      );
 
-    if (
-      !("Notification" in window) ||
-      Notification.permission !== "granted"
-    ) return;
+      header.appendChild(
+        node(
+          "span",
+          "",
+          s.label
+        )
+      );
 
-    const key = [
-      plan.key,
-      plan.side,
-      plan.createdAt
-    ].join("|");
+      header.appendChild(
+        node(
+          "span",
+          "",
+          s.side + " · " +
+          s.score + "/100"
+        )
+      );
 
-    if (alerted.has(key)) return;
+      card.appendChild(header);
 
-    alerted.add(key);
+      const record =
+        history.find(
+          p =>
+            marketId(p) === marketId(s) &&
+            p.side === s.side &&
+            !finalStates.has(p.status)
+        ) ||
+        history.find(
+          p =>
+            marketId(p) === marketId(s) &&
+            p.side === s.side &&
+            Date.now() - p.createdAt <
+              12 * 60000
+        );
 
-    try {
-      const n = new Notification(
-        "CRYPTOLEXUZ · Nivel de entrada alcanzado",
-        {
-          body:
-            plan.s.symbol +
-            " · " + plan.side +
-            " · Entrada " +
-            fmt(plan.entry, plan.rule) +
-            " · STOP " +
-            fmt(plan.stop, plan.rule) +
-            " · TP1 " +
-            fmt(plan.tp1, plan.rule) +
-            " · TP2 " +
-            fmt(plan.tp2, plan.rule) +
-            " · No confirma ejecución",
+      if (!record) {
+        card.appendChild(
+          node(
+            "div",
+            "cl-note",
+            reasons[marketId(s)] ||
+            "Evaluando ruptura, retesteo y confirmaciones…"
+          )
+        );
 
-          tag: key
+      } else {
+        card.appendChild(
+          node(
+            "div",
+            "cl-note",
+            "Estado: " + record.status
+          )
+        );
+
+        const grid = node(
+          "div",
+          "cl-prices"
+        );
+
+        for (const [label, amount] of [
+          ["🎯 Entrada", record.entry],
+          ["🛑 Stop Loss", record.stop],
+          ["✅ TP1 · 1.5R", record.tp1],
+          ["✅ TP2 · 2.5R", record.tp2]
+        ]) {
+          const box = node(
+            "div",
+            "cl-price"
+          );
+
+          box.appendChild(
+            node(
+              "small",
+              "",
+              label
+            )
+          );
+
+          box.appendChild(
+            node(
+              "strong",
+              "",
+              price(
+                amount,
+                record.decimals
+              )
+            )
+          );
+
+          grid.appendChild(box);
         }
+
+        card.appendChild(grid);
+
+        card.appendChild(
+          node(
+            "p",
+            "cl-small",
+            "Distancia al stop: " +
+            record.riskPct.toFixed(2) +
+            "% · " +
+            (
+              record.verifiedTick
+                ? "Tick API verificado"
+                : "⚠ Tick estimado; comprobar en BingX"
+            ) +
+            " · Sin orden real"
+          )
+        );
+      }
+
+      cards.appendChild(card);
+    }
+
+    const s = metrics();
+
+    const stats =
+      $("clAuditStats");
+
+    stats.replaceChildren();
+
+    const values = [
+      ["Efectividad TP1", s.rate],
+      ["Casos evaluables", s.decided],
+      ["Llegaron a TP1", s.successes],
+      ["Stop antes de TP1", s.losses],
+      ["Entradas activadas", s.activated],
+      ["No activadas / invalidadas", s.untriggered],
+      ["TP2 alcanzado", s.tp2],
+      ["No verificables / ambiguas", s.uncertain]
+    ];
+
+    for (const [label, val] of values) {
+      const item = node(
+        "div",
+        "cl-stat"
       );
 
-      n.onclick = () => {
-        window.focus();
-        n.close();
-      };
+      item.appendChild(
+        node(
+          "small",
+          "",
+          label
+        )
+      );
 
-    } catch (err) {
-      console.info(
-        "Aviso no admitido por navegador:",
-        err.message
+      item.appendChild(
+        node(
+          "strong",
+          "",
+          val
+        )
+      );
+
+      stats.appendChild(item);
+    }
+
+    $("clAuditStorage").textContent =
+      storageAvailable
+        ? "Guardado en este navegador. El seguimiento requiere la página abierta; al regresar se revisan las velas disponibles. No representa órdenes ejecutadas."
+        : "⚠ No se puede guardar en este navegador; el registro se perderá al cerrar.";
+
+    const log =
+      $("clAuditLog");
+
+    log.replaceChildren();
+
+    for (
+      const p of history.slice(0, 35)
+    ) {
+      const when = new Date(
+        p.createdAt
+      ).toLocaleString("es-MX");
+
+      log.appendChild(
+        node(
+          "div",
+          "cl-row",
+          when + " · " +
+          p.label + " · " +
+          p.side + " · " +
+          p.status +
+          (
+            p.tp1Hit
+              ? " · TP1 logrado"
+              : ""
+          )
+        )
+      );
+    }
+
+    if (!history.length) {
+      log.appendChild(
+        node(
+          "div",
+          "cl-small",
+          "Aún no hay señales validadas registradas."
+        )
       );
     }
   }
 
-  // ANÁLISIS AUTOMÁTICO
+  // MOTOR DE REVISIÓN
 
   async function process() {
     if (document.hidden) return;
 
-    const signals = getSignals();
+    const signals =
+      scanSignals();
 
     if (!signals.length) return;
 
-    const sig = snapshot(signals);
-
     if (busy) {
-      pending = true;
+      rerun = true;
       return;
     }
 
     busy = true;
-    pending = false;
+    rerun = false;
+
+    const signature = JSON.stringify(
+      signals.map(
+        s => [
+          marketId(s),
+          s.side,
+          s.state,
+          s.score
+        ]
+      )
+    );
+
+    const reasons = {};
+    let modified = false;
 
     try {
-      const confirmed = signals.filter(
+      const candidates = signals.filter(
         s =>
           s.state === "CONFIRMADA" &&
           s.score >= 65 &&
-          ["LONG", "SHORT"].includes(s.side)
+          ["LONG", "SHORT"].includes(
+            s.side
+          )
       );
 
-      for (const s of signals) {
-        const old = plans.get(
-          contractKey(s.s)
-        );
+      const pending = history.filter(
+        p => !finalStates.has(p.status)
+      );
 
-        if (
-          old &&
-          old.status === "ESPERAR ENTRADA" &&
-          (
-            s.state !== "CONFIRMADA" ||
-            s.side !== old.side
-          )
-        ) {
-          old.status = "INVALIDADA";
-        }
+      const unique = new Map();
+
+      for (const p of pending) {
+        unique.set(
+          marketId(p),
+          p
+        );
       }
+
+      for (const s of candidates) {
+        unique.set(
+          marketId(s),
+          s
+        );
+      }
+
+      const targets = [
+        ...unique.values()
+      ];
 
       let index = 0;
 
       async function worker() {
-        while (index < confirmed.length) {
-          const signal = confirmed[index++];
-
-          const key = contractKey(
-            signal.s
-          );
+        while (index < targets.length) {
+          const s = targets[index++];
 
           try {
-            const [one, five] =
-              await Promise.all([
-                candles(signal.s, "1m"),
-                candles(signal.s, "5m")
-              ]);
+            const a1 = await candles(
+              s,
+              "1m"
+            );
 
-            if (
-              snapshot(getSignals()) !== sig
-            ) continue;
-
-            let old = plans.get(key);
-
-            if (
-              old &&
-              old.side === signal.side
+            for (
+              const p of pending.filter(
+                p =>
+                  marketId(p) ===
+                  marketId(s)
+              )
             ) {
-              advancePlan(old, one);
-
-              if (
-                !terminal.has(old.status)
-              ) {
-                notify(old);
-                continue;
+              if (follow(p, a1)) {
+                modified = true;
               }
-
-              if (
-                Date.now() -
-                old.createdAt <
-                10 * 60000
-              ) continue;
             }
 
-            const rule = await ruleFor(
-              signal.s,
-              one
+            const candidate =
+              candidates.some(
+                c =>
+                  marketId(c) ===
+                  marketId(s)
+              );
+
+            if (!candidate) continue;
+
+            const current = JSON.stringify(
+              scanSignals().map(
+                q => [
+                  marketId(q),
+                  q.side,
+                  q.state,
+                  q.score
+                ]
+              )
+            );
+
+            if (current !== signature) {
+              continue;
+            }
+
+            const a5 = await candles(
+              s,
+              "5m"
+            );
+
+            const a15 = await candles(
+              s,
+              "15m"
+            );
+
+            const r = await rule(
+              s,
+              a1
+            );
+
+            const currentAfter = JSON.stringify(
+              scanSignals().map(
+                q => [
+                  marketId(q),
+                  q.side,
+                  q.state,
+                  q.score
+                ]
+              )
             );
 
             if (
-              snapshot(getSignals()) !== sig
-            ) continue;
+              currentAfter !== signature
+            ) {
+              continue;
+            }
 
-            const plan = createPlan(
-              signal,
-              one,
-              five,
-              rule
+            const result = validateSetup(
+              s,
+              a1,
+              a5,
+              a15,
+              r
             );
 
-            if (plan) {
-              plans.set(key, plan);
+            reasons[marketId(s)] =
+              result.reason ||
+              "Entrada condicionada a ruptura del máximo o mínimo del retesteo";
+
+            if (
+              result.plan &&
+              addRecord(result.plan)
+            ) {
+              modified = true;
             }
 
           } catch (err) {
-            console.warn(
-              "Niveles",
-              signal.label,
-              err.message
-            );
+            reasons[marketId(s)] =
+              "No disponible: " +
+              err.message;
           }
         }
       }
@@ -1433,57 +1835,87 @@
         worker()
       ]);
 
-      if (
-        snapshot(getSignals()) === sig
-      ) {
-        render(signals);
+      if (modified) {
+        save();
       }
+
+      render(
+        scanSignals(),
+        reasons
+      );
 
     } finally {
       busy = false;
 
-      if (pending) {
-        pending = false;
-        setTimeout(process, 250);
+      if (rerun) {
+        rerun = false;
+
+        setTimeout(
+          process,
+          400
+        );
       }
     }
   }
 
-  // INICIO DEL MÓDULO
-
   function init() {
-    const body = $("clScanBody");
+    const body =
+      $("clScanBody");
 
     if (!body) {
       setTimeout(init, 400);
       return;
     }
 
-    ensureCards();
+    load();
+    ui();
+    render(scanSignals());
 
-    observer = new MutationObserver(
-      () => process()
+    const observer =
+      new MutationObserver(() => {
+        clearTimeout(recheckTimer);
+
+        recheckTimer = setTimeout(
+          process,
+          300
+        );
+      });
+
+    observer.observe(
+      body,
+      {
+        childList: true
+      }
     );
 
-    observer.observe(body, {
-      childList: true
-    });
-
-    $("exchange")?.addEventListener(
-      "change",
-      () => setTimeout(process, 300)
-    );
-
-    $("market")?.addEventListener(
-      "change",
-      () => setTimeout(process, 300)
-    );
+    for (const id of [
+      "exchange",
+      "market"
+    ]) {
+      $(id)?.addEventListener(
+        "change",
+        () => setTimeout(
+          process,
+          400
+        )
+      );
+    }
 
     document.addEventListener(
       "visibilitychange",
       () => {
-        if (!document.hidden) process();
+        if (!document.hidden) {
+          process();
+        }
       }
+    );
+
+    $("clScanNow")?.addEventListener(
+      "click",
+      () => setTimeout(
+        process,
+        300
+      )
     );
 
     process();
