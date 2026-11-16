@@ -1,118 +1,139 @@
 
-
 /*
- CRYPTOLEXUZ PRO — NIVELES V13
- Entrada, stop, TP1 y TP2.
- Respeta las señales del escáner V12.
- No coloca órdenes.
+ CRYPTOLEXUZ PRO — TRADE PLANS V2
+ Tarjetas móviles: entrada, stop loss, TP1, TP2.
+ Precisión de mercado cuando la API la permite.
+ No ejecuta órdenes ni confirma operaciones.
 */
 "use strict";
 
 (() => {
   const $ = id => document.getElementById(id);
-
   const GOLD = "NCCOGOLD2USD-USDT";
+
   const plans = new Map();
-  const rules = new Map();
-  const alerts = new Set();
+  const precisionCache = new Map();
+  const candlesCache = new Map();
+  const alerted = new Set();
 
-  let running = false;
-  let queued = false;
+  let metadataPromise = null;
+  let busy = false;
+  let pending = false;
   let observer = null;
-  let bingxContracts = null;
 
-  const now = () => Date.now();
+  const terminal = new Set([
+    "EXPIRADA",
+    "INVALIDADA",
+    "STOP ALCANZADO",
+    "TP2 ALCANZADO",
+    "SECUENCIA INCIERTA",
+    "SEGUIMIENTO FINALIZADO"
+  ]);
 
-  const normSymbol = label =>
-    label.includes("GOLD")
-      ? GOLD
-      : label.replace("/", "-");
+  function number(v) {
+    if (
+      v === null ||
+      v === undefined ||
+      v === ""
+    ) return NaN;
 
-  const keyOf = s =>
-    [s.exchange, s.market, s.symbol].join("|");
+    const n = Number(v);
 
-  function fmt(n, rule) {
-    if (!Number.isFinite(n)) return "—";
-
-    return n.toLocaleString("en-US", {
-      minimumFractionDigits: rule.decimals,
-      maximumFractionDigits: rule.decimals
-    });
-  }
-
-  function correctNumber(n) {
-    const value = Number(n);
-
-    return Number.isFinite(value) && value > 0
-      ? value
+    return Number.isFinite(n) && n > 0
+      ? n
       : NaN;
   }
 
-  function toSeconds(t) {
-    const n = Number(t);
+  function seconds(v) {
+    const n =
+      typeof v === "string" &&
+      !/^\d+$/.test(v)
+        ? Date.parse(v)
+        : Number(v);
 
-    return Number.isFinite(n)
-      ? Math.floor(n > 1e12 ? n / 1000 : n)
-      : NaN;
+    if (!Number.isFinite(n)) return NaN;
+
+    return Math.floor(
+      n > 1e12 ? n / 1000 : n
+    );
   }
 
   function normalize(raw) {
-    let list =
-      raw?.data?.data ??
-      raw?.data?.list ??
-      raw?.data?.candles ??
-      raw?.data ??
-      raw;
+    let list = raw;
+
+    if (!Array.isArray(list)) {
+      list =
+        raw?.data?.data ??
+        raw?.data?.list ??
+        raw?.data?.candles ??
+        raw?.data ??
+        raw?.list ??
+        [];
+    }
 
     if (!Array.isArray(list)) return [];
 
-    const result = [];
+    const now = Math.floor(Date.now() / 1000);
+    const arr = [];
 
     for (const c of list) {
-      const a = Array.isArray(c);
+      if (!c || typeof c !== "object") continue;
 
-      const time = toSeconds(
-        a ? c[0] :
-        c.time ?? c.timestamp ??
-        c.openTime ?? c.t
+      const isArray = Array.isArray(c);
+
+      const time = seconds(
+        isArray
+          ? c[0]
+          : c.time ??
+            c.timestamp ??
+            c.openTime ??
+            c.t
       );
 
-      const open = correctNumber(
-        a ? c[1] : c.open ?? c.o
+      const open = number(
+        isArray ? c[1] : c.open ?? c.o
       );
 
-      const high = correctNumber(
-        a ? c[2] : c.high ?? c.h
+      const high = number(
+        isArray ? c[2] : c.high ?? c.h
       );
 
-      const low = correctNumber(
-        a ? c[3] : c.low ?? c.l
+      const low = number(
+        isArray ? c[3] : c.low ?? c.l
       );
 
-      const close = correctNumber(
-        a ? c[4] : c.close ?? c.c
+      const close = number(
+        isArray ? c[4] : c.close ?? c.c
       );
 
       if (
         ![time, open, high, low, close]
           .every(Number.isFinite) ||
+        time <= 0 ||
+        time > now + 60 ||
         high < Math.max(open, close, low) ||
         low > Math.min(open, close, high)
       ) continue;
 
-      result.push({
-        time, open, high, low, close
+      arr.push({
+        time,
+        open,
+        high,
+        low,
+        close
       });
     }
 
-    result.sort((a, b) => a.time - b.time);
+    arr.sort((a, b) => a.time - b.time);
 
-    return [...new Map(
-      result.map(c => [c.time, c])
-    ).values()];
+    return [
+      ...new Map(
+        arr.map(x => [x.time, x])
+      ).values()
+    ];
   }
 
-  async function json(url, ms = 9000) {
+  async function getJSON(url, ms = 10000) {
     const controller = new AbortController();
 
     const timer = setTimeout(
@@ -121,23 +142,34 @@
     );
 
     try {
-      const response = await fetch(url, {
+      const res = await fetch(url, {
         signal: controller.signal,
         cache: "no-store"
       });
 
-      if (!response.ok) {
-        throw Error("HTTP " + response.status);
+      if (!res.ok) {
+        throw Error("HTTP " + res.status);
       }
 
-      return await response.json();
+      const data = await res.json();
+
+      if (
+        data?.code !== undefined &&
+        ![0, "0"].includes(data.code)
+      ) {
+        throw Error(
+          data.msg || "API rechazó consulta"
+        );
+      }
+
+      return data;
 
     } finally {
       clearTimeout(timer);
     }
   }
 
-  function url(s, tf) {
+  function endpoint(s, tf) {
     return (
       "/api/exchange/" +
       encodeURIComponent(s.exchange) +
@@ -150,132 +182,179 @@
     );
   }
 
-  function decimalCount(n) {
-    const text = Number(n)
-      .toFixed(10)
-      .replace(/0+$/, "");
+  async function candles(s, tf) {
+    const key = [
+      s.exchange,
+      s.market,
+      s.symbol,
+      tf
+    ].join("|");
 
-    return (text.split(".")[1] || "").length;
+    const cached = candlesCache.get(key);
+
+    const ttl = tf === "1m"
+      ? 40000
+      : 75000;
+
+    if (
+      cached &&
+      Date.now() - cached.at < ttl
+    ) {
+      return cached.data;
+    }
+
+    const data = normalize(
+      await getJSON(endpoint(s, tf))
+    );
+
+    if (data.length < 40) {
+      throw Error(
+        "Velas insuficientes: " + tf
+      );
+    }
+
+    candlesCache.set(key, {
+      at: Date.now(),
+      data
+    });
+
+    return data;
+  }
+
+  const contractKey = s => [
+    s.exchange,
+    s.market,
+    s.symbol
+  ].join("|");
+
+  // PRECISIÓN DEL CONTRATO
+
+  function decimalsOf(n) {
+    const txt = String(n).toLowerCase();
+
+    if (txt.includes("e-")) {
+      return Number(txt.split("e-")[1]);
+    }
+
+    return (
+      txt.split(".")[1] || ""
+    ).length;
   }
 
   function estimatedRule(data) {
     let decimals = 1;
 
     for (const c of data.slice(-30)) {
-      for (const n of [
-        c.open, c.high, c.low, c.close
+      for (const val of [
+        c.open,
+        c.high,
+        c.low,
+        c.close
       ]) {
-        const str = Number(n)
+        const clean = Number(val)
           .toFixed(8)
           .replace(/0+$/, "");
 
         decimals = Math.max(
           decimals,
-          (str.split(".")[1] || "").length
+          (
+            clean.split(".")[1] || ""
+          ).length
         );
       }
     }
 
-    decimals = Math.min(8, decimals);
+    decimals = Math.min(decimals, 8);
 
     return {
-      tick: 10 ** (-decimals),
+      step: 10 ** (-decimals),
       decimals,
       verified: false,
-      source: "Estimación basada en velas"
+      tickVerified: false,
+      source:
+        "Precisión estimada a partir de velas"
     };
   }
 
-  async function ruleFor(s, candles) {
-    const key = keyOf(s);
-    const cached = rules.get(key);
-
-    if (
-      cached &&
-      now() - cached.at < 15 * 60 * 1000
-    ) {
-      return cached.rule;
+  async function bingxMetadata() {
+    if (!metadataPromise) {
+      metadataPromise = getJSON(
+        "https://open-api.bingx.com/openApi/swap/v2/quote/contracts",
+        8000
+      ).catch(err => {
+        metadataPromise = null;
+        throw err;
+      });
     }
 
-    let tick = NaN;
-    let source = "";
+    return metadataPromise;
+  }
+
+  async function ruleFor(s, data) {
+    const key = contractKey(s);
+    const old = precisionCache.get(key);
+
+    if (
+      old &&
+      Date.now() - old.at < 15 * 60 * 1000
+    ) {
+      return old.rule;
+    }
+
+    let rule = null;
 
     try {
+      let tick = NaN;
+      let precision = NaN;
+      let name = s.exchange.toUpperCase();
+
       if (
         s.exchange === "bingx" &&
         s.market === "perpetual"
       ) {
-        if (!bingxContracts) {
-          bingxContracts = json(
-            "https://open-api.bingx.com/openApi/swap/v2/quote/contracts",
-            9000
-          ).catch(error => {
-            bingxContracts = null;
-            throw error;
-          });
-        }
+        const res = await bingxMetadata();
 
-        const raw = await bingxContracts;
+        const all = Array.isArray(res.data)
+          ? res.data
+          : [res.data];
 
-        if (
-          raw.code !== 0 &&
-          raw.code !== "0"
-        ) {
-          throw Error(
-            raw.msg || "Sin metadatos"
-          );
-        }
-
-        const list = Array.isArray(raw.data)
-          ? raw.data
-          : [raw.data];
-
-        const item = list.find(
-          c => c?.symbol === s.symbol
+        const item = all.find(
+          x => x?.symbol === s.symbol
         );
 
         if (item) {
-          tick = correctNumber(
-            item.tickSize ?? item.priceStep
+          tick = number(
+            item.tickSize ??
+            item.priceStep
           );
 
-          if (!Number.isFinite(tick)) {
-            const p = Number(
-              item.pricePrecision
-            );
+          precision = Number(
+            item.pricePrecision
+          );
 
-            if (
-              Number.isInteger(p) &&
-              p >= 0 &&
-              p <= 10
-            ) {
-              tick = 10 ** (-p);
-            }
-          }
-
-          source = "BingX";
+          name = "BingX";
         }
 
       } else if (s.exchange === "binance") {
-        const host = s.market === "spot"
-          ? "https://api.binance.com/api/v3/exchangeInfo"
-          : "https://fapi.binance.com/fapi/v1/exchangeInfo";
+        const sym = s.symbol.replace("-", "");
 
-        const raw = await json(
-          host + "?symbol=" +
-          s.symbol.replace("-", "")
+        const url = s.market === "spot"
+          ? "https://api.binance.com/api/v3/exchangeInfo?symbol="
+          : "https://fapi.binance.com/fapi/v1/exchangeInfo?symbol=";
+
+        const res = await getJSON(
+          url + encodeURIComponent(sym),
+          8000
         );
 
-        tick = correctNumber(
-          raw.symbols?.[0]?.filters?.find(
-            x => x.filterType === "PRICE_FILTER"
+        tick = number(
+          res.symbols?.[0]?.filters?.find(
+            f => f.filterType === "PRICE_FILTER"
           )?.tickSize
         );
 
-        source = "Binance";
-
       } else if (s.exchange === "bybit") {
-        const raw = await json(
+        const url =
           "https://api.bybit.com/v5/market/instruments-info?category=" +
           (
             s.market === "spot"
@@ -283,334 +362,409 @@
               : "linear"
           ) +
           "&symbol=" +
-          s.symbol.replace("-", "")
-        );
+          encodeURIComponent(
+            s.symbol.replace("-", "")
+          );
 
-        tick = correctNumber(
-          raw.result?.list?.[0]
+        const res = await getJSON(url, 8000);
+
+        tick = number(
+          res.result?.list?.[0]
             ?.priceFilter?.tickSize
         );
 
-        source = "Bybit";
-
       } else if (s.exchange === "okx") {
-        const instId =
+        const instrument =
           s.symbol +
-          (s.market === "spot" ? "" : "-SWAP");
+          (
+            s.market === "spot"
+              ? ""
+              : "-SWAP"
+          );
 
-        const raw = await json(
+        const url =
           "https://www.okx.com/api/v5/public/instruments?instType=" +
           (
             s.market === "spot"
               ? "SPOT"
               : "SWAP"
           ) +
-          "&instId=" + instId
-        );
+          "&instId=" +
+          encodeURIComponent(instrument);
 
-        tick = correctNumber(
-          raw.data?.[0]?.tickSz
-        );
+        const res = await getJSON(url, 8000);
 
-        source = "OKX";
+        tick = number(
+          res.data?.[0]?.tickSz
+        );
       }
 
-    } catch (error) {
+      if (
+        Number.isFinite(tick) &&
+        tick > 0
+      ) {
+        rule = {
+          step: tick,
+          decimals: Math.min(
+            10,
+            decimalsOf(tick)
+          ),
+          verified: true,
+          tickVerified: true,
+          source:
+            name + ": tick publicado"
+        };
+
+      } else if (
+        Number.isInteger(precision) &&
+        precision >= 0 &&
+        precision <= 10
+      ) {
+        rule = {
+          step: 10 ** (-precision),
+          decimals: precision,
+          verified: true,
+          tickVerified: false,
+          source:
+            name +
+            ": decimales oficiales (tick sin verificar)"
+        };
+      }
+
+    } catch (err) {
       console.info(
-        "Precisión sin verificar:",
+        "CRYPTOLEXUZ: precisión de",
         s.symbol,
-        error.message
+        "no consultable desde el navegador:",
+        err.message
       );
     }
 
-    const rule = Number.isFinite(tick)
-      ? {
-          tick,
-          decimals: decimalCount(tick),
-          verified: true,
-          source
-        }
-      : estimatedRule(candles);
+    rule ??= estimatedRule(data);
 
-    rules.set(key, {
+    precisionCache.set(key, {
       rule,
-      at: now()
+      at: Date.now()
     });
 
     return rule;
   }
 
-  function round(v, rule, mode) {
-    const q = v / rule.tick;
+  function quantize(
+    price,
+    rule,
+    direction = "nearest"
+  ) {
+    const raw = price / rule.step;
 
-    const units = mode === "up"
-      ? Math.ceil(q - 1e-8)
-      : mode === "down"
-        ? Math.floor(q + 1e-8)
-        : Math.round(q);
+    const units = direction === "up"
+      ? Math.ceil(raw - 1e-8)
+      : direction === "down"
+        ? Math.floor(raw + 1e-8)
+        : Math.round(raw);
 
     return Number(
-      (units * rule.tick).toFixed(
+      (units * rule.step).toFixed(
         Math.min(rule.decimals, 10)
       )
     );
   }
 
-  function atr(data, p = 14) {
-    const a = data.slice(0, -1);
+  function fmt(n, rule) {
+    return Number.isFinite(n)
+      ? n.toLocaleString("en-US", {
+          minimumFractionDigits:
+            rule.decimals,
+          maximumFractionDigits:
+            rule.decimals
+        })
+      : "—";
+  }
 
-    if (a.length < p + 2) return NaN;
+  // VOLATILIDAD Y NIVELES
+
+  function ATR(data, period = 14) {
+    const closed = data.slice(0, -1);
+
+    if (
+      closed.length < period + 2
+    ) return NaN;
 
     const ranges = [];
 
-    for (let i = 1; i < a.length; i++) {
-      ranges.push(Math.max(
-        a[i].high - a[i].low,
-        Math.abs(
-          a[i].high - a[i - 1].close
-        ),
-        Math.abs(
-          a[i].low - a[i - 1].close
+    for (
+      let i = 1;
+      i < closed.length;
+      i++
+    ) {
+      ranges.push(
+        Math.max(
+          closed[i].high - closed[i].low,
+          Math.abs(
+            closed[i].high -
+            closed[i - 1].close
+          ),
+          Math.abs(
+            closed[i].low -
+            closed[i - 1].close
+          )
         )
-      ));
+      );
     }
 
-    let v = ranges.slice(0, p).reduce(
-      (s, n) => s + n,
-      0
-    ) / p;
+    let result = ranges
+      .slice(0, period)
+      .reduce((a, b) => a + b, 0)
+      / period;
 
-    for (let i = p; i < ranges.length; i++) {
-      v = (
-        v * (p - 1) + ranges[i]
-      ) / p;
+    for (
+      let i = period;
+      i < ranges.length;
+      i++
+    ) {
+      result = (
+        result * (period - 1) +
+        ranges[i]
+      ) / period;
     }
 
-    return v;
+    return result;
   }
 
   function createPlan(
-    s,
-    side,
+    signal,
     one,
     five,
     rule
   ) {
-    const a = one.slice(0, -1);
-    const b = five.slice(0, -1);
+    const closed1 = one.slice(0, -1);
+    const closed5 = five.slice(0, -1);
 
     if (
-      a.length < 30 ||
-      b.length < 20
+      closed1.length < 30 ||
+      closed5.length < 20
     ) return null;
 
-    const latest = a.at(-1);
+    const last = closed1.at(-1);
 
     if (
-      Math.floor(now() / 1000) -
-      latest.time > 240
+      Math.floor(Date.now() / 1000) -
+      last.time > 210
     ) return null;
 
-    const tick = rule.tick;
-    const volatility = atr(five);
+    const volatility = ATR(five);
 
     if (
       !Number.isFinite(volatility) ||
-      volatility <= tick
+      volatility <= rule.step
     ) return null;
 
-    const recent = a.slice(-6);
-    const oneSwing = a.slice(-12);
-    const fiveSwing = b.slice(-4);
+    const long = signal.side === "LONG";
 
-    const high = Math.max(
-      ...recent.map(x => x.high)
-    );
+    const recent = closed1.slice(-6);
+    const swing1 = closed1.slice(-12);
+    const swing5 = closed5.slice(-4);
 
-    const low = Math.min(
-      ...recent.map(x => x.low)
-    );
-
-    const entry = side === "LONG"
-      ? round(
-          high + tick,
+    const entry = long
+      ? quantize(
+          Math.max(
+            ...recent.map(c => c.high)
+          ) + rule.step,
           rule,
           "up"
         )
-      : round(
-          low - tick,
+      : quantize(
+          Math.min(
+            ...recent.map(c => c.low)
+          ) - rule.step,
           rule,
           "down"
         );
 
     const swingLow = Math.min(
-      ...oneSwing.map(x => x.low),
-      ...fiveSwing.map(x => x.low)
+      ...swing1.map(c => c.low),
+      ...swing5.map(c => c.low)
     );
 
     const swingHigh = Math.max(
-      ...oneSwing.map(x => x.high),
-      ...fiveSwing.map(x => x.high)
+      ...swing1.map(c => c.high),
+      ...swing5.map(c => c.high)
     );
 
-    const stop = side === "LONG"
-      ? round(
+    const stop = long
+      ? quantize(
           Math.min(
             swingLow,
-            entry - 0.85 * volatility
-          ) - tick,
+            entry - .85 * volatility
+          ) - rule.step,
           rule,
           "down"
         )
-      : round(
+      : quantize(
           Math.max(
             swingHigh,
-            entry + 0.85 * volatility
-          ) + tick,
+            entry + .85 * volatility
+          ) + rule.step,
           rule,
           "up"
         );
 
     const risk = Math.abs(entry - stop);
-    const percent = 100 * risk / entry;
+    const riskPct = 100 * risk / entry;
 
     if (
-      risk < 3 * tick ||
-      percent < 0.015 ||
-      percent > 2.5
+      !Number.isFinite(riskPct) ||
+      risk < 3 * rule.step ||
+      riskPct < .015 ||
+      riskPct > 2.5 ||
+      entry <= 0 ||
+      stop <= 0
     ) return null;
 
-    const tp1 = round(
+    const tp1 = quantize(
       entry +
-      (side === "LONG" ? 1 : -1) *
+      (long ? 1 : -1) *
       risk * 1.5,
       rule,
-      side === "LONG" ? "up" : "down"
+      long ? "up" : "down"
     );
 
-    const tp2 = round(
+    const tp2 = quantize(
       entry +
-      (side === "LONG" ? 1 : -1) *
+      (long ? 1 : -1) *
       risk * 2.5,
       rule,
-      side === "LONG" ? "up" : "down"
+      long ? "up" : "down"
     );
 
     if (
-      [entry, stop, tp1, tp2].some(
-        x => !Number.isFinite(x) || x <= 0
-      )
+      !(tp1 > 0 && tp2 > 0)
     ) return null;
 
     return {
-      s,
-      side,
+      key: contractKey(signal.s),
+      s: signal.s,
+      side: signal.side,
       entry,
       stop,
       tp1,
       tp2,
+      riskPct,
       rule,
-      percent,
-      risk,
+      score: signal.score,
       status: "ESPERAR ENTRADA",
-      started: latest.time,
-      checked: latest.time,
-      createdAt: now()
+      createdAt: Date.now(),
+      lastClosed: last.time,
+      checkedClosed: last.time
     };
   }
 
-  function updatePlan(plan, one) {
-    const terminal = [
-      "EXPIRADA",
-      "STOP TOCADO",
-      "TP2 TOCADO",
-      "SECUENCIA INCIERTA",
-      "INVALIDADA"
-    ];
+  // SEGUIMIENTO DE LA ENTRADA
 
-    if (terminal.includes(plan.status)) {
-      return;
-    }
+  function advancePlan(plan, one) {
+    if (
+      terminal.has(plan.status)
+    ) return;
 
-    const last = one.at(-1)?.time ?? 0;
     const long = plan.side === "LONG";
 
-    for (
-      const candle of one.filter(
-        x => x.time > plan.checked
-      )
-    ) {
-      const trigger = long
+    const closed = one
+      .slice(0, -1)
+      .filter(
+        c => c.time > plan.checkedClosed
+      );
+
+    for (const candle of closed) {
+      const entryHit = long
         ? candle.high >= plan.entry
         : candle.low <= plan.entry;
 
-      const stop = long
+      const stopHit = long
         ? candle.low <= plan.stop
         : candle.high >= plan.stop;
 
-      const target1 = long
+      const t1 = long
         ? candle.high >= plan.tp1
         : candle.low <= plan.tp1;
 
-      const target2 = long
+      const t2 = long
         ? candle.high >= plan.tp2
         : candle.low <= plan.tp2;
 
-      if (plan.status === "ESPERAR ENTRADA") {
-        if (trigger && stop) {
-          plan.status = "SECUENCIA INCIERTA";
-          break;
-        }
+      if (
+        plan.status === "ESPERAR ENTRADA"
+      ) {
+        if (
+          entryHit &&
+          (stopHit || t1 || t2)
+        ) {
+          plan.status =
+            "SECUENCIA INCIERTA";
 
-        if (stop && !trigger) {
+        } else if (stopHit) {
           plan.status = "INVALIDADA";
-          break;
-        }
 
-        if (trigger) {
-          plan.status = "NIVEL TOCADO";
+        } else if (entryHit) {
+          plan.status = "NIVEL ALCANZADO";
+
         } else if (
-          candle.time - plan.started >= 180
+          candle.time -
+          plan.lastClosed >= 180
         ) {
           plan.status = "EXPIRADA";
-          break;
+        }
+
+      } else if (
+        [
+          "NIVEL ALCANZADO",
+          "TP1 ALCANZADO"
+        ].includes(plan.status)
+      ) {
+        if (
+          stopHit &&
+          (t1 || t2)
+        ) {
+          plan.status =
+            "SECUENCIA INCIERTA";
+
+        } else if (stopHit) {
+          plan.status =
+            "STOP ALCANZADO";
+
+        } else if (t2) {
+          plan.status =
+            "TP2 ALCANZADO";
+
+        } else if (t1) {
+          plan.status =
+            "TP1 ALCANZADO";
         }
       }
+
+      plan.checkedClosed = candle.time;
 
       if (
-        plan.status === "NIVEL TOCADO" ||
-        plan.status === "TP1 TOCADO"
-      ) {
-        if (stop && target2) {
-          plan.status = "SECUENCIA INCIERTA";
-          break;
-        }
+        terminal.has(plan.status)
+      ) break;
+    }
 
-        if (stop) {
-          plan.status = "STOP TOCADO";
-          break;
-        }
-
-        if (target2) {
-          plan.status = "TP2 TOCADO";
-          break;
-        }
-
-        if (target1) {
-          plan.status = "TP1 TOCADO";
-        }
-      }
-
-      if (candle.time < last) {
-        plan.checked = candle.time;
-      }
+    if (
+      !terminal.has(plan.status) &&
+      plan.status !== "ESPERAR ENTRADA" &&
+      Date.now() - plan.createdAt >
+        30 * 60000
+    ) {
+      plan.status =
+        "SEGUIMIENTO FINALIZADO";
     }
   }
 
-  function readSignals() {
-    const body = $("clScanBody");
+  // LEER EL ESCÁNER V12
 
-    if (!body) return [];
+  function getSignals() {
+    const tbody = $("clScanBody");
+
+    if (!tbody) return [];
 
     const exchange = (
       $("exchange")?.value || "bingx"
@@ -623,159 +777,513 @@
     const result = [];
 
     for (
-      const row of body.querySelectorAll(
+      const tr of tbody.querySelectorAll(
         ":scope > tr"
       )
     ) {
-      if (row.dataset.tradeplanRow) {
+      if (tr.dataset.tradeplanRow) {
         continue;
       }
 
-      const cols = [...row.children];
+      const cells = [...tr.children];
 
       if (
-        cols.length < 6 ||
+        cells.length < 6 ||
         !/^\d+$/.test(
-          cols[0].textContent.trim()
+          cells[0].textContent.trim()
         )
       ) continue;
 
       const label =
-        cols[1].textContent.trim();
+        cells[1].textContent.trim();
 
-      const gold = label.includes("GOLD");
+      const gold =
+        label.includes("GOLD");
+
+      const side =
+        cells[2].textContent.trim();
 
       result.push({
         label,
-        side: cols[2].textContent.trim(),
-        state: cols[4].textContent.trim(),
+        side,
+
         score: Number(
-          cols[3].textContent.split("/")[0]
+          cells[3].textContent.split("/")[0]
         ),
+
+        state:
+          cells[4].textContent.trim(),
+
         s: {
-          symbol: normSymbol(label),
           exchange: gold
             ? "bingx"
             : exchange,
+
           market: gold
             ? "perpetual"
-            : market
-        },
-        row
+            : market,
+
+          symbol: gold
+            ? GOLD
+            : label.replace("/", "-")
+        }
       });
     }
 
     return result;
   }
 
-  function addDetails(signals) {
-    const body = $("clScanBody");
+  function snapshot(signals) {
+    return JSON.stringify({
+      selection: [
+        $("exchange")?.value,
+        $("market")?.value
+      ],
 
-    if (!body) return;
-
-    observer?.disconnect();
-
-    body.querySelectorAll(
-      "[data-tradeplan-row]"
-    ).forEach(el => el.remove());
-
-    for (const signal of signals) {
-      const plan = plans.get(
-        keyOf(signal.s)
-      );
-
-      const tr =
-        document.createElement("tr");
-
-      tr.dataset.tradeplanRow = "true";
-
-      const cell =
-        document.createElement("td");
-
-      cell.colSpan = 6;
-
-      cell.style.cssText =
-        "padding:6px 9px 15px;" +
-        "border-bottom:1px solid #243756;" +
-        "background:#101a30;";
-
-      const info =
-        document.createElement("div");
-
-      info.style.cssText =
-        "color:#bfcde9;" +
-        "font-size:12px;" +
-        "line-height:1.75;" +
-        "white-space:normal;";
-
-      if (plan) {
-        const price = x => fmt(
-          x,
-          plan.rule
-        );
-
-        const precision = plan.rule.verified
-          ? "✓ Tick verificado: " +
-            price(plan.rule.tick)
-          : "⚠ Precisión estimada: " +
-            "verificar tick en el exchange";
-
-        info.textContent =
-          "🎯 " + plan.status +
-          " · Entrada " + price(plan.entry) +
-          " · STOP " + price(plan.stop) +
-          " · TP1 " + price(plan.tp1) +
-          " · TP2 " + price(plan.tp2) +
-          " · Riesgo " +
-          plan.percent.toFixed(2) + "%" +
-          " · TP1 = 1.5R" +
-          " · TP2 = 2.5R" +
-          " · " + precision;
-
-      } else {
-        info.textContent =
-          signal.state === "CONFIRMADA"
-            ? "Sin nivel operativo válido: " +
-              "estructura, volatilidad o " +
-              "datos insuficientes."
-            : "Esperando confirmación para " +
-              "calcular entrada, stop y objetivos.";
-      }
-
-      cell.appendChild(info);
-      tr.appendChild(cell);
-      signal.row.after(tr);
-    }
-
-    observer?.observe(body, {
-      childList: true
+      signals: signals.map(s => [
+        contractKey(s.s),
+        s.side,
+        s.score,
+        s.state
+      ])
     });
   }
 
-  function notifyTouched(plan) {
+  // TARJETAS ADAPTADAS AL TELÉFONO
+
+  function ensureCards() {
+    let root = $("clTradePlans");
+
+    if (root) return root;
+
+    const scanner = $("clScanner");
+
+    if (!scanner) return null;
+
+    root = document.createElement("div");
+    root.id = "clTradePlans";
+
+    root.innerHTML = `
+      <h3 class="cltp-title">
+        🎯 Planes de entrada
+      </h3>
+
+      <p class="cltp-explainer">
+        Niveles calculados con velas cerradas
+        de uno y cinco minutos. No se envían
+        órdenes al exchange.
+      </p>
+
+      <div id="clTradeCards"></div>
+    `;
+
+    scanner.appendChild(root);
+
+    if (!$("clTradeStyle")) {
+      const style =
+        document.createElement("style");
+
+      style.id = "clTradeStyle";
+
+      style.textContent = `
+        #clTradePlans {
+          margin-top: 18px;
+          padding-top: 16px;
+          border-top: 1px solid #304468;
+          min-width: 0;
+        }
+
+        .cltp-title {
+          margin: 0 0 6px;
+          font-size: 16px;
+          color: #e6edff;
+        }
+
+        .cltp-explainer {
+          margin: 0 0 13px;
+          font-size: 12px;
+          color: #a5b0cf;
+          line-height: 1.5;
+        }
+
+        #clTradeCards {
+          display: grid;
+          gap: 12px;
+          min-width: 0;
+        }
+
+        .cltp-card {
+          min-width: 0;
+          max-width: 100%;
+          overflow: hidden;
+          box-sizing: border-box;
+          background: #101d36;
+          border: 1px solid #304566;
+          border-radius: 12px;
+          padding: 14px;
+        }
+
+        .cltp-head {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: space-between;
+          gap: 8px;
+          margin-bottom: 11px;
+        }
+
+        .cltp-asset {
+          font-size: 15px;
+          font-weight: 750;
+          color: #f3f6ff;
+          overflow-wrap: anywhere;
+        }
+
+        .cltp-side {
+          font-size: 12px;
+          font-weight: 750;
+        }
+
+        .cltp-long {
+          color: #00f5a0;
+        }
+
+        .cltp-short {
+          color: #ff6381;
+        }
+
+        .cltp-state {
+          font-size: 12px;
+          color: #ffe15a;
+          margin: 0 0 12px;
+          overflow-wrap: anywhere;
+        }
+
+        .cltp-levels {
+          display: grid;
+          grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+          gap: 9px;
+        }
+
+        .cltp-level {
+          min-width: 0;
+          box-sizing: border-box;
+          background: #0b1429;
+          border: 1px solid #263857;
+          border-radius: 8px;
+          padding: 9px 10px;
+        }
+
+        .cltp-label {
+          display: block;
+          font-size: 11px;
+          color: #a5b0cf;
+          margin-bottom: 4px;
+        }
+
+        .cltp-price {
+          display: block;
+          font-size: clamp(
+            13px, 3.5vw, 17px
+          );
+          font-weight: 700;
+          color: #f3f6ff;
+          overflow-wrap: anywhere;
+          word-break: break-word;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .cltp-entry .cltp-price {
+          color: #36c5ff;
+        }
+
+        .cltp-stop .cltp-price {
+          color: #ff6c86;
+        }
+
+        .cltp-target .cltp-price {
+          color: #00f5a0;
+        }
+
+        .cltp-foot {
+          font-size: 11px;
+          line-height: 1.6;
+          color: #b8c8e3;
+          margin-top: 11px;
+          overflow-wrap: anywhere;
+        }
+
+        .cltp-warning {
+          color: #ffe15a;
+        }
+
+        .cltp-empty {
+          padding: 12px;
+          border: 1px dashed #34456c;
+          border-radius: 10px;
+          color: #b8c8e3;
+          font-size: 12px;
+          line-height: 1.6;
+        }
+
+        @media(max-width:355px) {
+          .cltp-levels {
+            grid-template-columns: 1fr;
+          }
+
+          .cltp-card {
+            padding: 11px;
+          }
+        }
+      `;
+
+      document.head.appendChild(style);
+    }
+
+    return root;
+  }
+
+  function boxText(tag, className, content) {
+    const el = document.createElement(tag);
+
+    el.className = className;
+    el.textContent = content;
+
+    return el;
+  }
+
+  function renderCard(signal, plan) {
+    const card =
+      document.createElement("article");
+
+    card.className = "cltp-card";
+
+    const head =
+      document.createElement("div");
+
+    head.className = "cltp-head";
+
+    head.appendChild(
+      boxText(
+        "span",
+        "cltp-asset",
+        signal.label
+      )
+    );
+
+    head.appendChild(
+      boxText(
+        "span",
+        "cltp-side " +
+        (
+          signal.side === "LONG"
+            ? "cltp-long"
+            : "cltp-short"
+        ),
+        signal.side +
+        " · " +
+        signal.score + "/100"
+      )
+    );
+
+    card.appendChild(head);
+
+    if (!plan) {
+      card.appendChild(
+        boxText(
+          "p",
+          "cltp-state",
+          "Sin plan válido: revisar estructura, volatilidad o datos recientes."
+        )
+      );
+
+      return card;
+    }
+
+    card.appendChild(
+      boxText(
+        "p",
+        "cltp-state",
+        "Estado: " + plan.status
+      )
+    );
+
+    const grid =
+      document.createElement("div");
+
+    grid.className = "cltp-levels";
+
+    for (
+      const [label, val, cls] of [
+        [
+          "🎯 Entrada",
+          plan.entry,
+          "cltp-entry"
+        ],
+        [
+          "🛑 Stop Loss",
+          plan.stop,
+          "cltp-stop"
+        ],
+        [
+          "✅ Take Profit 1",
+          plan.tp1,
+          "cltp-target"
+        ],
+        [
+          "✅ Take Profit 2",
+          plan.tp2,
+          "cltp-target"
+        ]
+      ]
+    ) {
+      const level =
+        document.createElement("div");
+
+      level.className =
+        "cltp-level " + cls;
+
+      level.appendChild(
+        boxText(
+          "span",
+          "cltp-label",
+          label
+        )
+      );
+
+      level.appendChild(
+        boxText(
+          "strong",
+          "cltp-price",
+          fmt(val, plan.rule)
+        )
+      );
+
+      grid.appendChild(level);
+    }
+
+    card.appendChild(grid);
+
+    const foot =
+      document.createElement("div");
+
+    foot.className = "cltp-foot";
+
+    foot.appendChild(
+      boxText(
+        "div",
+        "",
+        "Distancia entrada–stop: " +
+        plan.riskPct.toFixed(2) +
+        "% · TP1 1.5R · TP2 2.5R"
+      )
+    );
+
+    const precision = boxText(
+      "div",
+      plan.rule.verified
+        ? ""
+        : "cltp-warning",
+
+      (
+        plan.rule.verified
+          ? "✓ "
+          : "⚠ "
+      ) +
+      plan.rule.source +
+      (
+        plan.rule.tickVerified
+          ? ""
+          : " · Verifica el incremento mínimo antes de operar"
+      )
+    );
+
+    foot.appendChild(precision);
+
+    foot.appendChild(
+      boxText(
+        "div",
+        "",
+        "Nivel alcanzado ≠ orden ejecutada. Sin comisiones, deslizamiento ni liquidación."
+      )
+    );
+
+    card.appendChild(foot);
+
+    return card;
+  }
+
+  function render(signals) {
+    if (!ensureCards()) return;
+
+    const area = $("clTradeCards");
+    area.replaceChildren();
+
+    const candidates = signals.filter(
+      s =>
+        s.state === "CONFIRMADA" &&
+        ["LONG", "SHORT"].includes(s.side)
+    );
+
+    if (!candidates.length) {
+      area.appendChild(
+        boxText(
+          "div",
+          "cltp-empty",
+          "Todavía no hay oportunidades confirmadas con niveles operativos. El escáner seguirá revisando el mercado."
+        )
+      );
+
+      return;
+    }
+
+    for (const signal of candidates) {
+      const plan = plans.get(
+        contractKey(signal.s)
+      );
+
+      area.appendChild(
+        renderCard(
+          signal,
+          plan?.side === signal.side
+            ? plan
+            : null
+        )
+      );
+    }
+  }
+
+  // NOTIFICACIONES
+
+  function notify(plan) {
     if (
-      !plan.rule.verified ||
-      plan.status !== "NIVEL TOCADO" ||
+      plan.status !== "NIVEL ALCANZADO" ||
+      !plan.rule.verified
+    ) return;
+
+    if (
       !("Notification" in window) ||
       Notification.permission !== "granted"
     ) return;
 
-    const key =
-      keyOf(plan.s) + "|" +
-      plan.side + "|" +
-      plan.started + "|toque";
+    const key = [
+      plan.key,
+      plan.side,
+      plan.createdAt
+    ].join("|");
 
-    if (alerts.has(key)) return;
+    if (alerted.has(key)) return;
 
-    alerts.add(key);
+    alerted.add(key);
 
     try {
-      new Notification(
-        "CRYPTOLEXUZ · Nivel " +
-        plan.side + " tocado",
+      const n = new Notification(
+        "CRYPTOLEXUZ · Nivel de entrada alcanzado",
         {
           body:
             plan.s.symbol +
+            " · " + plan.side +
             " · Entrada " +
             fmt(plan.entry, plan.rule) +
             " · STOP " +
@@ -785,114 +1293,122 @@
             " · TP2 " +
             fmt(plan.tp2, plan.rule) +
             " · No confirma ejecución",
+
           tag: key
         }
       );
 
-    } catch (error) {
-      console.warn(
-        "Aviso no disponible:",
-        error.message
+      n.onclick = () => {
+        window.focus();
+        n.close();
+      };
+
+    } catch (err) {
+      console.info(
+        "Aviso no admitido por navegador:",
+        err.message
       );
     }
   }
 
-  async function run() {
+  // ANÁLISIS AUTOMÁTICO
+
+  async function process() {
     if (document.hidden) return;
 
-    if (running) {
-      queued = true;
-      return;
-    }
-
-    const signals = readSignals();
+    const signals = getSignals();
 
     if (!signals.length) return;
 
-    running = true;
-    queued = false;
+    const sig = snapshot(signals);
+
+    if (busy) {
+      pending = true;
+      return;
+    }
+
+    busy = true;
+    pending = false;
 
     try {
-      for (const signal of signals) {
-        const active = plans.get(
-          keyOf(signal.s)
+      const confirmed = signals.filter(
+        s =>
+          s.state === "CONFIRMADA" &&
+          s.score >= 65 &&
+          ["LONG", "SHORT"].includes(s.side)
+      );
+
+      for (const s of signals) {
+        const old = plans.get(
+          contractKey(s.s)
         );
 
         if (
-          active &&
-          signal.state !== "CONFIRMADA" &&
-          active.status === "ESPERAR ENTRADA"
+          old &&
+          old.status === "ESPERAR ENTRADA" &&
+          (
+            s.state !== "CONFIRMADA" ||
+            s.side !== old.side
+          )
         ) {
-          active.status = "INVALIDADA";
+          old.status = "INVALIDADA";
         }
       }
 
-      const candidates = signals.filter(
-        x =>
-          x.state === "CONFIRMADA" &&
-          x.score >= 65 &&
-          ["LONG", "SHORT"].includes(x.side)
-      );
-
-      let i = 0;
+      let index = 0;
 
       async function worker() {
-        while (i < candidates.length) {
-          const item = candidates[i++];
-          const key = keyOf(item.s);
+        while (index < confirmed.length) {
+          const signal = confirmed[index++];
+
+          const key = contractKey(
+            signal.s
+          );
 
           try {
-            const [oneRaw, fiveRaw] =
+            const [one, five] =
               await Promise.all([
-                json(url(item.s, "1m")),
-                json(url(item.s, "5m"))
+                candles(signal.s, "1m"),
+                candles(signal.s, "5m")
               ]);
 
-            const one = normalize(oneRaw);
-            const five = normalize(fiveRaw);
-
             if (
-              one.length < 35 ||
-              five.length < 25
+              snapshot(getSignals()) !== sig
             ) continue;
 
-            const existing = plans.get(key);
+            let old = plans.get(key);
 
             if (
-              existing &&
-              existing.side === item.side
+              old &&
+              old.side === signal.side
             ) {
-              updatePlan(existing, one);
-
-              const terminal = [
-                "EXPIRADA",
-                "INVALIDADA",
-                "STOP TOCADO",
-                "TP2 TOCADO",
-                "SECUENCIA INCIERTA"
-              ];
+              advancePlan(old, one);
 
               if (
-                !terminal.includes(existing.status)
+                !terminal.has(old.status)
               ) {
-                notifyTouched(existing);
+                notify(old);
                 continue;
               }
 
               if (
-                now() - existing.createdAt <
-                180000
+                Date.now() -
+                old.createdAt <
+                10 * 60000
               ) continue;
             }
 
             const rule = await ruleFor(
-              item.s,
+              signal.s,
               one
             );
 
+            if (
+              snapshot(getSignals()) !== sig
+            ) continue;
+
             const plan = createPlan(
-              item.s,
-              item.side,
+              signal,
               one,
               five,
               rule
@@ -900,14 +1416,13 @@
 
             if (plan) {
               plans.set(key, plan);
-              updatePlan(plan, one);
-              notifyTouched(plan);
             }
 
-          } catch (error) {
+          } catch (err) {
             console.warn(
-              "Niveles " + item.label,
-              error.message
+              "Niveles",
+              signal.label,
+              err.message
             );
           }
         }
@@ -918,50 +1433,74 @@
         worker()
       ]);
 
-      addDetails(readSignals());
+      if (
+        snapshot(getSignals()) === sig
+      ) {
+        render(signals);
+      }
 
     } finally {
-      running = false;
+      busy = false;
 
-      if (queued) {
-        setTimeout(run, 200);
+      if (pending) {
+        pending = false;
+        setTimeout(process, 250);
       }
     }
   }
+
+  // INICIO DEL MÓDULO
 
   function init() {
     const body = $("clScanBody");
 
     if (!body) {
-      setTimeout(init, 500);
+      setTimeout(init, 400);
       return;
     }
 
-    observer = new MutationObserver(
-      records => {
-        const changed = records.some(
-          record =>
-            [...record.addedNodes].some(
-              node =>
-                node.nodeType === 1 &&
-                !node.dataset?.tradeplanRow
-            )
-        );
+    ensureCards();
 
-        if (changed) {
-          run();
-        }
-      }
+    observer = new MutationObserver(
+      () => process()
     );
 
     observer.observe(body, {
       childList: true
     });
 
-    run();
+    $("exchange")?.addEventListener(
+      "change",
+      () => setTimeout(process, 300)
+    );
+
+    $("market")?.addEventListener(
+      "change",
+      () => setTimeout(process, 300)
+    );
+
+    document.addEventListener(
+      "visibilitychange",
+      () => {
+        if (!document.hidden) process();
+      }
+    );
+
+    process();
+
+    setInterval(
+      () => {
+        if (!document.hidden) {
+          process();
+        }
+      },
+      60000
+    );
   }
 
-  if (document.readyState === "loading") {
+  if (
+    document.readyState === "loading"
+  ) {
     document.addEventListener(
       "DOMContentLoaded",
       init
