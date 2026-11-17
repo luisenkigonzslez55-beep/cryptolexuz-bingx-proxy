@@ -1,30 +1,31 @@
 
 /*
- CRYPTOLEXUZ PRO — FIBONACCI V5
+ CRYPTOLEXUZ PRO — FIBONACCI V6
  Compatible con APP.JS V14
  Lightweight Charts 4.2.2
 
- - Barra de herramientas siempre visible
- - Dibujo con dos toques
+ - Navegación horizontal táctil
+ - Zoom con dos dedos
+ - Dibujo con dos puntos
  - Extremos arrastrables
  - Retrocesos y extensiones
  - Caja verde BitLobo
  - Niveles configurables
  - Guardado por activo y temporalidad
- - Diagnóstico de conexión
+ - Barra de herramientas visible
 */
 
 (function () {
   "use strict";
 
-  if (window.__CL_FIB_V5__) return;
-  window.__CL_FIB_V5__ = true;
+  if (window.__CL_FIB_V6__) return;
+  window.__CL_FIB_V6__ = true;
 
   const $ = id => document.getElementById(id);
 
   const STORE = "cryptolexuz_fibonacci_v3";
 
-  const DEFAULT_RATIOS = [
+  const DEFAULT_LEVELS = [
     0, 0.236, 0.382, 0.5,
     0.618, 0.65, 0.705,
     0.786, 0.88, 1,
@@ -32,9 +33,16 @@
     2.618, 3.618, 4.236
   ];
 
-  const IMPORTANT = new Set([
+  const IMPORTANT = [
     0.618, 0.786, 0.88, 1.618
-  ]);
+  ];
+
+  const COLORS = {
+    purple: "#bb52ff",
+    green: "#22c55e",
+    yellow: "#ffe15a",
+    white: "#ffffff"
+  };
 
   function defaults() {
     return {
@@ -45,12 +53,12 @@
       boxUpper: 0.7362,
       boxMiddle: 0.7148,
       boxLower: 0.6935,
-      levels: DEFAULT_RATIOS.map(value => ({
+      levels: DEFAULT_LEVELS.map(value => ({
         value,
         visible: true,
-        color: IMPORTANT.has(value)
-          ? "#22c55e"
-          : "#bb52ff"
+        color: IMPORTANT.includes(value)
+          ? COLORS.green
+          : COLORS.purple
       }))
     };
   }
@@ -65,13 +73,11 @@
   let drawingMode = false;
   let firstPoint = null;
   let dragging = null;
-  let activePointer = null;
+  let pointer = null;
 
-  let frame = 0;
-  let attached = false;
-  let attempts = 0;
-  let retryTimer = null;
-  let resizeObserver = null;
+  let redrawPending = false;
+  let observer = null;
+  let initialized = false;
 
   function load() {
     try {
@@ -97,27 +103,29 @@
           .map(x => ({
             value: Number(x.value),
             visible: x.visible !== false,
-            color: /^#[0-9a-f]{6}$/i.test(x.color)
+            color: /^#[0-9a-f]{6}$/i.test(
+              x.color || ""
+            )
               ? x.color
-              : "#bb52ff"
+              : COLORS.purple
           }));
       }
 
-      const savedDrawings = JSON.parse(
+      const storedDrawings = JSON.parse(
         localStorage.getItem(
           STORE + "_drawings"
-        ) || "null"
+        ) || "{}"
       );
 
       if (
-        savedDrawings &&
-        typeof savedDrawings === "object" &&
-        !Array.isArray(savedDrawings)
+        storedDrawings &&
+        typeof storedDrawings === "object" &&
+        !Array.isArray(storedDrawings)
       ) {
-        drawings = savedDrawings;
+        drawings = storedDrawings;
       }
     } catch (error) {
-      console.warn("Fibonacci: carga", error);
+      console.warn("Fibonacci V6 load:", error);
     }
   }
 
@@ -133,7 +141,7 @@
         JSON.stringify(drawings)
       );
     } catch (error) {
-      console.warn("Fibonacci: guardado", error);
+      console.warn("Fibonacci V6 save:", error);
     }
   }
 
@@ -141,25 +149,17 @@
     const symbol =
       $("symbol")?.value || "BTC-USDT";
 
-    const commodity =
-      symbol.startsWith("NCCO");
-
-    const exchange = commodity
-      ? "bingx"
-      : $("exchange")?.value || "bingx";
-
-    const market = commodity
-      ? "perpetual"
-      : $("market")?.value || "perpetual";
-
-    const interval =
-      $("interval")?.value || "15m";
+    const commodity = symbol.startsWith("NCCO");
 
     return [
-      exchange,
-      market,
+      commodity
+        ? "bingx"
+        : $("exchange")?.value || "bingx",
+      commodity
+        ? "perpetual"
+        : $("market")?.value || "perpetual",
       symbol,
-      interval
+      $("interval")?.value || "15m"
     ].join("|");
   }
 
@@ -167,63 +167,63 @@
     return drawings[marketKey()] || null;
   }
 
-  function priceAt(a, b, ratio) {
-    return a + (b - a) * ratio;
-  }
-
-  function levelsFor(drawing) {
-    if (!drawing) return [];
-
-    const start = settings.reverse
-      ? drawing.b.price
-      : drawing.a.price;
-
-    const end = settings.reverse
-      ? drawing.a.price
-      : drawing.b.price;
-
-    return settings.levels
-      .filter(x => x.visible)
-      .map(x => ({
-        ...x,
-        price: priceAt(
-          start,
-          end,
-          x.value
-        )
-      }));
-  }
-
-  function status(message, warning = false) {
+  function status(text, warning = false) {
     const el = $("fibStatus");
 
     if (!el) return;
 
-    el.textContent = message;
+    el.textContent = text;
     el.style.color = warning
       ? "#ff9a35"
       : "#a5b0cf";
   }
 
-  function requestDraw() {
-    if (frame) return;
+  function priceAt(a, b, ratio) {
+    return a + (b - a) * ratio;
+  }
 
-    frame = requestAnimationFrame(() => {
-      frame = 0;
+  function levelsFor(d) {
+    if (!d) return [];
+
+    const start = settings.reverse
+      ? d.b.price
+      : d.a.price;
+
+    const end = settings.reverse
+      ? d.a.price
+      : d.b.price;
+
+    return settings.levels
+      .filter(level => level.visible)
+      .map(level => ({
+        ...level,
+        price: priceAt(
+          start,
+          end,
+          level.value
+        )
+      }));
+  }
+
+  function redraw() {
+    if (redrawPending) return;
+
+    redrawPending = true;
+
+    requestAnimationFrame(() => {
+      redrawPending = false;
       paint();
     });
   }
 
-  function coordinates(point) {
+  function position(point) {
     if (!point || !chart || !candle) {
       return null;
     }
 
     try {
       const x = chart.timeScale()
-        .logicalToCoordinate(
-          point.logical
-        );
+        .logicalToCoordinate(point.logical);
 
       const y = candle.priceToCoordinate(
         point.price
@@ -232,9 +232,7 @@
       if (
         !Number.isFinite(x) ||
         !Number.isFinite(y)
-      ) {
-        return null;
-      }
+      ) return null;
 
       return { x, y };
     } catch (_) {
@@ -242,19 +240,41 @@
     }
   }
 
+  function eventPoint(event) {
+    if (!canvas || !chart || !candle) {
+      return null;
+    }
+
+    const rect = canvas.getBoundingClientRect();
+
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    try {
+      const logical = chart.timeScale()
+        .coordinateToLogical(x);
+
+      const price = candle.coordinateToPrice(y);
+
+      if (
+        !Number.isFinite(logical) ||
+        !Number.isFinite(price) ||
+        price <= 0
+      ) return null;
+
+      return { x, y, logical, price };
+    } catch (_) {
+      return null;
+    }
+  }
+
   function drawHandle(ctx, point, color) {
-    const p = coordinates(point);
+    const p = position(point);
 
     if (!p) return;
 
     ctx.beginPath();
-    ctx.arc(
-      p.x,
-      p.y,
-      7,
-      0,
-      Math.PI * 2
-    );
+    ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
 
     ctx.fillStyle = "#10182d";
     ctx.fill();
@@ -267,43 +287,29 @@
   function paint() {
     if (!canvas) return;
 
-    const rect =
-      canvas.getBoundingClientRect();
-
+    const rect = canvas.getBoundingClientRect();
     const width = rect.width;
     const height = rect.height;
 
-    if (width <= 0 || height <= 0) {
-      return;
-    }
+    if (width <= 0 || height <= 0) return;
 
     const dpr = Math.min(
       window.devicePixelRatio || 1,
       2
     );
 
-    const pw = Math.round(width * dpr);
-    const ph = Math.round(height * dpr);
+    const w = Math.round(width * dpr);
+    const h = Math.round(height * dpr);
 
-    if (
-      canvas.width !== pw ||
-      canvas.height !== ph
-    ) {
-      canvas.width = pw;
-      canvas.height = ph;
-    }
+    if (canvas.width !== w) canvas.width = w;
+    if (canvas.height !== h) canvas.height = h;
 
     const ctx = canvas.getContext("2d");
 
     if (!ctx) return;
 
-    ctx.setTransform(
-      dpr, 0, 0, dpr, 0, 0
-    );
-
-    ctx.clearRect(
-      0, 0, width, height
-    );
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, width, height);
 
     if (!chart || !candle) return;
 
@@ -311,18 +317,16 @@
       drawHandle(
         ctx,
         firstPoint,
-        "#ffe15a"
+        COLORS.yellow
       );
     }
 
     const d = currentDrawing();
 
-    if (!d || !settings.visible) {
-      return;
-    }
+    if (!d || !settings.visible) return;
 
-    const a = coordinates(d.a);
-    const b = coordinates(d.b);
+    const a = position(d.a);
+    const b = position(d.b);
 
     if (!a || !b) return;
 
@@ -338,48 +342,42 @@
 
     if (right <= left) return;
 
-    const startPrice = settings.reverse
+    const start = settings.reverse
       ? d.b.price
       : d.a.price;
 
-    const endPrice = settings.reverse
+    const end = settings.reverse
       ? d.a.price
       : d.b.price;
 
     if (settings.box) {
       const upper = priceAt(
-        startPrice,
-        endPrice,
+        start,
+        end,
         settings.boxUpper
       );
 
       const middle = priceAt(
-        startPrice,
-        endPrice,
+        start,
+        end,
         settings.boxMiddle
       );
 
       const lower = priceAt(
-        startPrice,
-        endPrice,
+        start,
+        end,
         settings.boxLower
       );
 
-      const yu =
-        candle.priceToCoordinate(upper);
-
-      const ym =
-        candle.priceToCoordinate(middle);
-
-      const yl =
-        candle.priceToCoordinate(lower);
+      const yu = candle.priceToCoordinate(upper);
+      const ym = candle.priceToCoordinate(middle);
+      const yl = candle.priceToCoordinate(lower);
 
       if (
         Number.isFinite(yu) &&
         Number.isFinite(yl)
       ) {
-        ctx.fillStyle =
-          "rgba(22,163,74,.17)";
+        ctx.fillStyle = "rgba(22,163,74,.17)";
 
         ctx.fillRect(
           left,
@@ -388,14 +386,12 @@
           Math.abs(yu - yl)
         );
 
-        ctx.strokeStyle = "#22c55e";
+        ctx.strokeStyle = COLORS.green;
         ctx.lineWidth = 1;
         ctx.setLineDash([5, 4]);
 
         for (const y of [yu, ym, yl]) {
-          if (!Number.isFinite(y)) {
-            continue;
-          }
+          if (!Number.isFinite(y)) continue;
 
           ctx.beginPath();
           ctx.moveTo(left, y);
@@ -408,27 +404,23 @@
     }
 
     for (const level of levelsFor(d)) {
-      const y =
-        candle.priceToCoordinate(
-          level.price
-        );
+      const y = candle.priceToCoordinate(
+        level.price
+      );
 
       if (
         !Number.isFinite(y) ||
         y < 0 ||
         y > height
-      ) {
-        continue;
-      }
+      ) continue;
 
       const color =
-        level.color || "#bb52ff";
+        level.color || COLORS.purple;
 
       ctx.strokeStyle = color;
-      ctx.lineWidth =
-        IMPORTANT.has(level.value)
-          ? 1.6
-          : 1;
+      ctx.lineWidth = IMPORTANT.includes(
+        level.value
+      ) ? 1.6 : 1;
 
       ctx.beginPath();
       ctx.moveTo(left, y);
@@ -436,53 +428,41 @@
       ctx.stroke();
 
       if (settings.labels) {
-        const price =
+        const label =
+          level.value + " · " +
           level.price.toLocaleString(
             "en-US",
-            {
-              maximumFractionDigits: 6
-            }
+            { maximumFractionDigits: 6 }
           );
-
-        const label =
-          String(level.value) +
-          " · " +
-          price;
 
         ctx.font = "11px system-ui";
 
-        const tw =
+        const textWidth =
           ctx.measureText(label).width;
 
         const x = Math.max(
           4,
           Math.min(
-            width - tw - 8,
-            right - tw - 5
+            width - textWidth - 8,
+            right - textWidth - 5
           )
         );
 
-        ctx.fillStyle =
-          "rgba(8,14,32,.94)";
+        ctx.fillStyle = "rgba(8,14,32,.94)";
 
         ctx.fillRect(
           x - 2,
           y - 14,
-          tw + 6,
+          textWidth + 6,
           15
         );
 
         ctx.fillStyle = color;
-
-        ctx.fillText(
-          label,
-          x,
-          y - 3
-        );
+        ctx.fillText(label, x, y - 3);
       }
     }
 
-    ctx.strokeStyle = "#ffffff";
+    ctx.strokeStyle = COLORS.white;
     ctx.lineWidth = 1.5;
     ctx.setLineDash([5, 4]);
 
@@ -493,82 +473,29 @@
 
     ctx.setLineDash([]);
 
-    drawHandle(
-      ctx,
-      d.a,
-      "#ffffff"
-    );
-
-    drawHandle(
-      ctx,
-      d.b,
-      "#ffffff"
-    );
-  }
-
-  function eventPoint(event) {
-    if (!canvas || !chart || !candle) {
-      return null;
-    }
-
-    const rect =
-      canvas.getBoundingClientRect();
-
-    const x =
-      event.clientX - rect.left;
-
-    const y =
-      event.clientY - rect.top;
-
-    try {
-      const logical =
-        chart.timeScale()
-          .coordinateToLogical(x);
-
-      const price =
-        candle.coordinateToPrice(y);
-
-      if (
-        !Number.isFinite(logical) ||
-        !Number.isFinite(price) ||
-        price <= 0
-      ) {
-        return null;
-      }
-
-      return {
-        x,
-        y,
-        logical,
-        price
-      };
-    } catch (_) {
-      return null;
-    }
+    drawHandle(ctx, d.a, COLORS.white);
+    drawHandle(ctx, d.b, COLORS.white);
   }
 
   function pointerDown(event) {
     if (
       !drawingMode ||
-      activePointer !== null ||
+      pointer !== null ||
       event.isPrimary === false
-    ) {
-      return;
-    }
+    ) return;
 
     const p = eventPoint(event);
 
     if (!p) return;
 
-    activePointer = event.pointerId;
+    pointer = event.pointerId;
     dragging = null;
 
     const d = currentDrawing();
 
     if (d) {
-      for (const name of ["a", "b"]) {
-        const anchor =
-          coordinates(d[name]);
+      for (const end of ["a", "b"]) {
+        const anchor = position(d[end]);
 
         if (
           anchor &&
@@ -577,22 +504,18 @@
             p.y - anchor.y
           ) <= 28
         ) {
-          dragging = name;
+          dragging = end;
           break;
         }
       }
     }
 
     try {
-      canvas.setPointerCapture(
-        event.pointerId
-      );
+      canvas.setPointerCapture(event.pointerId);
     } catch (_) {}
 
     if (dragging) {
-      status(
-        "Arrastra el extremo seleccionado."
-      );
+      status("Arrastra el extremo seleccionado.");
     } else if (!firstPoint) {
       firstPoint = {
         logical: p.logical,
@@ -600,7 +523,7 @@
       };
 
       status(
-        "Primer punto marcado. Toca el segundo extremo."
+        "Primer punto marcado. Toca el segundo."
       );
     } else {
       drawings[marketKey()] = {
@@ -612,7 +535,6 @@
       };
 
       firstPoint = null;
-
       save();
 
       status(
@@ -621,17 +543,15 @@
     }
 
     event.preventDefault();
-    requestDraw();
+    redraw();
   }
 
   function pointerMove(event) {
     if (
       !drawingMode ||
       !dragging ||
-      activePointer !== event.pointerId
-    ) {
-      return;
-    }
+      pointer !== event.pointerId
+    ) return;
 
     const p = eventPoint(event);
     const d = currentDrawing();
@@ -644,87 +564,72 @@
     };
 
     event.preventDefault();
-    requestDraw();
+    redraw();
   }
 
   function pointerEnd(event) {
-    if (
-      activePointer !== null &&
-      event.pointerId !== activePointer
-    ) {
-      return;
-    }
+    if (pointer !== event.pointerId) return;
 
     if (dragging) save();
 
     dragging = null;
-    activePointer = null;
+    pointer = null;
 
-    requestDraw();
+    redraw();
   }
 
-  function toggleDrawing() {
-    drawingMode = !drawingMode;
+  function setDrawingMode(active) {
+    drawingMode = !!active;
 
     firstPoint = null;
     dragging = null;
-    activePointer = null;
+    pointer = null;
 
     if (canvas) {
       canvas.style.pointerEvents =
-        drawingMode
-          ? "auto"
-          : "none";
+        drawingMode ? "auto" : "none";
 
       canvas.style.touchAction =
-        drawingMode
-          ? "none"
-          : "auto";
+        drawingMode ? "none" : "auto";
     }
 
-    const b = $("fibDraw");
+    const button = $("fibDraw");
 
-    if (b) {
-      b.textContent = drawingMode
+    if (button) {
+      button.textContent = drawingMode
         ? "✓ Terminar dibujo"
         : "✏️ Dibujar / mover";
 
-      b.setAttribute(
+      button.style.background = drawingMode
+        ? "#176b57"
+        : "#243b60";
+
+      button.setAttribute(
         "aria-pressed",
         String(drawingMode)
       );
-
-      b.style.background = drawingMode
-        ? "#176b57"
-        : "#243b60";
     }
 
     status(
       drawingMode
-        ? "Modo dibujo: toca dos puntos. Termina el dibujo para navegar."
-        : "Navegación normal. Fibonacci guardado."
+        ? "Toca dos puntos. Arrastra los extremos para ajustarlos."
+        : "Navegación activa: arrastra las velas horizontalmente."
     );
 
-    requestDraw();
+    redraw();
   }
 
-  function button(
-    label,
-    action,
-    parent,
-    id
-  ) {
-    const el =
-      document.createElement("button");
+  function button(label, action, parent, id) {
+    const b = document.createElement("button");
 
-    el.type = "button";
-    el.textContent = label;
+    b.type = "button";
+    b.textContent = label;
 
-    if (id) el.id = id;
+    if (id) b.id = id;
 
-    el.style.cssText = [
+    b.style.cssText = [
       "background:#243b60",
-      "color:#ffffff",
+      "color:#fff",
       "border:1px solid #465b87",
       "border-radius:9px",
       "padding:10px 12px",
@@ -733,14 +638,10 @@
       "cursor:pointer"
     ].join(";");
 
-    el.addEventListener(
-      "click",
-      action
-    );
+    b.addEventListener("click", action);
+    parent.appendChild(b);
 
-    parent.appendChild(el);
-
-    return el;
+    return b;
   }
 
   function renderLevels() {
@@ -751,8 +652,7 @@
     host.replaceChildren();
 
     for (const level of settings.levels) {
-      const row =
-        document.createElement("div");
+      const row = document.createElement("div");
 
       row.style.cssText = [
         "display:flex",
@@ -762,77 +662,54 @@
         "flex-wrap:wrap"
       ].join(";");
 
-      const visible =
-        document.createElement("input");
+      const check = document.createElement("input");
+      check.type = "checkbox";
+      check.checked = level.visible;
 
-      visible.type = "checkbox";
-      visible.checked = level.visible;
+      check.addEventListener("change", () => {
+        level.visible = check.checked;
+        save();
+        redraw();
+      });
 
-      visible.addEventListener(
-        "change",
-        () => {
-          level.visible =
-            visible.checked;
-
-          save();
-          requestDraw();
-        }
-      );
-
-      const number =
-        document.createElement("input");
-
+      const number = document.createElement("input");
       number.type = "number";
       number.step = "any";
       number.value = level.value;
+      number.style.width = "88px";
 
-      number.style.cssText =
-        "width:88px;max-width:100%;padding:7px;background:#172744;color:white;border:1px solid #465b87;border-radius:6px";
+      number.addEventListener("change", () => {
+        const n = Number(number.value);
 
-      number.addEventListener(
-        "change",
-        () => {
-          const n =
-            Number(number.value);
-
-          if (
-            !Number.isFinite(n) ||
-            n < 0 ||
-            n > 20
-          ) {
-            number.value =
-              level.value;
-
-            return;
-          }
-
-          level.value = n;
-
-          settings.levels.sort(
-            (a, b) =>
-              a.value - b.value
-          );
-
-          save();
-          renderLevels();
-          requestDraw();
+        if (
+          !Number.isFinite(n) ||
+          n < 0 ||
+          n > 20
+        ) {
+          number.value = level.value;
+          return;
         }
-      );
 
-      const color =
-        document.createElement("input");
+        level.value = n;
 
+        settings.levels.sort(
+          (a, b) => a.value - b.value
+        );
+
+        save();
+        renderLevels();
+        redraw();
+      });
+
+      const color = document.createElement("input");
       color.type = "color";
       color.value = level.color;
 
-      color.addEventListener(
-        "change",
-        () => {
-          level.color = color.value;
-          save();
-          requestDraw();
-        }
-      );
+      color.addEventListener("change", () => {
+        level.color = color.value;
+        save();
+        redraw();
+      });
 
       const remove = button(
         "✕",
@@ -844,51 +721,34 @@
 
           save();
           renderLevels();
-          requestDraw();
+          redraw();
         },
         row
       );
 
-      remove.style.padding =
-        "7px 10px";
+      remove.style.padding = "7px 10px";
 
-      row.prepend(
-        visible,
-        number,
-        color
-      );
-
+      row.prepend(check, number, color);
       host.appendChild(row);
     }
   }
 
-  function settingCheck(
-    parent,
-    label,
-    name
-  ) {
-    const row =
-      document.createElement("label");
+  function settingCheck(parent, label, key) {
+    const row = document.createElement("label");
 
     row.style.cssText =
       "display:flex;align-items:center;gap:9px;margin:12px 0";
 
-    const input =
-      document.createElement("input");
+    const input = document.createElement("input");
 
     input.type = "checkbox";
-    input.checked = !!settings[name];
+    input.checked = !!settings[key];
 
-    input.addEventListener(
-      "change",
-      () => {
-        settings[name] =
-          input.checked;
-
-        save();
-        requestDraw();
-      }
-    );
+    input.addEventListener("change", () => {
+      settings[key] = input.checked;
+      save();
+      redraw();
+    });
 
     row.append(
       input,
@@ -898,43 +758,30 @@
     parent.appendChild(row);
   }
 
-  function settingNumber(
-    parent,
-    label,
-    name
-  ) {
-    const row =
-      document.createElement("label");
+  function settingNumber(parent, label, key) {
+    const row = document.createElement("label");
 
     row.style.cssText =
       "display:flex;align-items:center;justify-content:space-between;gap:10px;margin:12px 0";
 
-    const input =
-      document.createElement("input");
+    const input = document.createElement("input");
 
     input.type = "number";
     input.step = "any";
-    input.value = settings[name];
+    input.value = settings[key];
+    input.style.width = "90px";
 
-    input.style.cssText =
-      "width:90px;padding:7px;background:#172744;color:white;border:1px solid #465b87;border-radius:6px";
+    input.addEventListener("change", () => {
+      const n = Number(input.value);
 
-    input.addEventListener(
-      "change",
-      () => {
-        const n =
-          Number(input.value);
-
-        if (Number.isFinite(n)) {
-          settings[name] = n;
-          save();
-          requestDraw();
-        } else {
-          input.value =
-            settings[name];
-        }
+      if (Number.isFinite(n)) {
+        settings[key] = n;
+        save();
+        redraw();
+      } else {
+        input.value = settings[key];
       }
-    );
+    });
 
     row.append(
       document.createTextNode(label),
@@ -945,39 +792,22 @@
   }
 
   function buildUI() {
-    const area =
-      $("priceChartArea");
+    const area = $("priceChartArea");
 
     if (!area) return false;
 
-    if (
-      $("fibToolbar") &&
-      $("fibonacciCanvas")
-    ) {
-      canvas =
-        $("fibonacciCanvas");
-
+    if ($("fibToolbar") && $("fibonacciCanvas")) {
+      canvas = $("fibonacciCanvas");
       return true;
     }
 
-    const oldToolbar =
-      $("fibToolbar");
-
-    const oldPanel =
-      $("fibPanel");
-
-    const oldCanvas =
-      $("fibonacciCanvas");
-
-    oldToolbar?.remove();
-    oldPanel?.remove();
-    oldCanvas?.remove();
+    $("fibToolbar")?.remove();
+    $("fibPanel")?.remove();
+    $("fibonacciCanvas")?.remove();
 
     area.style.position = "relative";
 
-    canvas =
-      document.createElement("canvas");
-
+    canvas = document.createElement("canvas");
     canvas.id = "fibonacciCanvas";
 
     canvas.style.cssText = [
@@ -1012,9 +842,7 @@
       pointerEnd
     );
 
-    const toolbar =
-      document.createElement("div");
-
+    const toolbar = document.createElement("div");
     toolbar.id = "fibToolbar";
 
     toolbar.style.cssText = [
@@ -1033,9 +861,7 @@
       "z-index:5"
     ].join(";");
 
-    const panel =
-      document.createElement("div");
-
+    const panel = document.createElement("div");
     panel.id = "fibPanel";
     panel.hidden = true;
 
@@ -1051,7 +877,7 @@
 
     button(
       "✏️ Dibujar / mover",
-      toggleDrawing,
+      () => setDrawingMode(!drawingMode),
       toolbar,
       "fibDraw"
     );
@@ -1061,9 +887,7 @@
       () => {
         panel.hidden = !panel.hidden;
 
-        if (!panel.hidden) {
-          renderLevels();
-        }
+        if (!panel.hidden) renderLevels();
       },
       toolbar,
       "fibSettingsButton"
@@ -1072,17 +896,9 @@
     button(
       "👁 Mostrar / ocultar",
       () => {
-        settings.visible =
-          !settings.visible;
-
+        settings.visible = !settings.visible;
         save();
-        requestDraw();
-
-        status(
-          settings.visible
-            ? "Fibonacci visible."
-            : "Fibonacci oculto."
-        );
+        redraw();
       },
       toolbar,
       "fibVisible"
@@ -1092,44 +908,27 @@
       "🗑 Borrar trazado",
       () => {
         delete drawings[marketKey()];
-
         firstPoint = null;
         dragging = null;
-
         save();
-        requestDraw();
-
-        status(
-          "Fibonacci eliminado de este mercado."
-        );
+        redraw();
+        status("Fibonacci eliminado.");
       },
       toolbar,
       "fibErase"
     );
 
-    const state =
-      document.createElement("div");
-
+    const state = document.createElement("div");
     state.id = "fibStatus";
 
-    state.style.cssText = [
-      "width:100%",
-      "color:#a5b0cf",
-      "padding:4px 0",
-      "line-height:1.5"
-    ].join(";");
+    state.style.cssText =
+      "width:100%;color:#a5b0cf;padding:4px 0;line-height:1.5";
 
-    state.textContent =
-      "Fibonacci V5 iniciando...";
-
+    state.textContent = "Fibonacci V6 iniciando...";
     toolbar.appendChild(state);
 
-    const heading =
-      document.createElement("h3");
-
-    heading.textContent =
-      "Fibonacci · Configuración";
-
+    const heading = document.createElement("h3");
+    heading.textContent = "Fibonacci · Configuración";
     panel.appendChild(heading);
 
     settingCheck(
@@ -1168,33 +967,23 @@
       "boxLower"
     );
 
-    const levelsTitle =
-      document.createElement("h4");
-
-    levelsTitle.textContent =
-      "Niveles personalizados";
-
+    const levelsTitle = document.createElement("h4");
+    levelsTitle.textContent = "Niveles personalizados";
     panel.appendChild(levelsTitle);
 
-    const levels =
-      document.createElement("div");
-
+    const levels = document.createElement("div");
     levels.id = "fibLevels";
-
     panel.appendChild(levels);
 
     button(
       "+ Agregar nivel",
       () => {
-        const existing =
-          settings.levels.map(
-            x => x.value
-          );
-
         let next = 1.414;
 
         while (
-          existing.includes(next)
+          settings.levels.some(
+            x => x.value === next
+          )
         ) {
           next = Number(
             (next + 0.001).toFixed(3)
@@ -1204,17 +993,16 @@
         settings.levels.push({
           value: next,
           visible: true,
-          color: "#bb52ff"
+          color: COLORS.purple
         });
 
         settings.levels.sort(
-          (a, b) =>
-            a.value - b.value
+          (a, b) => a.value - b.value
         );
 
         save();
         renderLevels();
-        requestDraw();
+        redraw();
       },
       panel
     );
@@ -1223,46 +1011,28 @@
       "Restablecer niveles",
       () => {
         settings = defaults();
-
         save();
         renderLevels();
-        requestDraw();
-
-        status(
-          "Niveles restablecidos."
-        );
+        redraw();
+        status("Niveles restablecidos.");
       },
       panel
     );
 
-    area.parentNode.insertBefore(
-      toolbar,
-      area
-    );
-
-    area.parentNode.insertBefore(
-      panel,
-      area
-    );
+    area.parentNode.insertBefore(toolbar, area);
+    area.parentNode.insertBefore(panel, area);
 
     renderLevels();
 
-    if (
-      window.ResizeObserver &&
-      !resizeObserver
-    ) {
-      resizeObserver =
-        new ResizeObserver(
-          requestDraw
-        );
+    const fallback = $("fibFallback");
+    if (fallback) fallback.hidden = true;
 
-      resizeObserver.observe(area);
+    if (window.ResizeObserver) {
+      observer = new ResizeObserver(redraw);
+      observer.observe(area);
     }
 
-    window.addEventListener(
-      "resize",
-      requestDraw
-    );
+    window.addEventListener("resize", redraw);
 
     for (const id of [
       "symbol",
@@ -1270,256 +1040,181 @@
       "exchange",
       "market"
     ]) {
-      $(id)?.addEventListener(
-        "change",
-        () => {
-          firstPoint = null;
-          dragging = null;
-          activePointer = null;
-
-          status(
-            "Mercado cambiado. Mostrando su Fibonacci guardado."
-          );
-
-          requestDraw();
-        }
-      );
+      $(id)?.addEventListener("change", () => {
+        firstPoint = null;
+        dragging = null;
+        pointer = null;
+        redraw();
+      });
     }
 
-    requestDraw();
+    initialized = true;
+    redraw();
 
     return true;
   }
 
-  function attachChart(created) {
-    if (!created || chart === created) {
-      return;
+  function enableNavigation() {
+    if (!chart) return;
+
+    chart.applyOptions({
+      handleScroll: {
+        mouseWheel: true,
+        pressedMouseMove: true,
+        horzTouchDrag: true,
+        vertTouchDrag: false
+      },
+
+      handleScale: {
+        mouseWheel: true,
+        pinch: true,
+        axisPressedMouseMove: true
+      }
+    });
+
+    const note = $("chartTouchStatus");
+
+    if (note) {
+      note.textContent =
+        "Arrastra las velas horizontalmente. Usa dos dedos para ampliar o reducir.";
+    }
+  }
+
+  function attachCandle(created) {
+    if (!created || candle === created) return;
+
+    candle = created;
+
+    for (const name of ["setData", "update"]) {
+      const original = created[name];
+
+      if (typeof original !== "function") continue;
+
+      created[name] = function (...args) {
+        const result = original.apply(this, args);
+        redraw();
+        return result;
+      };
     }
 
+    status(
+      "Fibonacci V6 conectado. Pulsa Dibujar / mover."
+    );
+
+    redraw();
+  }
+
+  function attachChart(created) {
+    if (!created || chart === created) return;
+
     chart = created;
-    candle = null;
-    attached = true;
 
-    const originalAdd =
-      created.addCandlestickSeries;
+    const originalAdd = created.addCandlestickSeries;
 
-    if (
-      typeof originalAdd === "function" &&
-      !created.__CL_FIB_SERIES_V5__
-    ) {
-      created.addCandlestickSeries =
-        function (...args) {
-          const result =
-            originalAdd.apply(
-              this,
-              args
-            );
-
-          attachCandle(result);
-
-          return result;
-        };
-
-      created.__CL_FIB_SERIES_V5__ =
-        true;
+    if (typeof originalAdd === "function") {
+      created.addCandlestickSeries = function (...args) {
+        const result = originalAdd.apply(this, args);
+        attachCandle(result);
+        return result;
+      };
     }
 
     try {
       created.timeScale()
         .subscribeVisibleLogicalRangeChange(
-          requestDraw
+          redraw
         );
     } catch (error) {
       console.warn(
-        "Fibonacci: escala",
+        "Fibonacci V6 escala:",
         error
       );
     }
 
-    status(
-      "Gráfica conectada. Preparando velas..."
-    );
-
-    requestDraw();
-  }
-
-  function attachCandle(created) {
-    if (!created || candle === created) {
-      return;
-    }
-
-    candle = created;
-
-    for (const method of [
-      "setData",
-      "update"
-    ]) {
-      const original =
-        created[method];
-
-      if (
-        typeof original !== "function"
-      ) {
-        continue;
-      }
-
-      created[method] =
-        function (...args) {
-          const result =
-            original.apply(
-              this,
-              args
-            );
-
-          requestDraw();
-
-          return result;
-        };
-    }
-
-    status(
-      "Fibonacci V5 conectado. Pulsa Dibujar / mover."
-    );
-
-    requestDraw();
+    enableNavigation();
+    redraw();
   }
 
   function installHook() {
-    const library =
-      window.LightweightCharts;
+    const library = window.LightweightCharts;
 
     if (
       !library ||
-      typeof library.createChart !==
-        "function"
+      typeof library.createChart !== "function"
+    ) return false;
+
+    if (library.__CL_FIB_HOOK_V6__) return true;
+
+    const original = library.createChart;
+
+    library.createChart = function (
+      element,
+      ...args
     ) {
-      return false;
-    }
+      const result = original.call(
+        this,
+        element,
+        ...args
+      );
 
-    if (
-      library.__CL_FIB_HOOK_V5__
-    ) {
-      return true;
-    }
+      if (element?.id === "chart") {
+        attachChart(result);
+      }
 
-    const original =
-      library.createChart;
+      return result;
+    };
 
-    library.createChart =
-      function (element, ...args) {
-        const result =
-          original.call(
-            this,
-            element,
-            ...args
-          );
-
-        if (
-          element?.id === "chart"
-        ) {
-          attachChart(result);
-        }
-
-        return result;
-      };
-
-    library.__CL_FIB_HOOK_V5__ =
-      true;
-
+    library.__CL_FIB_HOOK_V6__ = true;
     return true;
   }
 
   function start() {
-    const uiReady = buildUI();
-    const hookReady = installHook();
+    buildUI();
 
-    if (!uiReady) {
-      console.error(
-        "Fibonacci V5: falta #priceChartArea"
-      );
-      return;
-    }
-
-    if (!hookReady) {
+    if (!installHook()) {
       status(
-        "Esperando biblioteca Lightweight Charts...",
+        "Esperando Lightweight Charts...",
         true
       );
-    } else if (!chart) {
-      status(
-        "Fibonacci cargado. Esperando creación de gráfica..."
-      );
     }
 
-    if (retryTimer) return;
+    // APP.JS V14 ejecuta setChartNavigation()
+    // al crear las gráficas. Este ajuste posterior
+    // recupera el arrastre horizontal.
 
-    retryTimer = setInterval(() => {
-      attempts++;
+    setTimeout(enableNavigation, 100);
+    setTimeout(enableNavigation, 600);
+    setTimeout(enableNavigation, 1500);
 
-      if (!$("fibToolbar")) {
-        buildUI();
-      }
-
-      if (!chart) {
-        installHook();
-      }
-
-      if (chart && candle) {
-        status(
-          "Fibonacci V5 conectado. Pulsa Dibujar / mover."
-        );
-
-        clearInterval(retryTimer);
-        retryTimer = null;
-      } else if (attempts >= 30) {
-        clearInterval(retryTimer);
-        retryTimer = null;
-
-        status(
-          chart
-            ? "Fibonacci visible, pero no se detectó la serie de velas."
-            : "Fibonacci visible, pero no se detectó la gráfica. Comprueba la carga de app.js.",
-          true
-        );
-      }
-
-      requestDraw();
-    }, 1000);
+    if (chart && candle) {
+      status(
+        "Fibonacci V6 conectado. Listo para dibujar."
+      );
+    } else {
+      status(
+        "Esperando conexión con la gráfica...",
+        true
+      );
+    }
   }
 
   load();
 
-  // Se instala antes de que APP.JS cree
-  // la gráfica, cuando el orden de scripts
-  // del index.html es correcto.
+  // Captura la creación de la gráfica
+  // antes de que APP.JS V14 se ejecute.
   installHook();
 
-  if (
-    document.readyState === "loading"
-  ) {
-    document.addEventListener(
-      "DOMContentLoaded",
-      start
-    );
-  } else {
-    start();
-  }
-
   window.CryptolexuzFibonacci = {
-    version: "5",
+    version: "6",
 
     getSettings: () =>
-      JSON.parse(
-        JSON.stringify(settings)
-      ),
+      JSON.parse(JSON.stringify(settings)),
 
     updateSettings: changes => {
       if (
         !changes ||
         typeof changes !== "object"
-      ) {
-        return;
-      }
+      ) return;
 
       settings = {
         ...settings,
@@ -1528,7 +1223,7 @@
 
       save();
       renderLevels();
-      requestDraw();
+      redraw();
     },
 
     priceAt,
@@ -1544,64 +1239,61 @@
         : null;
     },
 
-    setLevel: (
-      value,
-      changes = {}
-    ) => {
+    setLevel: (value, changes = {}) => {
       const n = Number(value);
 
-      if (!Number.isFinite(n)) {
-        return;
-      }
+      if (!Number.isFinite(n)) return;
 
-      let level =
-        settings.levels.find(
-          x => x.value === n
-        );
+      let level = settings.levels.find(
+        x => x.value === n
+      );
 
       if (level) {
-        Object.assign(
-          level,
-          changes
-        );
+        Object.assign(level, changes);
       } else {
         settings.levels.push({
           value: n,
           visible: true,
-          color: "#bb52ff",
+          color: COLORS.purple,
           ...changes
         });
       }
 
       settings.levels.sort(
-        (a, b) =>
-          a.value - b.value
+        (a, b) => a.value - b.value
       );
 
       save();
       renderLevels();
-      requestDraw();
+      redraw();
     },
 
     removeLevel: value => {
       settings.levels =
         settings.levels.filter(
-          x =>
-            x.value !== Number(value)
+          x => x.value !== Number(value)
         );
 
       save();
       renderLevels();
-      requestDraw();
+      redraw();
     },
 
-    redraw: requestDraw,
+    redraw,
 
-    isConnected: () =>
-      !!(chart && candle)
+    isConnected: () => !!(chart && candle)
   };
 
+  if (document.readyState === "loading") {
+    document.addEventListener(
+      "DOMContentLoaded",
+      start
+    );
+  } else {
+    start();
+  }
+
   console.info(
-    "CRYPTOLEXUZ PRO — Fibonacci V5 cargado"
+    "CRYPTOLEXUZ PRO — Fibonacci V6 cargado"
   );
 })();
