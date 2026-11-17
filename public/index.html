@@ -130,7 +130,8 @@
       min-height: 40px;
     }
 
-    #fibPanel[hidden] {
+    #fibPanel[hidden],
+    #fibFallback[hidden] {
       display: none !important;
     }
 
@@ -232,8 +233,13 @@
     }
   </style>
 
+  <!-- Biblioteca de gráficas -->
   <script defer src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
-  <script defer src="fibonacci.js?v=5"></script>
+
+  <!-- Fibonacci V6 se carga antes de APP.JS -->
+  <script defer src="fibonacci.js?v=6"></script>
+
+  <!-- Motor principal y módulos -->
   <script defer src="app.js?v=14"></script>
   <script defer src="liquidity.js?v=11"></script>
   <script defer src="trade-plans.js?v=1"></script>
@@ -421,7 +427,7 @@
         </div>
 
         <div id="fibFallback" class="cl-fib-loading" role="status">
-          Cargando herramientas de Fibonacci...
+          Cargando herramientas de Fibonacci V6...
         </div>
 
         <div id="priceChartArea" class="chart-area">
@@ -757,17 +763,25 @@
 
         if (!fallback) return;
 
-        if ($("fibToolbar")) {
+        const fib = window.CryptolexuzFibonacci;
+        const toolbar = $("fibToolbar");
+
+        if (toolbar && fib) {
           fallback.hidden = true;
           return;
         }
 
-        if (window.CryptolexuzFibonacci) {
+        fallback.hidden = false;
+
+        if (toolbar && !fib) {
           fallback.textContent =
-            "Fibonacci detectado, pero su barra no apareció. Revisa la inicialización del módulo V5.";
+            "La barra de Fibonacci apareció, pero el módulo no terminó de inicializarse.";
+        } else if (fib && !toolbar) {
+          fallback.textContent =
+            "Fibonacci V6 cargado, pero no se creó la barra de herramientas.";
         } else {
           fallback.textContent =
-            "Fibonacci no se cargó. Comprueba que public/fibonacci.js exista y que Render haya publicado la versión V5.";
+            "Fibonacci V6 no se cargó. Comprueba public/fibonacci.js y la publicación en Render.";
         }
       }
 
