@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#060815">
-  <meta name="description" content="CRYPTOLEXUZ PRO: escáner multitemporal, gráficas, señales, niveles de entrada y liquidez.">
+  <meta name="description" content="CRYPTOLEXUZ PRO: escáner multitemporal, gráficas, señales, Fibonacci y liquidez.">
 
   <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
 
@@ -93,9 +93,68 @@
       padding: 7px 10px;
       font: inherit;
     }
+
+    #priceChartArea {
+      position: relative;
+    }
+
+    #fibonacciCanvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 8;
+      pointer-events: none;
+    }
+
+    #fibToolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 7px;
+      margin: 10px 0;
+    }
+
+    #fibToolbar button,
+    #fibPanel button {
+      cursor: pointer;
+      min-height: 40px;
+    }
+
+    #fibPanel[hidden] {
+      display: none !important;
+    }
+
+    #fibPanel input {
+      background: #111b32;
+      color: #e3ebff;
+      border: 1px solid #40547c;
+      border-radius: 6px;
+      padding: 5px;
+    }
+
+    #fibPanel input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    #fibPanel input[type="color"] {
+      width: 38px;
+      height: 32px;
+      padding: 2px;
+    }
+
+    #fibLevels {
+      margin: 12px 0;
+      max-height: 340px;
+      overflow-y: auto;
+    }
   </style>
 
+  <!-- Orden de carga importante -->
   <script defer src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+  <script defer src="fibonacci.js?v=2"></script>
   <script defer src="app.js?v=13"></script>
   <script defer src="liquidity.js?v=11"></script>
   <script defer src="trade-plans.js?v=1"></script>
@@ -147,7 +206,7 @@
 
       <nav class="side-nav" aria-label="Secciones">
         <a href="#clScanner">📡 Escáner de señales</a>
-        <a href="#chartSection">📈 Gráfica</a>
+        <a href="#chartSection">📈 Gráfica y Fibonacci</a>
         <a href="#liquiditySection">🌡️ Mapa de liquidez</a>
         <a href="#orderbookSection">📚 Libro de órdenes</a>
         <a href="#signalsSection">🎯 Señales</a>
@@ -294,6 +353,7 @@
                 <option value="XRP-USDT">XRP/USDT</option>
                 <option value="DOGE-USDT">DOGE/USDT</option>
                 <option value="NCCOGOLD2USD-USDT">GOLD (XAU) · BingX</option>
+                <option value="NCCO1OILWTI2USD-USDT">OIL WTI · BingX</option>
               </select>
             </label>
 
@@ -347,13 +407,16 @@
 
       </section>
 
-      <section id="chartSection" class="chart-card">
+      <section
+        id="chartSection"
+        class="chart-card"
+      >
 
         <div class="chart-heading">
 
           <div>
             <h2 id="chartTitle">BTC-USDT · 15m</h2>
-            <small>GRÁFICA DE VELAS</small>
+            <small>GRÁFICA DE VELAS · FIBONACCI</small>
           </div>
 
           <button id="refresh" type="button">
@@ -370,9 +433,10 @@
             aria-pressed="false"
           >🔒 Desbloquear</button>
 
-          <button id="chartReset" type="button">
-            ⟲ Restablecer
-          </button>
+          <button
+            id="chartReset"
+            type="button"
+          >⟲ Restablecer</button>
 
           <span
             id="chartTouchStatus"
@@ -383,13 +447,18 @@
 
         </div>
 
-        <div id="priceChartArea" class="chart-area">
+        <div
+          id="priceChartArea"
+          class="chart-area"
+        >
+
           <div id="chart"></div>
 
           <canvas
             id="zonesCanvas"
             aria-hidden="true"
           ></canvas>
+
         </div>
 
         <div class="volume-section">
@@ -410,7 +479,10 @@
 
         </div>
 
-        <div id="rsiSection" class="oscillator-section">
+        <div
+          id="rsiSection"
+          class="oscillator-section"
+        >
 
           <div class="oscillator-heading">
             <strong>RSI 14</strong>
@@ -429,7 +501,11 @@
             Esperando RSI...
           </p>
 
-          <button id="rsiSpeak" type="button" disabled>
+          <button
+            id="rsiSpeak"
+            type="button"
+            disabled
+          >
             🔊 Escuchar interpretación RSI
           </button>
 
@@ -558,7 +634,10 @@
         <div class="section-heading">
           <h2>Monitor de señales</h2>
 
-          <span id="engineState" class="pill">
+          <span
+            id="engineState"
+            class="pill"
+          >
             INICIANDO
           </span>
         </div>
@@ -569,7 +648,10 @@
 
             <h3>BTC-USDT / 5 minutos</h3>
 
-            <strong id="state5" class="state">
+            <strong
+              id="state5"
+              class="state"
+            >
               Esperando datos
             </strong>
 
@@ -583,7 +665,10 @@
 
             <h3>BTC-USDT / 15 minutos</h3>
 
-            <strong id="state15" class="state">
+            <strong
+              id="state15"
+              class="state"
+            >
               Esperando datos
             </strong>
 
@@ -709,9 +794,9 @@
         </div>
 
         <p class="muted">
-          GOLD (XAU) se consulta exclusivamente en BingX.
-          El escáner analiza los siete activos desde la
-          temporalidad diaria hasta un minuto.
+          GOLD (XAU) y OIL WTI se consultan exclusivamente
+          en BingX. El escáner analiza ocho activos
+          desde la temporalidad diaria hasta un minuto.
         </p>
 
         <p class="muted">
