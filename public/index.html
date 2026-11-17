@@ -152,10 +152,16 @@
     }
   </style>
 
-  <!-- Fibonacci V3 debe cargarse antes de app.js -->
+  <!-- Orden importante:
+       Biblioteca de gráficas
+       Fibonacci V4
+       Aplicación V14
+       Módulos adicionales
+  -->
+
   <script defer src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
-  <script defer src="fibonacci.js?v=3"></script>
-  <script defer src="app.js?v=13"></script>
+  <script defer src="fibonacci.js?v=4"></script>
+  <script defer src="app.js?v=14"></script>
   <script defer src="liquidity.js?v=11"></script>
   <script defer src="trade-plans.js?v=1"></script>
 </head>
@@ -425,13 +431,9 @@
 
         </div>
 
-        <div class="chart-controls">
+        <!-- Navegación móvil sin botón Bloquear -->
 
-          <button
-            id="chartNavigation"
-            type="button"
-            aria-pressed="false"
-          >🔒 Desbloquear</button>
+        <div class="chart-controls">
 
           <button
             id="chartReset"
@@ -442,10 +444,14 @@
             id="chartTouchStatus"
             class="chart-control-note"
           >
-            Gráfica bloqueada: desliza la página con un dedo.
+            Desliza la página con un dedo.
+            Usa dos dedos para ampliar o reducir las velas.
           </span>
 
         </div>
+
+        <!-- Fibonacci V4 inserta automáticamente
+             sus botones antes de esta gráfica -->
 
         <div
           id="priceChartArea"
