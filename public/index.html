@@ -3,7 +3,7 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#060815">
   <meta name="description" content="CRYPTOLEXUZ PRO: escáner multitemporal, gráficas, señales, Fibonacci y liquidez.">
 
@@ -12,6 +12,15 @@
   <link rel="stylesheet" href="styles.css?v=10">
 
   <style>
+    html {
+      scroll-behavior: smooth;
+      scroll-padding-top: 100px;
+    }
+
+    body {
+      padding-bottom: calc(92px + env(safe-area-inset-bottom));
+    }
+
     .app-header {
       display: flex;
       align-items: center;
@@ -31,7 +40,7 @@
 
     .app-header .logo-3d {
       display: block;
-      width: clamp(165px, 38vw, 310px);
+      width: clamp(165px,38vw,310px);
       height: 66px;
       max-width: 100%;
       object-fit: contain;
@@ -45,7 +54,7 @@
       overflow-wrap: anywhere;
     }
 
-    @media (max-width: 390px) {
+    @media(max-width:390px) {
       .app-header {
         gap: 6px;
         padding: 8px;
@@ -61,7 +70,7 @@
       }
     }
 
-    @media (min-width: 900px) {
+    @media(min-width:900px) {
       .app-header .logo-3d {
         width: 310px;
         height: 75px;
@@ -150,17 +159,81 @@
       max-height: 340px;
       overflow-y: auto;
     }
+
+    .cl-fib-loading {
+      padding: 12px;
+      margin: 10px 0;
+      border: 1px dashed #485b88;
+      border-radius: 10px;
+      color: #b7c5e5;
+      background: #101a32;
+      font-size: 12px;
+    }
+
+    .cl-bottom-nav {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 9990;
+      display: grid;
+      grid-template-columns: repeat(3,minmax(0,1fr));
+      gap: 7px;
+      padding: 9px 10px calc(9px + env(safe-area-inset-bottom));
+      background: rgba(7,10,27,.97);
+      border-top: 1px solid #35416e;
+      box-shadow: 0 -8px 30px rgba(0,0,0,.4);
+    }
+
+    .cl-nav-button {
+      min-width: 0;
+      min-height: 58px;
+      border: 1px solid #394875;
+      border-radius: 12px;
+      background: #151c38;
+      color: #c4cde7;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      font: 600 12px system-ui,sans-serif;
+      cursor: pointer;
+    }
+
+    .cl-nav-button .cl-nav-icon {
+      font-size: 21px;
+      line-height: 1;
+    }
+
+    .cl-nav-button.active {
+      color: #ffffff;
+      border-color: #a45dff;
+      background: linear-gradient(135deg,#412064,#242456);
+      box-shadow: inset 0 0 0 1px rgba(187,82,255,.18);
+    }
+
+    .cl-nav-button:focus-visible {
+      outline: 2px solid #bb52ff;
+      outline-offset: 2px;
+    }
+
+    @media(min-width:900px) {
+      .cl-bottom-nav {
+        max-width: 560px;
+        left: 50%;
+        right: auto;
+        width: calc(100% - 24px);
+        transform: translateX(-50%);
+        border: 1px solid #35416e;
+        border-bottom: 0;
+        border-radius: 16px 16px 0 0;
+      }
+    }
   </style>
 
-  <!-- Orden importante:
-       Biblioteca de gráficas
-       Fibonacci V4
-       Aplicación V14
-       Módulos adicionales
-  -->
-
   <script defer src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
-  <script defer src="fibonacci.js?v=4"></script>
+  <script defer src="fibonacci.js?v=5"></script>
   <script defer src="app.js?v=14"></script>
   <script defer src="liquidity.js?v=11"></script>
   <script defer src="trade-plans.js?v=1"></script>
@@ -203,11 +276,7 @@
 
       <div class="sidebar-head">
         <strong>Herramientas</strong>
-        <button
-          id="menuClose"
-          type="button"
-          aria-label="Cerrar menú"
-        >✕</button>
+        <button id="menuClose" type="button" aria-label="Cerrar menú">✕</button>
       </div>
 
       <nav class="side-nav" aria-label="Secciones">
@@ -224,93 +293,23 @@
 
       <div id="indicatorButtons" class="indicator-buttons">
 
-        <button
-          type="button"
-          data-indicator="ema21"
-          aria-pressed="true"
-        >EMA 21</button>
+        <button type="button" data-indicator="ema21" aria-pressed="true">EMA 21</button>
+        <button type="button" data-indicator="ma55" aria-pressed="true">MA 55</button>
+        <button type="button" data-indicator="ma100" aria-pressed="false">MA 100</button>
+        <button type="button" data-indicator="ma200" aria-pressed="false">MA 200</button>
+        <button type="button" data-indicator="rsi" aria-pressed="true">RSI</button>
+        <button type="button" data-indicator="adx" aria-pressed="false">ADX</button>
+        <button type="button" data-indicator="fvg" aria-pressed="true">FVG</button>
+        <button type="button" data-indicator="ifvg" aria-pressed="false">IFVG</button>
+        <button type="button" data-indicator="liquidity" aria-pressed="false">Zonas de liquidez</button>
+        <button type="button" data-indicator="sweeps" aria-pressed="false">Barridos</button>
+        <button type="button" data-indicator="support" aria-pressed="false">Soportes</button>
+        <button type="button" data-indicator="resistance" aria-pressed="false">Resistencias</button>
 
-        <button
-          type="button"
-          data-indicator="ma55"
-          aria-pressed="true"
-        >MA 55</button>
-
-        <button
-          type="button"
-          data-indicator="ma100"
-          aria-pressed="false"
-        >MA 100</button>
-
-        <button
-          type="button"
-          data-indicator="ma200"
-          aria-pressed="false"
-        >MA 200</button>
-
-        <button
-          type="button"
-          data-indicator="rsi"
-          aria-pressed="true"
-        >RSI</button>
-
-        <button
-          type="button"
-          data-indicator="adx"
-          aria-pressed="false"
-        >ADX</button>
-
-        <button
-          type="button"
-          data-indicator="fvg"
-          aria-pressed="true"
-        >FVG</button>
-
-        <button
-          type="button"
-          data-indicator="ifvg"
-          aria-pressed="false"
-        >IFVG</button>
-
-        <button
-          type="button"
-          data-indicator="liquidity"
-          aria-pressed="false"
-        >Zonas de liquidez</button>
-
-        <button
-          type="button"
-          data-indicator="sweeps"
-          aria-pressed="false"
-        >Barridos</button>
-
-        <button
-          type="button"
-          data-indicator="support"
-          aria-pressed="false"
-        >Soportes</button>
-
-        <button
-          type="button"
-          data-indicator="resistance"
-          aria-pressed="false"
-        >Resistencias</button>
-
-        <button type="button" disabled>
-          Divergencias · pendiente
-        </button>
-
-        <button type="button" disabled>
-          Squeeze · pendiente
-        </button>
-
-        <button type="button" disabled>
-          Order Blocks · pendiente
-        </button>
-
-        <button type="button" disabled>
-          Cuña descendente · pendiente
-        </button>
+        <button type="button" disabled>Divergencias · pendiente</button>
+        <button type="button" disabled>Squeeze · pendiente</button>
+        <button type="button" disabled>Order Blocks · pendiente</button>
+        <button type="button" disabled>Cuña descendente · pendiente</button>
 
       </div>
 
@@ -318,16 +317,8 @@
 
       <label class="switch-row">
         <span>Mostrar mapa</span>
-
-        <input
-          id="liquidityMapToggle"
-          type="checkbox"
-          disabled
-        >
-
-        <span class="muted">
-          Preparando conexión...
-        </span>
+        <input id="liquidityMapToggle" type="checkbox" disabled>
+        <span class="muted">Preparando conexión...</span>
       </label>
 
     </aside>
@@ -350,7 +341,6 @@
 
             <label class="compact-field">
               <span>Activo</span>
-
               <select id="symbol">
                 <option value="BTC-USDT">BTC/USDT</option>
                 <option value="ETH-USDT">ETH/USDT</option>
@@ -365,7 +355,6 @@
 
             <label class="compact-field">
               <span>Temporalidad</span>
-
               <select id="interval">
                 <option value="1m">1 minuto</option>
                 <option value="5m">5 minutos</option>
@@ -413,62 +402,34 @@
 
       </section>
 
-      <section
-        id="chartSection"
-        class="chart-card"
-      >
+      <section id="chartSection" class="chart-card">
 
         <div class="chart-heading">
-
           <div>
             <h2 id="chartTitle">BTC-USDT · 15m</h2>
             <small>GRÁFICA DE VELAS · FIBONACCI</small>
           </div>
 
-          <button id="refresh" type="button">
-            ↻ Actualizar
-          </button>
-
+          <button id="refresh" type="button">↻ Actualizar</button>
         </div>
-
-        <!-- Navegación móvil sin botón Bloquear -->
 
         <div class="chart-controls">
-
-          <button
-            id="chartReset"
-            type="button"
-          >⟲ Restablecer</button>
-
-          <span
-            id="chartTouchStatus"
-            class="chart-control-note"
-          >
-            Desliza la página con un dedo.
-            Usa dos dedos para ampliar o reducir las velas.
+          <button id="chartReset" type="button">⟲ Restablecer</button>
+          <span id="chartTouchStatus" class="chart-control-note">
+            Arrastra las velas para recorrer el historial. Usa dos dedos para ampliar o reducir.
           </span>
-
         </div>
 
-        <!-- Fibonacci V4 inserta automáticamente
-             sus botones antes de esta gráfica -->
+        <div id="fibFallback" class="cl-fib-loading" role="status">
+          Cargando herramientas de Fibonacci...
+        </div>
 
-        <div
-          id="priceChartArea"
-          class="chart-area"
-        >
-
+        <div id="priceChartArea" class="chart-area">
           <div id="chart"></div>
-
-          <canvas
-            id="zonesCanvas"
-            aria-hidden="true"
-          ></canvas>
-
+          <canvas id="zonesCanvas" aria-hidden="true"></canvas>
         </div>
 
         <div class="volume-section">
-
           <div class="volume-heading">
             <strong>Volumen</strong>
             <span id="volumeLabel">BTC</span>
@@ -476,131 +437,74 @@
 
           <div id="volumeChart"></div>
 
-          <p
-            id="volumeInterpretation"
-            class="interpretation"
-          >
+          <p id="volumeInterpretation" class="interpretation">
             Esperando análisis de volumen...
           </p>
-
         </div>
 
-        <div
-          id="rsiSection"
-          class="oscillator-section"
-        >
-
+        <div id="rsiSection" class="oscillator-section">
           <div class="oscillator-heading">
             <strong>RSI 14</strong>
             <span id="rsiChartValue">—</span>
           </div>
 
-          <div
-            id="rsiChart"
-            class="oscillator-chart"
-          ></div>
+          <div id="rsiChart" class="oscillator-chart"></div>
 
-          <p
-            id="rsiInterpretation"
-            class="interpretation"
-          >
+          <p id="rsiInterpretation" class="interpretation">
             Esperando RSI...
           </p>
 
-          <button
-            id="rsiSpeak"
-            type="button"
-            disabled
-          >
+          <button id="rsiSpeak" type="button" disabled>
             🔊 Escuchar interpretación RSI
           </button>
-
         </div>
 
-        <div
-          id="adxSection"
-          class="oscillator-section"
-          hidden
-        >
-
+        <div id="adxSection" class="oscillator-section" hidden>
           <div class="oscillator-heading">
             <strong>ADX 14 / +DI / −DI</strong>
             <span id="adxChartValue">—</span>
           </div>
 
-          <div
-            id="adxChart"
-            class="oscillator-chart"
-          ></div>
+          <div id="adxChart" class="oscillator-chart"></div>
 
-          <p
-            id="adxInterpretation"
-            class="interpretation"
-          >
+          <p id="adxInterpretation" class="interpretation">
             Esperando ADX...
           </p>
-
         </div>
 
-        <div
-          id="squeezeSection"
-          class="oscillator-section"
-          hidden
-        >
-
+        <div id="squeezeSection" class="oscillator-section" hidden>
           <div class="oscillator-heading">
             <strong>Squeeze Momentum</strong>
             <span>Pendiente</span>
           </div>
 
-          <div
-            id="squeezeChart"
-            class="oscillator-chart"
-          ></div>
-
+          <div id="squeezeChart" class="oscillator-chart"></div>
         </div>
 
-        <p
-          id="message"
-          class="chart-message"
-          role="status"
-        >
+        <p id="message" class="chart-message" role="status">
           Cargando datos...
         </p>
 
       </section>
 
-      <section
-        id="liquiditySection"
-        class="liquidity-card"
-      >
-
+      <section id="liquiditySection" class="liquidity-card">
         <div class="section-heading">
           <h2>Mapa de liquidez</h2>
-
-          <span class="muted">
-            Profundidad de mercado
-          </span>
+          <span class="muted">Profundidad de mercado</span>
         </div>
 
-        <div
-          id="liquidityMap"
-          class="liquidity-placeholder"
-        >
+        <div id="liquidityMap" class="liquidity-placeholder">
           Conectando con el libro de órdenes...
         </div>
-
       </section>
 
       <section class="indicator-summary">
-
         <div class="section-heading">
           <h2>Indicadores técnicos</h2>
           <small>Última vela cerrada</small>
         </div>
 
         <div class="indicator-values">
-
           <div>
             <span>EMA 21</span>
             <strong id="ema21Value">—</strong>
@@ -620,88 +524,46 @@
             <span>ADX 14</span>
             <strong id="adxValue">—</strong>
           </div>
-
         </div>
 
-        <p
-          id="indicatorReadout"
-          class="indicator-readout"
-        >
+        <p id="indicatorReadout" class="indicator-readout">
           Esperando cálculos...
         </p>
-
       </section>
 
-      <section
-        id="signalsSection"
-        class="signals-section"
-      >
-
+      <section id="signalsSection" class="signals-section">
         <div class="section-heading">
           <h2>Monitor de señales</h2>
-
-          <span
-            id="engineState"
-            class="pill"
-          >
-            INICIANDO
-          </span>
+          <span id="engineState" class="pill">INICIANDO</span>
         </div>
 
         <div class="signal-grid">
 
           <article class="signal-card">
-
             <h3>BTC-USDT / 5 minutos</h3>
-
-            <strong
-              id="state5"
-              class="state"
-            >
-              Esperando datos
-            </strong>
-
+            <strong id="state5" class="state">Esperando datos</strong>
             <p id="detail5">—</p>
-
             <small id="metrics5">—</small>
-
           </article>
 
           <article class="signal-card">
-
             <h3>BTC-USDT / 15 minutos</h3>
-
-            <strong
-              id="state15"
-              class="state"
-            >
-              Esperando datos
-            </strong>
-
+            <strong id="state15" class="state">Esperando datos</strong>
             <p id="detail15">—</p>
-
             <small id="metrics15">—</small>
-
           </article>
 
         </div>
-
       </section>
 
-      <section
-        id="historySection"
-        class="history-section"
-      >
-
+      <section id="historySection" class="history-section">
         <div class="section-heading">
           <h2>Historial de señales</h2>
           <small>Últimas 30</small>
         </div>
 
         <div class="table-wrap">
-
           <table>
-
             <thead>
               <tr>
                 <th>Hora</th>
@@ -721,98 +583,65 @@
                 </td>
               </tr>
             </tbody>
-
           </table>
-
         </div>
-
       </section>
 
-      <section
-        id="orderbookSection"
-        class="details"
-      >
+      <section id="orderbookSection" class="details">
 
         <article>
-
           <h2>Libro de precios</h2>
-
-          <p>
-            Bid <strong id="bid">—</strong>
-          </p>
-
-          <p>
-            Ask <strong id="ask">—</strong>
-          </p>
-
-          <p class="muted">
-            Profundidad de diez niveles.
-          </p>
-
+          <p>Bid <strong id="bid">—</strong></p>
+          <p>Ask <strong id="ask">—</strong></p>
+          <p class="muted">Profundidad de diez niveles.</p>
         </article>
 
         <article>
-
           <h2>Estado del servidor</h2>
-
-          <p id="status">
-            Comprobando conexión...
-          </p>
-
+          <p id="status">Comprobando conexión...</p>
           <small>
             Actualizado:
             <strong id="updated">—</strong>
           </small>
-
         </article>
 
       </section>
 
-      <section
-        id="settingsSection"
-        class="market-settings"
-      >
-
+      <section id="settingsSection" class="market-settings">
         <div class="cl-extra-select">
 
           <label>
             <span>Exchange</span>
-
             <select id="exchange">
               <option value="bingx" selected>BingX</option>
               <option value="binance">Binance</option>
               <option value="bybit">Bybit</option>
               <option value="okx">OKX</option>
             </select>
-
           </label>
 
           <label>
             <span>Tipo de mercado</span>
-
             <select id="market">
               <option value="perpetual">Perpetuos</option>
               <option value="spot">Spot</option>
             </select>
-
           </label>
 
         </div>
 
         <p class="muted">
-          GOLD (XAU) y OIL WTI se consultan exclusivamente
-          en BingX. El escáner analiza ocho activos
-          desde la temporalidad diaria hasta un minuto.
+          GOLD (XAU) y OIL WTI se consultan exclusivamente en BingX.
+          El escáner analiza ocho activos desde la temporalidad diaria
+          hasta un minuto.
         </p>
 
         <p class="muted">
-          Los niveles de entrada, stop loss, TP1 y TP2
-          son propuestas técnicas y no representan
-          órdenes ejecutadas. Las notificaciones con
-          la página completamente cerrada requieren
-          un servicio push adicional.
+          Los niveles de entrada, stop loss, TP1 y TP2 son propuestas
+          técnicas y no representan órdenes ejecutadas. Las notificaciones
+          con la página completamente cerrada requieren un servicio
+          push adicional.
         </p>
-
       </section>
 
       <footer>
@@ -821,74 +650,131 @@
       </footer>
 
     </main>
-
   </div>
+
+  <nav class="cl-bottom-nav" aria-label="Navegación principal">
+
+    <button
+      class="cl-nav-button active"
+      type="button"
+      data-cl-tab="scanner"
+      aria-pressed="true"
+    >
+      <span class="cl-nav-icon">📡</span>
+      <span>Escáner</span>
+    </button>
+
+    <button
+      class="cl-nav-button"
+      type="button"
+      data-cl-tab="charts"
+      aria-pressed="false"
+    >
+      <span class="cl-nav-icon">📈</span>
+      <span>Gráficas</span>
+    </button>
+
+    <button
+      class="cl-nav-button"
+      type="button"
+      data-cl-tab="results"
+      aria-pressed="false"
+    >
+      <span class="cl-nav-icon">📊</span>
+      <span>Resultados</span>
+    </button>
+
+  </nav>
 
   <script>
     (() => {
-      const sidebar =
-        document.getElementById("sidebar");
+      "use strict";
 
-      const backdrop =
-        document.getElementById("menuBackdrop");
+      const $ = id => document.getElementById(id);
 
-      const toggle =
-        document.getElementById("menuToggle");
-
-      const close =
-        document.getElementById("menuClose");
-
-      if (
-        !sidebar ||
-        !backdrop ||
-        !toggle ||
-        !close
-      ) {
-        return;
-      }
+      const sidebar = $("sidebar");
+      const backdrop = $("menuBackdrop");
+      const toggle = $("menuToggle");
+      const close = $("menuClose");
 
       function setOpen(open) {
-        sidebar.classList.toggle(
-          "is-open",
-          open
-        );
+        if (!sidebar || !backdrop || !toggle) return;
 
-        toggle.setAttribute(
-          "aria-expanded",
-          String(open)
-        );
-
+        sidebar.classList.toggle("is-open",open);
+        toggle.setAttribute("aria-expanded",String(open));
         backdrop.hidden = !open;
-
-        document.body.classList.toggle(
-          "menu-open",
-          open
-        );
+        document.body.classList.toggle("menu-open",open);
       }
 
-      toggle.addEventListener("click", () => {
-        setOpen(
-          !sidebar.classList.contains(
-            "is-open"
-          )
-        );
+      toggle?.addEventListener("click",() => {
+        setOpen(!sidebar.classList.contains("is-open"));
       });
 
-      close.addEventListener("click", () => {
-        setOpen(false);
+      close?.addEventListener("click",() => setOpen(false));
+      backdrop?.addEventListener("click",() => setOpen(false));
+
+      sidebar?.querySelectorAll(".side-nav a").forEach(link => {
+        link.addEventListener("click",() => setOpen(false));
       });
 
-      backdrop.addEventListener("click", () => {
-        setOpen(false);
-      });
+      const targets = {
+        scanner:"clScanner",
+        charts:"chartSection",
+        results:"historySection"
+      };
 
-      sidebar
-        .querySelectorAll(".side-nav a")
-        .forEach(link => {
-          link.addEventListener("click", () => {
-            setOpen(false);
-          });
+      function activateTab(tab) {
+        const id = targets[tab];
+
+        if (!id) return;
+
+        document.querySelectorAll("[data-cl-tab]").forEach(button => {
+          const active = button.dataset.clTab === tab;
+          button.classList.toggle("active",active);
+          button.setAttribute("aria-pressed",String(active));
         });
+
+        setOpen(false);
+
+        const target = $(id);
+
+        if (target) {
+          target.scrollIntoView({
+            behavior:"smooth",
+            block:"start"
+          });
+        }
+      }
+
+      document.querySelectorAll("[data-cl-tab]").forEach(button => {
+        button.addEventListener("click",() => {
+          activateTab(button.dataset.clTab);
+        });
+      });
+
+      function checkFibonacci() {
+        const fallback = $("fibFallback");
+
+        if (!fallback) return;
+
+        if ($("fibToolbar")) {
+          fallback.hidden = true;
+          return;
+        }
+
+        if (window.CryptolexuzFibonacci) {
+          fallback.textContent =
+            "Fibonacci detectado, pero su barra no apareció. Revisa la inicialización del módulo V5.";
+        } else {
+          fallback.textContent =
+            "Fibonacci no se cargó. Comprueba que public/fibonacci.js exista y que Render haya publicado la versión V5.";
+        }
+      }
+
+      window.addEventListener("load",() => {
+        setTimeout(checkFibonacci,2500);
+        setTimeout(checkFibonacci,6500);
+      });
     })();
   </script>
 
