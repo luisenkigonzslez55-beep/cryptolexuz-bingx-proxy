@@ -1,10 +1,11 @@
 
 /*
- CRYPTOLEXUZ PRO — APP.JS V14 COMPLETO
+ CRYPTOLEXUZ PRO — APP.JS V15 COMPLETO
  BTC, ETH, BNB, SOL, XRP, DOGE, GOLD y OIL WTI.
  Escáner multitemporal, indicadores y datos en vivo.
- Navegación móvil sin botón Bloquear.
- Integración compatible con fibonacci.js.
+ Navegación móvil horizontal con un dedo.
+ Compatible con Lightweight Charts 4.2.2.
+ Integración preparada para Fibonacci V6 y V7.
 */
 "use strict";
 
@@ -97,6 +98,7 @@ let activeKey = "";
 
 let requestId = 0;
 let loading = false;
+let loadingId = 0;
 
 let ws = null;
 let wsGeneration = 0;
@@ -110,14 +112,18 @@ let currentRSIText = "";
 
 let lastMonitorAt = 0;
 let monitorBusy = false;
+let monitorGeneration = 0;
+
 let scanBusy = false;
 let scanLastAt = 0;
 let scanResults = [];
 let scanErrors = [];
+let scanGeneration = 0;
 
 let chartTimer = null;
 let tickerTimer = null;
 let scanTimer = null;
+let resizeObserver = null;
 
 /* UTILIDADES */
 
@@ -487,7 +493,7 @@ function chartOptions(height){
     handleScroll:{
       mouseWheel:true,
       pressedMouseMove:true,
-      horzTouchDrag:false,
+      horzTouchDrag:true,
       vertTouchDrag:false
     },
 
@@ -625,6 +631,9 @@ function createCharts(){
         }
 
         drawZones();
+
+        window.CryptolexuzFibonacci
+          ?.redraw?.();
       });
   }
 
@@ -651,10 +660,13 @@ function createCharts(){
     }
 
     resizeCanvas();
+
+    window.CryptolexuzFibonacci
+      ?.redraw?.();
   };
 
   if(window.ResizeObserver){
-    const observer = new ResizeObserver(resize);
+    resizeObserver = new ResizeObserver(resize);
 
     for(const id of [
       "chart",
@@ -662,7 +674,7 @@ function createCharts(){
       "rsiChart",
       "adxChart"
     ]){
-      if($(id)) observer.observe($(id));
+      if($(id)) resizeObserver.observe($(id));
     }
   }
 
@@ -671,6 +683,7 @@ function createCharts(){
   setTimeout(resize,100);
 
   setChartNavigation();
+  connectFibonacci();
 
   return true;
 }
@@ -678,28 +691,64 @@ function createCharts(){
 /* NAVEGACIÓN TÁCTIL */
 
 function setChartNavigation(){
-  if(!charts.price) return;
+  for(const chart of Object.values(charts)){
+    chart.applyOptions({
+      handleScroll:{
+        mouseWheel:true,
+        pressedMouseMove:true,
+        horzTouchDrag:true,
+        vertTouchDrag:false
+      },
 
-  charts.price.applyOptions({
-    handleScroll:{
-      mouseWheel:true,
-      pressedMouseMove:true,
-      horzTouchDrag:false,
-      vertTouchDrag:false
-    },
-
-    handleScale:{
-      mouseWheel:true,
-      pinch:true,
-      axisPressedMouseMove:true
-    }
-  });
+      handleScale:{
+        mouseWheel:true,
+        pinch:true,
+        axisPressedMouseMove:true
+      }
+    });
+  }
 
   $("chartNavigation")?.remove();
 
   value(
     "chartTouchStatus",
-    "Desliza la página con un dedo. Usa dos dedos para ampliar o reducir las velas."
+    "Desliza las velas horizontalmente con un dedo. Usa dos dedos para ampliar o reducir."
+  );
+}
+
+/* INTEGRACIÓN CON FIBONACCI */
+
+function connectFibonacci(){
+  const fib = window.CryptolexuzFibonacci;
+
+  if(
+    fib &&
+    typeof fib.attach==="function"
+  ){
+    try{
+      fib.attach(
+        charts.price,
+        series.price,
+        {
+          getRows:()=>rows,
+          getSelection:selected
+        }
+      );
+    }catch(error){
+      console.warn("Fibonacci:",error);
+    }
+  }
+
+  window.dispatchEvent(
+    new CustomEvent(
+      "cryptolexuz:chart-ready",
+      {
+        detail:{
+          chart:charts.price,
+          candle:series.price
+        }
+      }
+    )
   );
 }
 
@@ -906,18 +955,28 @@ function resizeCanvas(){
 
   if(!canvas || !area) return;
 
+  canvas.style.pointerEvents = "none";
+
   const dpr = Math.min(
     window.devicePixelRatio || 1,
     2
   );
 
-  canvas.width = Math.round(
+  const width = Math.round(
     area.clientWidth*dpr
   );
 
-  canvas.height = Math.round(
+  const height = Math.round(
     area.clientHeight*dpr
   );
+
+  if(canvas.width!==width){
+    canvas.width = width;
+  }
+
+  if(canvas.height!==height){
+    canvas.height = height;
+  }
 
   canvas.getContext("2d")?.setTransform(
     dpr,0,0,dpr,0,0
@@ -1235,6 +1294,9 @@ function updateIndicators(){
     }
 
     drawZones();
+
+    window.CryptolexuzFibonacci
+      ?.redraw?.();
   });
 }
 
@@ -1617,6 +1679,13 @@ function applyLiveCandle(
     rows.push(candle);
 
     if(rows.length>350){
+      let oldRange = null;
+
+      try{
+        oldRange = charts.price.timeScale()
+          .getVisibleLogicalRange();
+      }catch(_){}
+
       rows.shift();
 
       series.price.setData(rows);
@@ -1625,7 +1694,21 @@ function applyLiveCandle(
         rows.map(volumeBar)
       );
 
+      if(oldRange){
+        try{
+          charts.price.timeScale()
+            .setVisibleLogicalRange({
+              from:oldRange.from-1,
+              to:oldRange.to-1
+            });
+        }catch(_){}
+      }
+
       scheduleIndicators();
+
+      window.CryptolexuzFibonacci
+        ?.redraw?.();
+
       return;
     }
   }
@@ -1776,6 +1859,7 @@ async function monitor(symbol,market,exchange){
   ) return;
 
   monitorBusy = true;
+  const generation = monitorGeneration;
 
   try{
     const [five,fifteen] = await Promise.all([
@@ -1795,6 +1879,7 @@ async function monitor(symbol,market,exchange){
     const now = selected();
 
     if(
+      generation!==monitorGeneration ||
       now.symbol!==symbol ||
       now.market!==market ||
       now.exchange!==exchange
@@ -1816,7 +1901,9 @@ async function monitor(symbol,market,exchange){
 
     lastMonitorAt = Date.now();
   }catch(error){
-    value("engineState","SIN CONEXIÓN");
+    if(generation===monitorGeneration){
+      value("engineState","SIN CONEXIÓN");
+    }
 
     console.warn(
       "Monitor:",
@@ -1824,6 +1911,16 @@ async function monitor(symbol,market,exchange){
     );
   }finally{
     monitorBusy = false;
+
+    if(generation!==monitorGeneration){
+      const now = selected();
+
+      monitor(
+        now.symbol,
+        now.market,
+        now.exchange
+      ).catch(()=>{});
+    }
   }
 }
 
@@ -1833,11 +1930,25 @@ function applyCandles(data,s){
   const changed = activeKey!==keyOf(s);
 
   let previousRange = null;
+  let anchorTime = null;
+  let oldAnchorIndex = 0;
 
   if(!changed){
     try{
       previousRange = charts.price.timeScale()
         .getVisibleLogicalRange();
+
+      if(previousRange && rows.length){
+        oldAnchorIndex = Math.max(
+          0,
+          Math.min(
+            rows.length-1,
+            Math.floor(previousRange.from)
+          )
+        );
+
+        anchorTime = rows[oldAnchorIndex]?.time;
+      }
     }catch(_){}
   }
 
@@ -1856,8 +1967,23 @@ function applyCandles(data,s){
     resetView();
   }else if(previousRange){
     try{
+      let shift = 0;
+
+      if(anchorTime!==null){
+        const newIndex = rows.findIndex(
+          x=>x.time===anchorTime
+        );
+
+        if(newIndex>=0){
+          shift = newIndex-oldAnchorIndex;
+        }
+      }
+
       charts.price.timeScale()
-        .setVisibleLogicalRange(previousRange);
+        .setVisibleLogicalRange({
+          from:previousRange.from+shift,
+          to:previousRange.to+shift
+        });
     }catch(_){}
   }
 
@@ -1883,6 +2009,9 @@ function applyCandles(data,s){
   }else{
     drawZones();
   }
+
+  window.CryptolexuzFibonacci
+    ?.redraw?.();
 }
 
 async function refresh(){
@@ -1891,6 +2020,8 @@ async function refresh(){
   loading = true;
 
   const id = ++requestId;
+  loadingId = id;
+
   const s = selected();
   const started = Date.now();
 
@@ -1998,7 +2129,9 @@ async function refresh(){
 
     console.warn("Velas:",error);
   }finally{
-    loading = false;
+    if(loadingId===id){
+      loading = false;
+    }
   }
 }
 
@@ -2262,7 +2395,7 @@ function ensureScannerUI(){
   section.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
       <div>
-        <strong style="font-size:17px">📡 Escáner CRYPTOLEXUZ V14</strong>
+        <strong style="font-size:17px">📡 Escáner CRYPTOLEXUZ V15</strong>
         <div id="clScanStatus" style="color:#a5b0cf;font-size:12px;margin-top:4px">
           Esperando primer análisis...
         </div>
@@ -2707,6 +2840,7 @@ function notifySignal(r){
 
   const key = [
     r.market.exchange,
+    r.market.market,
     r.market.symbol,
     r.direction,
     r.closedTime
@@ -2765,6 +2899,7 @@ async function runScanner(force=false){
   ) return;
 
   scanBusy = true;
+  const generation = ++scanGeneration;
 
   const markets = scanMarkets();
   const results = [];
@@ -2801,6 +2936,8 @@ async function runScanner(force=false){
       worker()
     ]);
 
+    if(generation!==scanGeneration) return;
+
     scanResults = results.sort(
       (a,b)=>b.score-a.score
     );
@@ -2823,6 +2960,13 @@ async function runScanner(force=false){
     }
   }finally{
     scanBusy = false;
+
+    if(
+      generation!==scanGeneration &&
+      !document.hidden
+    ){
+      runScanner(true).catch(()=>{});
+    }
   }
 }
 
@@ -2890,6 +3034,11 @@ function speakRSI(){
 function resetMarketState(){
   requestId++;
   loading = false;
+  loadingId = 0;
+
+  monitorGeneration++;
+  scanGeneration++;
+  scanLastAt = 0;
 
   lastWsPriceAt = 0;
   lastLiveEvent = null;
@@ -2921,12 +3070,27 @@ function resetMarketState(){
     series[k]?.setData([]);
   }
 
+  for(const line of drawnLines){
+    try{
+      series.price?.removePriceLine(line);
+    }catch(_){}
+  }
+
+  drawnLines.length = 0;
+
+  series.price?.setMarkers([]);
+
+  resizeCanvas();
+
   value("price","—");
 
   value(
     "message",
     "Cargando nuevo activo o temporalidad..."
   );
+
+  window.CryptolexuzFibonacci
+    ?.redraw?.();
 }
 
 /* EVENTOS */
@@ -3056,6 +3220,8 @@ function init(){
       clearInterval(chartTimer);
       clearInterval(tickerTimer);
       clearInterval(scanTimer);
+
+      resizeObserver?.disconnect();
     }
   );
 }
