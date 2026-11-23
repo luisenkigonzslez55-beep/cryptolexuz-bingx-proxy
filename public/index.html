@@ -13,7 +13,7 @@
 
   <meta
     name="description"
-    content="CRYPTOLEXUZ PRO: escáner, gráficas, Fibonacci, patrones, cajas de rango, scalping rápido y resultados."
+    content="CRYPTOLEXUZ PRO: escáner, gráficas, Fibonacci, patrones, cajas de rango, Volume Profile, scalping rápido y resultados."
   >
 
   <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
@@ -546,6 +546,9 @@
   <script defer src="scalping-rapido.js?v=1"></script>
   <script defer src="range-boxes.js?v=1"></script>
 
+  <!-- VOLUME PROFILE BINGX -->
+  <script defer src="volume-profile.js?v=2"></script>
+
 </head>
 
 <body>
@@ -913,12 +916,6 @@
 
         </div>
 
-        <!--
-          app.js crea dinámicamente #clScanner.
-          Este contenedor permite mantenerlo
-          dentro de la pantalla Escáner.
-        -->
-
         <div id="clScannerHost"></div>
 
         <!-- RESUMEN DE MERCADO -->
@@ -1229,7 +1226,8 @@
           <p>
             Velas japonesas, medias móviles,
             Fibonacci, patrones, cajas de rango,
-            liquidez y profundidad de mercado.
+            Volume Profile, liquidez y
+            profundidad de mercado.
           </p>
 
         </div>
@@ -1250,7 +1248,7 @@
               </h2>
 
               <small>
-                VELAS · FIBONACCI · PATRONES
+                VELAS · FIBONACCI · PATRONES · VOLUME PROFILE
               </small>
 
             </div>
@@ -1294,6 +1292,13 @@
             ></canvas>
 
           </div>
+
+          <!-- VOLUME PROFILE -->
+          <!--
+            volume-profile.js crea aquí
+            sus controles automáticamente,
+            justo encima de priceChartArea.
+          -->
 
           <!-- FIBONACCI -->
 
@@ -1930,6 +1935,16 @@
           } catch(error) {
             console.warn(error);
           }
+
+          try {
+            window.CryptolexuzVolumeProfile
+              ?.layout?.();
+
+            window.CryptolexuzVolumeProfile
+              ?.redraw?.();
+          } catch(error) {
+            console.warn(error);
+          }
         }, 200);
       }
 
@@ -2302,6 +2317,8 @@
 
     })();
   </script>
-<script src="guardar-configuracion.js?v=1"></script>
+
+  <script src="guardar-configuracion.js?v=1"></script>
+
 </body>
 </html>
