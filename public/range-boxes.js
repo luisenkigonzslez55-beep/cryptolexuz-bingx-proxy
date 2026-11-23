@@ -1,24 +1,23 @@
 
 /*
- CRYPTOLEXUZ PRO — CAJAS DE RANGOS V2
- Compatible con Lightweight Charts 4.2.x
+ CRYPTOLEXUZ PRO — RANGE BOXES V3
+ Lightweight Charts 4.2.x
 
- Mejoras:
- - Interruptores independientes
- - Caja verde de rango de velas
- - Caja morada de lateralización
+ - Cajas automáticas de rangos
+ - Caja de lateralización
  - Caja de penúltima vela
- - Inicio y fin de cada rango
- - Línea central del 50% opcional
- - Niveles 4H, diario y semanal separados
- - Etiquetas ordenadas
- - Sin ejecución de órdenes reales
+ - Cajas fijas con cuerpo y mechas
+ - Extensión táctil hacia ambos lados
+ - Precios fijos al extender
+ - Persistencia por activo y mercado
+ - Compatible con app.js V17
+ - Sin ejecución automática de órdenes
 */
 "use strict";
 
 (() => {
-  if (window.__clRangeBoxesV2) return;
-  window.__clRangeBoxesV2 = true;
+  if (window.__clRangeBoxesV3) return;
+  window.__clRangeBoxesV3 = true;
 
   const $ = id => document.getElementById(id);
 
@@ -34,67 +33,94 @@
   const GOLD="NCCOGOLD2USD-USDT";
   const OIL="NCCO1OILWTI2USD-USDT";
 
-  const defaults = {
+  const STORE="cryptolexuz-fixed-boxes-v3";
+  const PREFS="cryptolexuz-range-prefs-v3";
+
+  const config={
     range:true,
     sideways:false,
     previous:false,
     midpoint:false,
+    boundaries:true,
     higher4h:false,
     higher1d:false,
     higher1w:false,
-    boundaries:true,
+    fixed:true,
     lookback:24
   };
 
-  const config={...defaults};
-
-  const STORE="cryptolexuz-range-boxes-v2";
-
   try {
     const saved=JSON.parse(
-      localStorage.getItem(STORE)||"null"
+      localStorage.getItem(PREFS)||"null"
     );
 
     if(saved&&typeof saved==="object"){
-      for(const k of Object.keys(defaults)){
-        if(
-          k==="lookback" &&
-          [12,24,36,48,72].includes(
-            Number(saved[k])
-          )
-        ){
-          config[k]=Number(saved[k]);
-        }else if(
-          k!=="lookback" &&
-          typeof saved[k]==="boolean"
-        ){
-          config[k]=saved[k];
+      for(const key of Object.keys(config)){
+        if(key==="lookback"){
+          if([12,24,36,48,72].includes(
+            Number(saved[key])
+          )){
+            config[key]=Number(saved[key]);
+          }
+        }else if(typeof saved[key]==="boolean"){
+          config[key]=saved[key];
         }
       }
     }
   }catch(e){}
 
-  function save(){
+  function savePrefs(){
     try{
       localStorage.setItem(
-        STORE,JSON.stringify(config)
+        PREFS,JSON.stringify(config)
       );
     }catch(e){}
+  }
+
+  let fixedBoxes=[];
+
+  try{
+    const saved=JSON.parse(
+      localStorage.getItem(STORE)||"[]"
+    );
+
+    if(Array.isArray(saved)){
+      fixedBoxes=saved.filter(b=>
+        b &&
+        typeof b.symbol==="string" &&
+        Number.isFinite(b.high) &&
+        Number.isFinite(b.low) &&
+        Number.isFinite(b.start) &&
+        Number.isFinite(b.end)
+      );
+    }
+  }catch(e){}
+
+  function saveBoxes(){
+    try{
+      localStorage.setItem(
+        STORE,JSON.stringify(fixedBoxes)
+      );
+    }catch(e){
+      console.warn("Guardar cajas:",e);
+    }
   }
 
   let chart=null;
   let candle=null;
   let rows=[];
+  let higher=[];
   let currentKey="";
   let generation=0;
-  let higher=[];
   let attachedChart=null;
-  let polling=false;
-  let timer=null;
-  let drawPending=false;
+  let drawing=false;
+  let fetching=false;
   let initialized=false;
+  let drag=null;
+  let activeBoxId=null;
+  let lastPointer=null;
 
-  const cached=new Map();
+  const cache=new Map();
 
   const canvas=document.createElement("canvas");
   canvas.id="clRangeOverlay";
@@ -125,11 +151,10 @@
   `;
 
   const heading=document.createElement("div");
-
   heading.style.cssText=`
     display:flex;
-    align-items:center;
     justify-content:space-between;
+    align-items:center;
     gap:8px;
   `;
 
@@ -137,19 +162,17 @@
     <strong style="font-size:14px">
       🟩 Cajas de rangos
     </strong>
-    <span style="
-      font-size:10px;
-      color:#91a4c6
-    ">V2</span>
+    <span style="color:#93a8c9">
+      V3
+    </span>
   `;
 
   const grid=document.createElement("div");
-
   grid.style.cssText=`
     display:grid;
     grid-template-columns:
       repeat(auto-fit,minmax(145px,1fr));
-    gap:9px;
+    gap:8px;
   `;
 
   function addToggle(text,key,color){
@@ -158,29 +181,30 @@
     label.style.cssText=`
       display:flex;
       align-items:center;
-      gap:8px;
-      min-height:35px;
-      padding:7px 9px;
-      border:1px solid #2b395b;
+      gap:7px;
+      padding:8px;
+      min-height:34px;
+      background:#0b1429;
+      border:1px solid #344365;
       border-radius:9px;
-      background:#0c152b;
       cursor:pointer;
-      color:#dbe5ff;
     `;
 
     const input=document.createElement("input");
     input.type="checkbox";
     input.checked=config[key];
-
     input.style.accentColor=color;
 
     input.addEventListener("change",()=>{
       config[key]=input.checked;
-      save();
+      savePrefs();
       redrawSoon();
+
       if(key.startsWith("higher")){
         refreshHigher();
       }
+
+      updateInteraction();
     });
 
     label.append(
@@ -191,67 +215,66 @@
     grid.append(label);
   }
 
-  addToggle(
-    "🟩 Rango de velas",
-    "range","#00d99a"
-  );
+  addToggle("🟩 Rango","range","#00d99a");
+  addToggle("🟪 Lateral","sideways","#bb52ff");
+  addToggle("🟦 Penúltima","previous","#36c5ff");
+  addToggle("📌 Cajas fijas","fixed","#ffe15a");
+  addToggle("📏 Línea 50%","midpoint","#ffe15a");
+  addToggle("↔ Bordes","boundaries","#00d99a");
+  addToggle("4H","higher4h","#b38aff");
+  addToggle("Diario","higher1d","#36c5ff");
+  addToggle("Semanal","higher1w","#ff9a35");
 
-  addToggle(
-    "🟪 Lateralización",
-    "sideways","#bb52ff"
-  );
+  const controls=document.createElement("div");
 
-  addToggle(
-    "🟦 Penúltima vela",
-    "previous","#36c5ff"
-  );
-
-  addToggle(
-    "📏 Línea 50%",
-    "midpoint","#ffe15a"
-  );
-
-  addToggle(
-    "↔ Inicio y fin",
-    "boundaries","#00d99a"
-  );
-
-  addToggle(
-    "4H · Máx / Mín",
-    "higher4h","#b38aff"
-  );
-
-  addToggle(
-    "Diario · Máx / Mín",
-    "higher1d","#36c5ff"
-  );
-
-  addToggle(
-    "Semanal · Máx / Mín",
-    "higher1w","#ff9a35"
-  );
-
-  const selectorRow=document.createElement("div");
-
-  selectorRow.style.cssText=`
+  controls.style.cssText=`
     display:flex;
-    align-items:center;
-    gap:10px;
     flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
   `;
 
-  const selectorLabel=document.createElement("span");
-  selectorLabel.textContent="Velas del rango:";
+  function button(text){
+    const el=document.createElement("button");
+    el.type="button";
+    el.textContent=text;
+
+    el.style.cssText=`
+      padding:9px 12px;
+      border:1px solid #465a85;
+      border-radius:9px;
+      background:#202d4e;
+      color:#eaf0ff;
+      font:12px system-ui;
+      cursor:pointer;
+    `;
+
+    return el;
+  }
+
+  const pinRange=button("📌 Fijar rango");
+  const pinPrevious=button("📌 Fijar vela");
+  const removeBox=button("🗑 Eliminar caja");
+
+  const selectBox=document.createElement("select");
+
+  selectBox.style.cssText=`
+    background:#0b1429;
+    color:#eaf0ff;
+    border:1px solid #485579;
+    border-radius:8px;
+    padding:9px;
+    max-width:100%;
+  `;
 
   const selector=document.createElement("select");
 
   selector.style.cssText=`
     background:#0b1429;
-    color:#e8e9ff;
+    color:#eaf0ff;
     border:1px solid #485579;
-    border-radius:7px;
-    padding:7px 10px;
-    font-size:12px;
+    border-radius:8px;
+    padding:9px;
   `;
 
   [12,24,36,48,72].forEach(n=>{
@@ -264,30 +287,32 @@
 
   selector.addEventListener("change",()=>{
     config.lookback=Number(selector.value);
-    save();
+    savePrefs();
     redrawSoon();
   });
 
-  selectorRow.append(selectorLabel,selector);
+  controls.append(
+    pinRange,
+    pinPrevious,
+    removeBox,
+    selectBox,
+    selector
+  );
 
   const note=document.createElement("div");
 
   note.style.cssText=`
-    color:#93a8c9;
+    color:#9eafd0;
     font-size:11px;
-    line-height:1.5;
+    line-height:1.6;
   `;
 
   note.textContent=
-    "Las cajas utilizan velas cerradas. "+
-    "Activa solamente las herramientas "+
-    "que necesites.";
+    "Fija una caja y arrastra sus extremos "+
+    "en la gráfica. Los precios no cambian.";
 
   panel.append(
-    heading,
-    grid,
-    selectorRow,
-    note
+    heading,grid,controls,note
   );
 
   function selection(){
@@ -306,11 +331,87 @@
     };
   }
 
-  function makeKey(s){
+  function marketKey(s){
     return [
-      s.exchange,s.market,s.symbol,s.tf
+      s.exchange,s.market,s.symbol
     ].join("|");
   }
+
+  function dataKey(s){
+    return marketKey(s)+"|"+s.tf;
+  }
+
+  function visibleBoxes(){
+    const k=marketKey(selection());
+
+    return fixedBoxes.filter(
+      b=>b.marketKey===k
+    );
+  }
+
+  function selectedBox(){
+    return visibleBoxes().find(
+      b=>b.id===activeBoxId
+    );
+  }
+
+  function saveAndDraw(){
+    saveBoxes();
+    updateBoxSelector();
+    redrawSoon();
+  }
+
+  function updateBoxSelector(){
+    const boxes=visibleBoxes();
+
+    if(
+      !boxes.some(b=>b.id===activeBoxId)
+    ){
+      activeBoxId=boxes.at(-1)?.id||null;
+    }
+
+    selectBox.replaceChildren();
+
+    if(!boxes.length){
+      const option=document.createElement("option");
+      option.textContent="Sin cajas fijadas";
+      option.value="";
+      selectBox.append(option);
+      removeBox.disabled=true;
+      return;
+    }
+
+    removeBox.disabled=false;
+
+    for(const b of boxes){
+      const option=document.createElement("option");
+      option.value=b.id;
+      option.textContent=b.name;
+      option.selected=b.id===activeBoxId;
+      selectBox.append(option);
+    }
+  }
+
+  selectBox.addEventListener("change",()=>{
+    activeBoxId=selectBox.value;
+    redrawSoon();
+  });
+
+  removeBox.addEventListener("click",()=>{
+    const b=selectedBox();
+    if(!b)return;
+
+    if(!confirm(
+      "¿Eliminar la caja seleccionada?"
+    ))return;
+
+    fixedBoxes=fixedBoxes.filter(
+      x=>x.id!==b.id
+    );
+
+    activeBoxId=null;
+    saveAndDraw();
+  });
 
   function normalize(payload){
     const raw=[
@@ -391,396 +492,452 @@
   }
 
   function priceY(price){
-    if(!candle)return null;
-
     try{
-      return candle.priceToCoordinate(price);
+      return candle?.priceToCoordinate(price);
     }catch(e){
       return null;
     }
   }
 
   function timeX(time){
-    if(!chart)return null;
-
     try{
-      return chart.timeScale()
+      return chart?.timeScale()
         .timeToCoordinate(time);
     }catch(e){
       return null;
     }
   }
 
-  function spacing(){
+  function barSpacing(){
     try{
-      const o=chart.timeScale().options();
       return Math.max(
-        3,Number(o.barSpacing)||7
+        3,
+        Number(
+          chart.timeScale().options()
+            .barSpacing
+        )||7
       );
     }catch(e){
       return 7;
     }
   }
 
-  function priceFormat(value){
-    return Number(value).toLocaleString(
+  function coordinateAtTime(time){
+    if(!chart)return null;
+
+    const scale=chart.timeScale();
+    const s=selection();
+
+    const exact=timeX(time);
+
+    if(Number.isFinite(exact)){
+      return exact;
+    }
+
+    /*
+     Si el tiempo cae entre velas de otra
+     temporalidad, interpolamos usando
+     los tiempos de las velas visibles.
+    */
+    const data=rows;
+
+    if(!data.length)return null;
+
+    let before=null;
+    let after=null;
+
+    for(const c of data){
+      if(c.time<=time)before=c;
+      if(c.time>=time){
+        after=c;
+        break;
+      }
+    }
+
+    if(before&&after){
+      const x1=timeX(before.time);
+      const x2=timeX(after.time);
+
+      if(
+        Number.isFinite(x1)&&
+        Number.isFinite(x2)
+      ){
+        if(after.time===before.time)return x1;
+
+        const ratio=(
+          time-before.time
+        )/(after.time-before.time);
+
+        return x1+(x2-x1)*ratio;
+      }
+    }
+
+    const edge=before||after;
+
+    if(!edge)return null;
+
+    const edgeX=timeX(edge.time);
+
+    if(!Number.isFinite(edgeX))return null;
+
+    return edgeX+
+      (time-edge.time)/
+      (TF[s.tf]||60)*
+      barSpacing();
+  }
+
+  function timeAtCoordinate(x){
+    if(!chart)return null;
+
+    const scale=chart.timeScale();
+    const s=selection();
+
+    try{
+      const logical=scale.coordinateToLogical(x);
+
+      if(!Number.isFinite(logical))
+        return null;
+
+      const base=rows[0];
+
+      if(!base)return null;
+
+      const first=scale.timeToCoordinate(
+        base.time
+      );
+
+      if(!Number.isFinite(first))
+        return null;
+
+      const diff=(x-first)/barSpacing();
+
+      return Math.round(
+        base.time+diff*(TF[s.tf]||60)
+      );
+    }catch(e){
+      return null;
+    }
+  }
+
+  function formatPrice(n){
+    return Number(n).toLocaleString(
       "en-US",{
-        maximumFractionDigits:2,
-        minimumFractionDigits:2
+        minimumFractionDigits:2,
+        maximumFractionDigits:2
       }
     );
   }
 
-  function label(
-    ctx,text,x,y,color,
-    maxWidth,maxHeight
+  function drawLabel(
+    ctx,text,x,y,color,w,h
   ){
     ctx.save();
 
     ctx.font="10px system-ui";
 
-    const padding=5;
-    const textWidth=ctx.measureText(text).width;
     const width=Math.min(
-      maxWidth-8,textWidth+padding*2
+      Math.max(50,ctx.measureText(text).width+12),
+      w-8
     );
 
-    if(width<=12){
-      ctx.restore();
-      return;
-    }
-
     const left=Math.max(
-      3,Math.min(
-        x,maxWidth-width-3
-      )
+      3,Math.min(x,w-width-3)
     );
 
     const top=Math.max(
-      3,Math.min(
-        y,maxHeight-19
-      )
+      3,Math.min(y,h-20)
     );
 
-    ctx.fillStyle="rgba(8,14,32,.92)";
+    ctx.fillStyle="rgba(8,14,32,.94)";
     ctx.fillRect(
-      left,top,width,17
+      left,top,width,18
     );
 
     ctx.strokeStyle=color;
-    ctx.lineWidth=.7;
+    ctx.lineWidth=.8;
     ctx.strokeRect(
-      left+.5,top+.5,width-1,16
+      left+.5,top+.5,width-1,17
     );
 
     ctx.fillStyle=color;
     ctx.fillText(
-      text,left+padding,top+12,
-      width-padding*2
+      text,left+6,top+12,
+      width-12
     );
 
     ctx.restore();
   }
 
-  function drawBox(ctx,box,opts){
-    if(!box||!candle)return;
+  function drawBox(ctx,b,opts){
+    if(!chart||!candle)return null;
 
     const w=canvas.clientWidth;
     const h=canvas.clientHeight;
 
-    const start=timeX(box.start);
-    const end=timeX(box.end);
+    const xa=coordinateAtTime(b.start);
+    const xb=coordinateAtTime(b.end);
+
+    const ya=priceY(b.high);
+    const yb=priceY(b.low);
+
+    if(![
+      xa,xb,ya,yb
+    ].every(Number.isFinite)){
+      return null;
+    }
+
+    const left=Math.min(xa,xb);
+    const right=Math.max(xa,xb);
+
+    const top=Math.min(ya,yb);
+    const bottom=Math.max(ya,yb);
 
     if(
-      !Number.isFinite(start)||
-      !Number.isFinite(end)
-    )return;
+      right<0||
+      left>w||
+      bottom<0||
+      top>h
+    )return null;
 
-    const half=spacing()/2;
+    const x1=Math.max(0,left);
+    const x2=Math.min(w,right);
 
-    const rawLeft=start-half;
-    const rawRight=end+half;
+    const y1=Math.max(0,top);
+    const y2=Math.min(h,bottom);
 
-    if(
-      rawRight<0||
-      rawLeft>w
-    )return;
-
-    const yHigh=priceY(box.high);
-    const yLow=priceY(box.low);
-
-    if(
-      !Number.isFinite(yHigh)||
-      !Number.isFinite(yLow)
-    )return;
-
-    const x1=Math.max(
-      0,rawLeft
-    );
-
-    const x2=Math.min(
-      w,rawRight
-    );
-
-    const top=Math.max(
-      0,Math.min(yHigh,yLow)
-    );
-
-    const bottom=Math.min(
-      h,Math.max(yHigh,yLow)
-    );
-
-    if(
-      x2<=x1||
-      bottom<=top
-    )return;
+    if(x2<=x1||y2<=y1)return null;
 
     ctx.save();
 
     ctx.fillStyle=opts.fill;
     ctx.fillRect(
-      x1,top,
-      x2-x1,bottom-top
+      x1,y1,x2-x1,y2-y1
     );
 
     ctx.strokeStyle=opts.color;
-    ctx.lineWidth=1.2;
+    ctx.lineWidth=opts.selected?2:1.2;
     ctx.setLineDash([]);
 
     ctx.strokeRect(
-      x1+.5,top+.5,
-      x2-x1-1,bottom-top-1
+      x1+.5,y1+.5,
+      x2-x1-1,y2-y1-1
     );
 
     if(config.boundaries){
-      ctx.save();
-
-      ctx.strokeStyle=opts.color;
+      ctx.setLineDash([4,4]);
       ctx.lineWidth=1.5;
 
-      ctx.setLineDash([4,4]);
-
       ctx.beginPath();
-      ctx.moveTo(x1,top);
-      ctx.lineTo(x1,bottom);
-      ctx.moveTo(x2,top);
-      ctx.lineTo(x2,bottom);
+      ctx.moveTo(x1,y1);
+      ctx.lineTo(x1,y2);
+      ctx.moveTo(x2,y1);
+      ctx.lineTo(x2,y2);
       ctx.stroke();
 
       ctx.setLineDash([]);
-
-      ctx.restore();
     }
 
     if(config.midpoint){
-      const middle=(
-        box.high+box.low
-      )/2;
+      const mid=(b.high+b.low)/2;
+      const ym=priceY(mid);
 
-      const y=priceY(middle);
-
-      if(Number.isFinite(y)){
+      if(Number.isFinite(ym)){
         ctx.strokeStyle="#ffe15a";
         ctx.lineWidth=1;
         ctx.setLineDash([5,5]);
 
         ctx.beginPath();
-        ctx.moveTo(x1,y);
-        ctx.lineTo(x2,y);
+        ctx.moveTo(x1,ym);
+        ctx.lineTo(x2,ym);
         ctx.stroke();
 
         ctx.setLineDash([]);
       }
     }
 
-    /*
-     Etiqueta de cada caja:
-     se ubica dentro de su propio rango.
-    */
-    label(
-      ctx,
-      opts.name,
-      x1+5,
-      top+5,
-      opts.color,
-      w,h
+    drawLabel(
+      ctx,opts.name,
+      x1+4,y1+4,
+      opts.color,w,h
     );
 
-    ctx.restore();
-  }
+    if(opts.fixed){
+      /*
+       Manijas táctiles en ambos extremos.
+      */
+      for(const x of [x1,x2]){
+        const cy=(y1+y2)/2;
 
-  function horizontal(
-    ctx,price,name,color
-  ){
-    const y=priceY(price);
+        ctx.fillStyle=opts.color;
+        ctx.fillRect(
+          x-5,cy-13,10,26
+        );
 
-    if(!Number.isFinite(y))return;
+        ctx.strokeStyle="#081020";
+        ctx.lineWidth=1;
+        ctx.strokeRect(
+          x-5,cy-13,10,26
+        );
+      }
+    }
 
-    const w=canvas.clientWidth;
-    const h=canvas.clientHeight;
-
-    if(y<0||y>h)return;
-
-    ctx.save();
-
-    ctx.strokeStyle=color;
-    ctx.globalAlpha=.65;
-    ctx.lineWidth=.8;
-    ctx.setLineDash([4,6]);
-
-    ctx.beginPath();
-    ctx.moveTo(0,y);
-    ctx.lineTo(w,y);
-    ctx.stroke();
-
-    ctx.setLineDash([]);
-    ctx.globalAlpha=1;
-
-    /*
-     Etiquetas al lado izquierdo.
-     Se omiten si quedan demasiado
-     próximas a otras etiquetas.
-    */
     ctx.restore();
 
     return {
-      y,
-      name,
-      color
+      id:b.id,
+      left,
+      right,
+      top,
+      bottom
     };
   }
 
   function drawHigher(ctx){
-    const levels=[];
+    const colors={
+      "4h":"#b38aff",
+      "1d":"#36c5ff",
+      "1w":"#ff9a35"
+    };
 
-    const groups=[
-      {
-        tf:"4h",
-        enabled:config.higher4h,
-        color:"#b38aff",
-        name:"4H"
-      },
-      {
-        tf:"1d",
-        enabled:config.higher1d,
-        color:"#36c5ff",
-        name:"Día"
-      },
-      {
-        tf:"1w",
-        enabled:config.higher1w,
-        color:"#ff9a35",
-        name:"Semana"
-      }
-    ];
+    const names={
+      "4h":"4H",
+      "1d":"Día",
+      "1w":"Semana"
+    };
 
-    for(const group of groups){
-      if(!group.enabled)continue;
+    const active={
+      "4h":config.higher4h,
+      "1d":config.higher1d,
+      "1w":config.higher1w
+    };
 
-      const r=higher.find(
-        x=>x.tf===group.tf
-      );
+    const labels=[];
 
-      if(!r)continue;
+    for(const r of higher){
+      if(!active[r.tf])continue;
 
-      const hi=horizontal(
-        ctx,r.high,
-        group.name+" Máx",
-        group.color
-      );
-
-      const lo=horizontal(
-        ctx,r.low,
-        group.name+" Mín",
-        group.color
-      );
-
-      if(hi)levels.push(hi);
-      if(lo)levels.push(lo);
+      const levels=[
+        [r.high,"Máx"],
+        [r.low,"Mín"]
+      ];
 
       if(config.midpoint){
-        const mid=horizontal(
-          ctx,(r.high+r.low)/2,
-          group.name+" 50%",
-          "#ffe15a"
-        );
+        levels.push([
+          (r.high+r.low)/2,"50%"
+        ]);
+      }
 
-        if(mid)levels.push(mid);
+      for(const [price,name] of levels){
+        const y=priceY(price);
+
+        if(!Number.isFinite(y))continue;
+
+        ctx.save();
+        ctx.strokeStyle=colors[r.tf];
+        ctx.globalAlpha=.55;
+        ctx.lineWidth=.8;
+        ctx.setLineDash([4,6]);
+
+        ctx.beginPath();
+        ctx.moveTo(0,y);
+        ctx.lineTo(canvas.clientWidth,y);
+        ctx.stroke();
+
+        ctx.restore();
+
+        labels.push({
+          y,
+          text:names[r.tf]+" "+name,
+          color:colors[r.tf]
+        });
       }
     }
 
-    levels.sort(
-      (a,b)=>a.y-b.y
-    );
+    labels.sort((a,b)=>a.y-b.y);
 
-    let lastY=-100;
+    let last=-100;
 
-    for(const level of levels){
-      if(
-        Math.abs(level.y-lastY)<22
-      )continue;
+    for(const item of labels){
+      if(Math.abs(item.y-last)<23)
+        continue;
 
-      label(
-        ctx,
-        level.name,
-        5,
-        level.y-19,
-        level.color,
+      drawLabel(
+        ctx,item.text,
+        5,item.y-19,
+        item.color,
         canvas.clientWidth,
         canvas.clientHeight
       );
 
-      lastY=level.y;
+      last=item.y;
     }
   }
 
-  function findSideways(c){
-    /*
-     Busca un bloque de velas
-     con compresión relativa.
-     No marca lateralización
-     cuando no cumple el filtro.
-    */
-    const maxCount=Math.min(
+  function rangeBox(c){
+    const r=c.slice(-config.lookback);
+
+    if(!r.length)return null;
+
+    return {
+      start:r[0].time,
+      end:r.at(-1).time,
+      high:Math.max(
+        ...r.map(x=>x.high)
+      ),
+      low:Math.min(
+        ...r.map(x=>x.low)
+      )
+    };
+  }
+
+  function sidewaysBox(c){
+    const n=Math.min(
       18,config.lookback
     );
 
-    if(c.length<maxCount)return null;
+    if(c.length<n)return null;
 
-    for(let end=c.length;end>=maxCount;end--){
-      const r=c.slice(
-        end-maxCount,end
-      );
+    const r=c.slice(-n);
 
-      const high=Math.max(
-        ...r.map(x=>x.high)
-      );
+    const high=Math.max(
+      ...r.map(x=>x.high)
+    );
 
-      const low=Math.min(
-        ...r.map(x=>x.low)
-      );
+    const low=Math.min(
+      ...r.map(x=>x.low)
+    );
 
-      const avg=r.reduce(
-        (sum,x)=>sum+x.high-x.low,
-        0
-      )/r.length;
+    const avg=r.reduce(
+      (sum,x)=>sum+x.high-x.low,
+      0
+    )/r.length;
 
-      const compression=(
-        high-low
-      )/Math.max(avg,1e-12);
+    if(
+      (high-low)/
+      Math.max(avg,1e-12)>5
+    )return null;
 
-      if(compression<=5){
-        return {
-          start:r[0].time,
-          end:r.at(-1).time,
-          high,
-          low
-        };
-      }
-    }
-
-    return null;
+    return {
+      start:r[0].time,
+      end:r.at(-1).time,
+      high,low
+    };
   }
+
+  function previousBox(c){
+    const p=c.at(-2);
+
+    if(!p)return null;
+
+    return {
+      start:p.time,
+      end:p.time+(TF[selection().tf]||60),
+      high:p.high,
+      low:p.low
+    };
+  }
+
+  let hitboxes=[];
 
   function draw(){
     if(
@@ -798,18 +955,19 @@
       window.devicePixelRatio||1,2
     );
 
-    const pixelWidth=Math.round(w*dpr);
-    const pixelHeight=Math.round(h*dpr);
+    const pw=Math.round(w*dpr);
+    const ph=Math.round(h*dpr);
 
     if(
-      canvas.width!==pixelWidth||
-      canvas.height!==pixelHeight
+      canvas.width!==pw||
+      canvas.height!==ph
     ){
-      canvas.width=pixelWidth;
-      canvas.height=pixelHeight;
+      canvas.width=pw;
+      canvas.height=ph;
     }
 
     const ctx=canvas.getContext("2d");
+
     if(!ctx)return;
 
     ctx.setTransform(
@@ -818,99 +976,340 @@
 
     ctx.clearRect(0,0,w,h);
 
+    hitboxes=[];
+
     const s=selection();
     const c=closed(rows,s.tf);
 
-    if(c.length<4){
-      if(config.higher4h||
-         config.higher1d||
-         config.higher1w){
-        drawHigher(ctx);
+    if(c.length>=4){
+      if(config.range){
+        const b=rangeBox(c);
+
+        if(b){
+          drawBox(ctx,b,{
+            name:"Rango de velas",
+            color:"#00d99a",
+            fill:"rgba(0,217,154,.045)"
+          });
+        }
       }
-      return;
-    }
 
-    /*
-     Caja verde:
-     empieza en la primera vela
-     del lookback y termina en la
-     última vela cerrada.
-    */
-    if(config.range){
-      const r=c.slice(
-        -config.lookback
-      );
+      if(config.sideways){
+        const b=sidewaysBox(c);
 
-      drawBox(ctx,{
-        start:r[0].time,
-        end:r.at(-1).time,
-        high:Math.max(
-          ...r.map(x=>x.high)
-        ),
-        low:Math.min(
-          ...r.map(x=>x.low)
-        )
-      },{
-        name:"Rango de velas",
-        color:"#00d99a",
-        fill:"rgba(0,217,154,.055)"
-      });
-    }
-
-    /*
-     Caja morada:
-     utiliza un tramo de
-     lateralización detectado.
-    */
-    if(config.sideways){
-      const box=findSideways(c);
-
-      if(box){
-        drawBox(ctx,box,{
-          name:"Lateralización",
-          color:"#bb52ff",
-          fill:"rgba(187,82,255,.055)"
-        });
+        if(b){
+          drawBox(ctx,b,{
+            name:"Lateralización",
+            color:"#bb52ff",
+            fill:"rgba(187,82,255,.05)"
+          });
+        }
       }
-    }
 
-    /*
-     Caja azul:
-     corresponde únicamente
-     a la penúltima vela cerrada.
-     No se prolonga hasta el
-     extremo derecho de la gráfica.
-    */
-    if(config.previous){
-      const p=c.at(-2);
+      if(config.previous){
+        const b=previousBox(c);
 
-      if(p){
-        drawBox(ctx,{
-          start:p.time,
-          end:p.time,
-          high:p.high,
-          low:p.low
-        },{
-          name:"Penúltima",
-          color:"#36c5ff",
-          fill:"rgba(54,197,255,.07)"
-        });
+        if(b){
+          drawBox(ctx,b,{
+            name:"Penúltima",
+            color:"#36c5ff",
+            fill:"rgba(54,197,255,.06)"
+          });
+        }
       }
     }
 
     drawHigher(ctx);
+
+    if(config.fixed){
+      for(const b of visibleBoxes()){
+        const selected=b.id===activeBoxId;
+
+        const hit=drawBox(ctx,b,{
+          name:b.name,
+          color:selected
+            ?"#ffe15a"
+            :"#36c5ff",
+          fill:selected
+            ?"rgba(255,225,90,.07)"
+            :"rgba(54,197,255,.055)",
+          fixed:true,
+          selected
+        });
+
+        if(hit){
+          hitboxes.push(hit);
+        }
+      }
+    }
   }
 
   function redrawSoon(){
-    if(drawPending)return;
+    if(drawing)return;
 
-    drawPending=true;
+    drawing=true;
 
     requestAnimationFrame(()=>{
-      drawPending=false;
+      drawing=false;
       draw();
     });
   }
+
+  function createFixed(source,name){
+    if(!source)return;
+
+    const s=selection();
+
+    const duration=TF[s.tf]||60;
+
+    const start=source.start;
+    const end=Math.max(
+      source.end,
+      start+duration
+    );
+
+    const id=
+      "box-"+Date.now()+"-"+
+      Math.random().toString(36).slice(2,8);
+
+    const box={
+      id,
+      marketKey:marketKey(s),
+      symbol:s.symbol,
+      exchange:s.exchange,
+      market:s.market,
+      sourceTf:s.tf,
+      name,
+      high:source.high,
+      low:source.low,
+      start,
+      end
+    };
+
+    fixedBoxes.push(box);
+
+    activeBoxId=id;
+
+    config.fixed=true;
+    savePrefs();
+
+    saveAndDraw();
+
+    note.textContent=
+      "Caja fijada. Arrastra las manijas "+
+      "izquierda o derecha para extenderla. "+
+      "Máximo y mínimo permanecen fijos.";
+  }
+
+  pinRange.addEventListener("click",()=>{
+    const c=closed(
+      rows,selection().tf
+    );
+
+    if(c.length<4){
+      note.textContent=
+        "Esperando velas cerradas.";
+      return;
+    }
+
+    createFixed(
+      rangeBox(c),
+      "Rango "+selection().tf
+    );
+  });
+
+  pinPrevious.addEventListener("click",()=>{
+    const c=closed(
+      rows,selection().tf
+    );
+
+    if(c.length<3){
+      note.textContent=
+        "Esperando velas cerradas.";
+      return;
+    }
+
+    createFixed(
+      previousBox(c),
+      "Vela "+selection().tf
+    );
+  });
+
+  function hitTest(x,y){
+    const tolerance=20;
+
+    for(let i=hitboxes.length-1;i>=0;i--){
+      const b=hitboxes[i];
+
+      if(
+        y<b.top-tolerance||
+        y>b.bottom+tolerance
+      )continue;
+
+      if(
+        Math.abs(x-b.left)<=tolerance
+      ){
+        return {
+          id:b.id,
+          edge:"left"
+        };
+      }
+
+      if(
+        Math.abs(x-b.right)<=tolerance
+      ){
+        return {
+          id:b.id,
+          edge:"right"
+        };
+      }
+    }
+
+    return null;
+  }
+
+  function pointerPosition(e){
+    const rect=canvas.getBoundingClientRect();
+
+    return {
+      x:e.clientX-rect.left,
+      y:e.clientY-rect.top
+    };
+  }
+
+  function pointerDown(e){
+    if(!config.fixed)return;
+
+    const p=pointerPosition(e);
+    const hit=hitTest(p.x,p.y);
+
+    if(!hit)return;
+
+    const b=fixedBoxes.find(
+      x=>x.id===hit.id
+    );
+
+    if(!b)return;
+
+    activeBoxId=b.id;
+
+    drag={
+      id:b.id,
+      edge:hit.edge,
+      pointerId:e.pointerId,
+      startX:p.x,
+      originalStart:b.start,
+      originalEnd:b.end
+    };
+
+    lastPointer=p;
+
+    canvas.style.pointerEvents="auto";
+    canvas.style.touchAction="none";
+
+    try{
+      canvas.setPointerCapture(e.pointerId);
+    }catch(err){}
+
+    updateBoxSelector();
+    redrawSoon();
+
+    e.preventDefault();
+  }
+
+  function pointerMove(e){
+    if(!drag)return;
+
+    if(
+      e.pointerId!==drag.pointerId
+    )return;
+
+    const p=pointerPosition(e);
+    const b=fixedBoxes.find(
+      x=>x.id===drag.id
+    );
+
+    if(!b)return;
+
+    const s=selection();
+    const sec=TF[s.tf]||60;
+
+    const deltaBars=Math.round(
+      (p.x-drag.startX)/
+      barSpacing()
+    );
+
+    const deltaTime=deltaBars*sec;
+
+    if(drag.edge==="left"){
+      b.start=Math.min(
+        drag.originalStart+deltaTime,
+        b.end-sec
+      );
+    }else{
+      b.end=Math.max(
+        drag.originalEnd+deltaTime,
+        b.start+sec
+      );
+    }
+
+    lastPointer=p;
+
+    redrawSoon();
+
+    e.preventDefault();
+  }
+
+  function pointerUp(e){
+    if(!drag)return;
+
+    if(
+      e.pointerId!==drag.pointerId
+    )return;
+
+    try{
+      canvas.releasePointerCapture(
+        e.pointerId
+      );
+    }catch(err){}
+
+    drag=null;
+    lastPointer=null;
+
+    canvas.style.touchAction="";
+    updateInteraction();
+
+    saveAndDraw();
+  }
+
+  /*
+   El canvas solo captura eventos
+   cuando se inicia una interacción
+   con las manijas.
+  */
+  function updateInteraction(){
+    canvas.style.pointerEvents=
+      config.fixed?"auto":"none";
+
+    canvas.style.touchAction=
+      config.fixed?"pan-y":"auto";
+  }
+
+  canvas.addEventListener(
+    "pointerdown",pointerDown
+  );
+
+  canvas.addEventListener(
+    "pointermove",pointerMove
+  );
+
+  canvas.addEventListener(
+    "pointerup",pointerUp
+  );
+
+  canvas.addEventListener(
+    "pointercancel",pointerUp
+  );
 
   function bindOverlay(){
     const host=
@@ -930,11 +1329,6 @@
       host.append(canvas);
     }
 
-    /*
-     Ubicar controles en el apartado
-     de Cajas de rangos si existe.
-     Evita crear dos apartados.
-    */
     const target=
       $("clRangeBoxesHost")||
       $("rangeBoxesHost")||
@@ -959,20 +1353,23 @@
         );
       }
     }
+
+    updateInteraction();
   }
 
   async function getHigher(tf,s){
     const k=[
-      s.exchange,s.market,
-      s.symbol,tf
+      s.exchange,s.market,s.symbol,tf
     ].join("|");
 
-    const old=cached.get(k);
+    const old=cache.get(k);
 
     if(
       old&&
       Date.now()-old.at<60000
-    )return old.data;
+    ){
+      return old.data;
+    }
 
     const url=
       "/api/exchange/"+
@@ -1016,16 +1413,12 @@
         normalize(payload),tf
       );
 
-      if(a.length<2){
+      if(a.length<1){
         throw Error(
           "Sin velas cerradas"
         );
       }
 
-      /*
-       Última vela cerrada.
-       No usar la vela en formación.
-      */
       const p=a.at(-1);
 
       const result={
@@ -1034,7 +1427,7 @@
         low:p.low
       };
 
-      cached.set(k,{
+      cache.set(k,{
         at:Date.now(),
         data:result
       });
@@ -1077,20 +1470,13 @@
       .map(r=>r.value);
 
     redrawSoon();
-
-    note.textContent=
-      "Cajas sobre velas cerradas. "+
-      "Niveles superiores activos: "+
-      (
-        higher.map(r=>r.tf).join(", ")||
-        "ninguno"
-      )+
-      ".";
   }
 
   function attach(detail){
-    if(!detail?.chart||
-       !detail?.candle)return;
+    if(
+      !detail?.chart||
+      !detail?.candle
+    )return;
 
     chart=detail.chart;
     candle=detail.candle;
@@ -1119,20 +1505,17 @@
   window.addEventListener(
     "cryptolexuz:candles-updated",
     e=>{
-      const detail=e.detail||{};
+      const d=e.detail||{};
 
-      if(detail.chart&&detail.candle){
-        attach(detail);
+      if(d.chart&&d.candle){
+        attach(d);
       }
 
-      if(Array.isArray(
-        detail.rows||detail.candles
-      )){
-        rows=[
-          ...(detail.rows||detail.candles)
-        ];
+      const data=d.rows||d.candles;
 
-        currentKey=makeKey(selection());
+      if(Array.isArray(data)){
+        rows=[...data];
+        currentKey=dataKey(selection());
         redrawSoon();
       }
     }
@@ -1141,18 +1524,25 @@
   function recoverChart(){
     const shared=window.CryptolexuzChart;
 
-    if(shared?.chart&&
-       (shared.candle||shared.candleSeries)){
+    if(
+      shared?.chart&&
+      (shared.candle||shared.candleSeries)
+    ){
       attach({
         chart:shared.chart,
         candle:shared.candle||
           shared.candleSeries
       });
 
-      if(typeof shared.getRows==="function"){
+      if(
+        typeof shared.getRows==="function"
+      ){
         const data=shared.getRows();
 
-        if(Array.isArray(data)&&data.length){
+        if(
+          Array.isArray(data)&&
+          data.length
+        ){
           rows=[...data];
           redrawSoon();
         }
@@ -1161,12 +1551,12 @@
   }
 
   async function poll(){
-    if(polling||document.hidden)return;
+    if(fetching||document.hidden)return;
 
-    polling=true;
+    fetching=true;
 
     const s=selection();
-    const k=makeKey(s);
+    const k=dataKey(s);
 
     if(k!==currentKey){
       currentKey=k;
@@ -1218,7 +1608,7 @@
         "las cajas. Revisar conexión.";
     }finally{
       clearTimeout(timeout);
-      polling=false;
+      fetching=false;
     }
   }
 
@@ -1228,6 +1618,7 @@
 
     bindOverlay();
     recoverChart();
+    updateBoxSelector();
 
     [
       "symbol","interval",
@@ -1239,6 +1630,9 @@
           currentKey="";
           rows=[];
           higher=[];
+          activeBoxId=null;
+
+          updateBoxSelector();
           redrawSoon();
 
           setTimeout(()=>{
@@ -1267,7 +1661,7 @@
     poll();
     refreshHigher();
 
-    timer=setInterval(()=>{
+    setInterval(()=>{
       if(!document.hidden){
         recoverChart();
         poll();
