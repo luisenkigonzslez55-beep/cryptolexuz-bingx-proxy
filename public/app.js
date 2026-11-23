@@ -1,3238 +1,1163 @@
 
 /*
- CRYPTOLEXUZ PRO — APP.JS V15 COMPLETO
- BTC, ETH, BNB, SOL, XRP, DOGE, GOLD y OIL WTI.
- Escáner multitemporal, indicadores y datos en vivo.
- Navegación móvil horizontal con un dedo.
- Compatible con Lightweight Charts 4.2.2.
- Integración preparada para Fibonacci V6 y V7.
+ CRYPTOLEXUZ PRO — APP.JS V16
+ Gráficas, Escáner y Resultados
+ Lightweight Charts 4.2.2
+ Datos públicos vía servidor proxy
+ Sin ejecución automática de órdenes
 */
 "use strict";
 
 (() => {
 const $ = id => document.getElementById(id);
-
 const C = {
-  green:"#00f5a0",
-  red:"#ff476c",
-  purple:"#bb52ff",
-  orange:"#ff9a35",
-  blue:"#36c5ff",
-  yellow:"#ffe15a",
-  muted:"#a5b0cf"
+ green:"#00f5a0", red:"#ff476c",
+ purple:"#bb52ff", orange:"#ff9a35",
+ blue:"#36c5ff", yellow:"#ffe15a"
 };
-
-const TF = ["1d","4h","1h","30m","15m","5m","1m"];
-
-const TF_SECONDS = {
-  "1m":60,
-  "3m":180,
-  "5m":300,
-  "15m":900,
-  "30m":1800,
-  "1h":3600,
-  "2h":7200,
-  "4h":14400,
-  "6h":21600,
-  "8h":28800,
-  "12h":43200,
-  "1d":86400,
-  "3d":259200,
-  "1w":604800
-};
-
-const CRYPTOS = [
-  "BTC-USDT",
-  "ETH-USDT",
-  "BNB-USDT",
-  "SOL-USDT",
-  "XRP-USDT",
-  "DOGE-USDT"
+const GOLD="NCCOGOLD2USD-USDT";
+const OIL="NCCO1OILWTI2USD-USDT";
+const ASSETS=[
+ "BTC-USDT","ETH-USDT","BNB-USDT",
+ "SOL-USDT","XRP-USDT","DOGE-USDT",
+ GOLD,OIL
 ];
+const TF=["1d","4h","1h","30m","15m","5m","1m"];
+const SEC={
+ "1m":60,"5m":300,"15m":900,
+ "30m":1800,"1h":3600,"4h":14400,
+ "1d":86400,"1w":604800
+};
+const COLORS={
+ ema21:C.purple,ma55:C.orange,
+ ma100:C.red,ma200:C.blue
+};
+const enabled=new Set(["ema21","ma55","rsi","fvg"]);
+const charts={},series={},moving={};
+const lines=[],cache=new Map();
+const STORE="cryptolexuz-v16-history";
+let rows=[],zones=[],pivots=[],sweeps=[];
+let activeKey="",generation=0,scanGeneration=0;
+let scanBusy=false,scanLast=0,monitorLast=0;
+let socket=null,socketId=0,reconnect=null;
+let lastWS=0,lastRSI="RSI no disponible";
+let history=[],resizeObserver=null;
+let chartBusy=false,chartTimer=null,tickerTimer=null;
+let scanTimer=null,verifyTimer=null;
+let lastStates={};
 
-const GOLD_SYMBOL = "NCCOGOLD2USD-USDT";
-const OIL_SYMBOL = "NCCO1OILWTI2USD-USDT";
+try {
+ const saved=JSON.parse(localStorage.getItem(STORE)||"[]");
+ if(Array.isArray(saved))history=saved.slice(0,300);
+} catch(e){console.warn("Historial:",e);}
 
-const COMMODITIES = new Set([
-  GOLD_SYMBOL,
-  OIL_SYMBOL
-]);
-
-const supported = new Set([
-  "ema21",
-  "ma55",
-  "ma100",
-  "ma200",
-  "rsi",
-  "adx",
-  "fvg",
-  "ifvg",
-  "liquidity",
-  "sweeps",
-  "support",
-  "resistance"
-]);
-
-const enabled = new Set([
-  "ema21",
-  "ma55",
-  "rsi",
-  "fvg"
-]);
-
-const charts = {};
-const series = {};
-const maSeries = {};
-const drawnLines = [];
-
-const scanCache = new Map();
-const alertHistory = new Map();
-const signalHistory = [];
-const lastStates = {};
-
-let rows = [];
-let zones = [];
-let pivots = [];
-let sweeps = [];
-let activeKey = "";
-
-let requestId = 0;
-let loading = false;
-let loadingId = 0;
-
-let ws = null;
-let wsGeneration = 0;
-let wsTimer = null;
-
-let lastWsPriceAt = 0;
-let lastLiveEvent = null;
-let indicatorTimer = null;
-let lastIndicatorUpdateAt = 0;
-let currentRSIText = "";
-
-let lastMonitorAt = 0;
-let monitorBusy = false;
-let monitorGeneration = 0;
-
-let scanBusy = false;
-let scanLastAt = 0;
-let scanResults = [];
-let scanErrors = [];
-let scanGeneration = 0;
-
-let chartTimer = null;
-let tickerTimer = null;
-let scanTimer = null;
-let resizeObserver = null;
-
-/* UTILIDADES */
-
-function num(v,d=2){
-  if(v===null || v===undefined || v===""){
-    return "—";
-  }
-
-  const n = Number(v);
-
-  return Number.isFinite(n)
-    ? n.toLocaleString("en-US",{
-        minimumFractionDigits:d,
-        maximumFractionDigits:d
-      })
-    : "—";
+function put(id,text){
+ const el=$(id);
+ if(el)el.textContent=String(text);
 }
-
-function value(id,text){
-  const el = $(id);
-  if(el) el.textContent = text;
+function fmt(x,d=2){
+ if(x===null||x===undefined||x==="")return "—";
+ const n=Number(x);
+ return Number.isFinite(n)
+  ?n.toLocaleString("en-US",{
+    minimumFractionDigits:d,maximumFractionDigits:d
+   }):"—";
 }
-
-function normalizeSymbol(input){
-  return ["XAU-USDT","GOLD-USDT"].includes(input)
-    ? GOLD_SYMBOL
-    : input;
+function now(){return Math.floor(Date.now()/1000);}
+function selection(){
+ const symbol=$("symbol")?.value||"BTC-USDT";
+ const commodity=[GOLD,OIL].includes(symbol);
+ return {
+  symbol,
+  tf:$("interval")?.value||"15m",
+  exchange:commodity?"bingx":$("exchange")?.value||"bingx",
+  market:commodity?"perpetual":$("market")?.value||"perpetual"
+ };
 }
-
-function selected(){
-  const symbol = normalizeSymbol(
-    $("symbol")?.value || "BTC-USDT"
-  );
-
-  const commodity = COMMODITIES.has(symbol);
-
-  return {
-    exchange:commodity
-      ? "bingx"
-      : ($("exchange")?.value || "bingx").toLowerCase(),
-    symbol,
-    tf:$("interval")?.value || "15m",
-    market:commodity
-      ? "perpetual"
-      : ($("market")?.value || "perpetual")
-  };
+function key(s){
+ return [s.exchange,s.market,s.symbol,s.tf].join("|");
 }
-
-function syncCommoditySelection(){
-  const symbol = normalizeSymbol(
-    $("symbol")?.value || ""
-  );
-
-  if(COMMODITIES.has(symbol)){
-    if($("exchange")) $("exchange").value = "bingx";
-    if($("market")) $("market").value = "perpetual";
-  }
+function syncCommodity(){
+ const s=selection();
+ if([GOLD,OIL].includes(s.symbol)){
+  if($("exchange"))$("exchange").value="bingx";
+  if($("market"))$("market").value="perpetual";
+ }
 }
-
-const keyOf = s => [
-  s.exchange,
-  s.market,
-  s.symbol,
-  s.tf
-].join("|");
-
-function setConnection(text,color=C.green){
-  const el = $("connection");
-
-  if(el){
-    el.textContent = "● " + text;
-    el.style.color = color;
-  }
+function connection(text,color=C.yellow){
+ const el=$("connection");
+ if(el){
+  el.textContent="● "+text;
+  el.style.color=color;
+ }
 }
-
-function toSeconds(t){
-  const n = typeof t==="string" && !/^\d+$/.test(t)
-    ? new Date(t).getTime()
-    : Number(t);
-
-  return Number.isFinite(n)
-    ? Math.floor(n>1e12 ? n/1000 : n)
-    : NaN;
+function timestamp(v){
+ const n=typeof v==="string"&&!/^\d+$/.test(v)
+  ?Date.parse(v):Number(v);
+ return Number.isFinite(n)
+  ?Math.floor(n>1e12?n/1000:n):NaN;
 }
-
-/* NORMALIZACIÓN DE VELAS */
-
 function normalize(raw){
-  let data = raw;
-
-  if(!Array.isArray(data)){
-    data =
-      data?.data?.data ??
-      data?.data?.list ??
-      data?.data?.candles ??
-      data?.data ??
-      data?.list ??
-      data?.candles ??
-      [];
-  }
-
-  if(!Array.isArray(data)) return [];
-
-  const out = [];
-  const now = Math.floor(Date.now()/1000);
-
-  for(const x of data){
-    if(!x || typeof x!=="object") continue;
-
-    const a = Array.isArray(x);
-
-    const time = toSeconds(
-      a ? x[0] :
-      x.time ?? x.timestamp ?? x.openTime ?? x.t
-    );
-
-    const open = Number(a ? x[1] : x.open ?? x.o);
-    const high = Number(a ? x[2] : x.high ?? x.h);
-    const low = Number(a ? x[3] : x.low ?? x.l);
-    const close = Number(a ? x[4] : x.close ?? x.c);
-
-    const volume = Number(
-      a ? x[5] : x.volume ?? x.vol ?? x.v ?? 0
-    );
-
-    if(![
-      time,open,high,low,close,volume
-    ].every(Number.isFinite)) continue;
-
-    if(
-      time<=0 ||
-      time>now+60 ||
-      Math.min(open,high,low,close)<=0 ||
-      volume<0 ||
-      high<Math.max(open,close,low) ||
-      low>Math.min(open,close,high)
-    ) continue;
-
-    out.push({
-      time,open,high,low,close,volume
-    });
-  }
-
-  out.sort((a,b)=>a.time-b.time);
-
-  return [
-    ...new Map(
-      out.map(x=>[x.time,x])
-    ).values()
-  ];
-}
-
-function candleStart(timestamp,tf){
-  const s = TF_SECONDS[tf];
-
-  if(!s) return NaN;
-
-  return tf==="1w"
-    ? Math.floor((timestamp-4*86400)/s)*s+4*86400
-    : Math.floor(timestamp/s)*s;
-}
-
-function volumeBar(x){
-  return {
-    time:x.time,
-    value:x.volume,
-    color:x.close>=x.open
-      ? "rgba(0,245,160,.70)"
-      : "rgba(255,71,108,.70)"
+ let data=raw?.data?.data??raw?.data?.list??
+ raw?.data?.candles??raw?.data??
+ raw?.list??raw?.candles??raw;
+ if(!Array.isArray(data))return [];
+ const out=[];
+ for(const x of data){
+  if(!x)continue;
+  const a=Array.isArray(x);
+  const c={
+   time:timestamp(a?x[0]:x.time??x.timestamp??x.openTime??x.t),
+   open:Number(a?x[1]:x.open??x.o),
+   high:Number(a?x[2]:x.high??x.h),
+   low:Number(a?x[3]:x.low??x.l),
+   close:Number(a?x[4]:x.close??x.c),
+   volume:Number(a?x[5]:x.volume??x.vol??x.v??0)
   };
+  if(!Object.values(c).every(Number.isFinite))continue;
+  if(c.time<=0||c.time>now()+60||c.low<=0||c.volume<0)continue;
+  if(c.high<Math.max(c.open,c.close,c.low))continue;
+  if(c.low>Math.min(c.open,c.close))continue;
+  out.push(c);
+ }
+ out.sort((a,b)=>a.time-b.time);
+ return [...new Map(out.map(x=>[x.time,x])).values()];
 }
-
-/* INDICADORES */
-
+function closed(a,tf){
+ const s=SEC[tf]||60;
+ return a.filter(x=>x.time+s<=now()-2);
+}
 function sma(a,p){
-  const out = Array(a.length).fill(null);
-  let sum = 0;
-
-  for(let i=0;i<a.length;i++){
-    sum += a[i];
-
-    if(i>=p) sum -= a[i-p];
-    if(i>=p-1) out[i] = sum/p;
-  }
-
-  return out;
+ const r=Array(a.length).fill(null);
+ let sum=0;
+ for(let i=0;i<a.length;i++){
+  sum+=a[i];
+  if(i>=p)sum-=a[i-p];
+  if(i>=p-1)r[i]=sum/p;
+ }
+ return r;
 }
-
 function ema(a,p){
-  const out = Array(a.length).fill(null);
-
-  if(a.length<p) return out;
-
-  let sum = 0;
-
-  for(let i=0;i<p;i++) sum += a[i];
-
-  let previous = sum/p;
-  out[p-1] = previous;
-
-  const k = 2/(p+1);
-
-  for(let i=p;i<a.length;i++){
-    previous = a[i]*k + previous*(1-k);
-    out[i] = previous;
-  }
-
-  return out;
+ const r=Array(a.length).fill(null);
+ if(a.length<p)return r;
+ let v=a.slice(0,p).reduce((s,x)=>s+x,0)/p;
+ r[p-1]=v;
+ for(let i=p;i<a.length;i++){
+  v+=(a[i]-v)*2/(p+1);
+  r[i]=v;
+ }
+ return r;
 }
-
 function rsi(a,p=14){
-  const out = Array(a.length).fill(null);
-
-  if(a.length<=p) return out;
-
-  let gains = 0;
-  let losses = 0;
-
-  for(let i=1;i<=p;i++){
-    const d = a[i]-a[i-1];
-
-    gains += Math.max(0,d);
-    losses += Math.max(0,-d);
-  }
-
-  gains /= p;
-  losses /= p;
-
-  const calc = () => losses===0
-    ? (gains===0 ? 50 : 100)
-    : 100-100/(1+gains/losses);
-
-  out[p] = calc();
-
-  for(let i=p+1;i<a.length;i++){
-    const d = a[i]-a[i-1];
-
-    gains = (gains*(p-1)+Math.max(0,d))/p;
-    losses = (losses*(p-1)+Math.max(0,-d))/p;
-
-    out[i] = calc();
-  }
-
-  return out;
+ const r=Array(a.length).fill(null);
+ if(a.length<=p)return r;
+ let g=0,l=0;
+ for(let i=1;i<=p;i++){
+  const d=a[i]-a[i-1];
+  g+=Math.max(d,0);
+  l+=Math.max(-d,0);
+ }
+ g/=p;l/=p;
+ const calc=()=>l===0?(g===0?50:100):100-100/(1+g/l);
+ r[p]=calc();
+ for(let i=p+1;i<a.length;i++){
+  const d=a[i]-a[i-1];
+  g=(g*(p-1)+Math.max(d,0))/p;
+  l=(l*(p-1)+Math.max(-d,0))/p;
+  r[i]=calc();
+ }
+ return r;
 }
-
 function adx(a,p=14){
-  const n = a.length;
-
-  const ADX = Array(n).fill(null);
-  const PLUS = Array(n).fill(null);
-  const MINUS = Array(n).fill(null);
-
-  if(n<p*2){
-    return {
-      adx:ADX,
-      plus:PLUS,
-      minus:MINUS
-    };
-  }
-
-  const tr = Array(n).fill(0);
-  const pdm = Array(n).fill(0);
-  const mdm = Array(n).fill(0);
-
-  for(let i=1;i<n;i++){
-    const up = a[i].high-a[i-1].high;
-    const down = a[i-1].low-a[i].low;
-
-    pdm[i] = up>down && up>0 ? up : 0;
-    mdm[i] = down>up && down>0 ? down : 0;
-
-    tr[i] = Math.max(
-      a[i].high-a[i].low,
-      Math.abs(a[i].high-a[i-1].close),
-      Math.abs(a[i].low-a[i-1].close)
-    );
-  }
-
-  let atr = 0;
-  let sp = 0;
-  let sm = 0;
-
-  for(let i=1;i<=p;i++){
-    atr += tr[i];
-    sp += pdm[i];
-    sm += mdm[i];
-  }
-
-  const dx = Array(n).fill(null);
-
-  for(let i=p;i<n;i++){
-    if(i>p){
-      atr = atr-atr/p+tr[i];
-      sp = sp-sp/p+pdm[i];
-      sm = sm-sm/p+mdm[i];
-    }
-
-    PLUS[i] = atr ? 100*sp/atr : 0;
-    MINUS[i] = atr ? 100*sm/atr : 0;
-
-    dx[i] = PLUS[i]+MINUS[i]
-      ? 100*Math.abs(PLUS[i]-MINUS[i])/
-        (PLUS[i]+MINUS[i])
-      : 0;
-  }
-
-  const first = p*2-1;
-  let total = 0;
-
-  for(let i=p;i<=first;i++) total += dx[i];
-
-  ADX[first] = total/p;
-
-  for(let i=first+1;i<n;i++){
-    ADX[i] = (ADX[i-1]*(p-1)+dx[i])/p;
-  }
-
-  return {
-    adx:ADX,
-    plus:PLUS,
-    minus:MINUS
-  };
-}
-
-function lineData(a,values){
-  return a.flatMap((x,i)=>
-    Number.isFinite(values[i])
-      ? [{time:x.time,value:values[i]}]
-      : []
+ const n=a.length;
+ const ax=Array(n).fill(null);
+ const plus=Array(n).fill(null);
+ const minus=Array(n).fill(null);
+ if(n<2*p)return {adx:ax,plus,minus};
+ const tr=[],up=[],down=[],dx=[];
+ for(let i=1;i<n;i++){
+  const h=a[i].high-a[i-1].high;
+  const l=a[i-1].low-a[i].low;
+  tr[i]=Math.max(
+   a[i].high-a[i].low,
+   Math.abs(a[i].high-a[i-1].close),
+   Math.abs(a[i].low-a[i-1].close)
   );
+  up[i]=h>l&&h>0?h:0;
+  down[i]=l>h&&l>0?l:0;
+ }
+ let atr=0,sp=0,sm=0;
+ for(let i=1;i<=p;i++){
+  atr+=tr[i];sp+=up[i];sm+=down[i];
+ }
+ for(let i=p;i<n;i++){
+  if(i>p){
+   atr=atr-atr/p+tr[i];
+   sp=sp-sp/p+up[i];
+   sm=sm-sm/p+down[i];
+  }
+  plus[i]=atr?100*sp/atr:0;
+  minus[i]=atr?100*sm/atr:0;
+  dx[i]=plus[i]+minus[i]
+   ?100*Math.abs(plus[i]-minus[i])/(plus[i]+minus[i]):0;
+ }
+ let total=0;
+ for(let i=p;i<2*p;i++)total+=dx[i];
+ ax[2*p-1]=total/p;
+ for(let i=2*p;i<n;i++)
+  ax[i]=(ax[i-1]*(p-1)+dx[i])/p;
+ return {adx:ax,plus,minus};
 }
-
-/* CONFIGURACIÓN DE GRÁFICAS */
-
-function chartOptions(height){
-  return {
-    width:300,
-    height,
-
-    layout:{
-      background:{color:"#080e20"},
-      textColor:"#c9d3ee",
-      fontSize:11
-    },
-
-    grid:{
-      vertLines:{color:"#15213a"},
-      horzLines:{color:"#15213a"}
-    },
-
-    rightPriceScale:{
-      borderColor:"#34456c",
-      minimumWidth:65
-    },
-
-    timeScale:{
-      borderColor:"#34456c",
-      timeVisible:true,
-      secondsVisible:false
-    },
-
-    crosshair:{
-      mode:LightweightCharts.CrosshairMode.Normal
-    },
-
-    handleScroll:{
-      mouseWheel:true,
-      pressedMouseMove:true,
-      horzTouchDrag:true,
-      vertTouchDrag:false
-    },
-
-    handleScale:{
-      mouseWheel:true,
-      pinch:true,
-      axisPressedMouseMove:true
-    }
-  };
+function atr(a,p=14){
+ if(a.length<p+1)return null;
+ const tr=[];
+ for(let i=1;i<a.length;i++){
+  tr.push(Math.max(
+   a[i].high-a[i].low,
+   Math.abs(a[i].high-a[i-1].close),
+   Math.abs(a[i].low-a[i-1].close)
+  ));
+ }
+ let v=tr.slice(0,p).reduce((s,x)=>s+x,0)/p;
+ for(let i=p;i<tr.length;i++)v=(v*(p-1)+tr[i])/p;
+ return v;
 }
-
+function lineData(a,v){
+ return a.flatMap((x,i)=>
+  Number.isFinite(v[i])?[{time:x.time,value:v[i]}]:[]
+ );
+}
+function volumeBar(c){
+ return {
+  time:c.time,value:c.volume,
+  color:c.close>=c.open
+   ?"rgba(0,245,160,.7)":"rgba(255,71,108,.7)"
+ };
+}
+function options(height){
+ return {
+  width:300,height,
+  layout:{background:{color:"#080e20"},textColor:"#c9d3ee",fontSize:11},
+  grid:{
+   vertLines:{color:"#15213a"},
+   horzLines:{color:"#15213a"}
+  },
+  rightPriceScale:{borderColor:"#34456c",minimumWidth:65},
+  timeScale:{borderColor:"#34456c",timeVisible:true},
+  crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+  handleScroll:{
+   mouseWheel:true,pressedMouseMove:true,
+   horzTouchDrag:true,vertTouchDrag:false
+  },
+  handleScale:{
+   mouseWheel:true,pinch:true,axisPressedMouseMove:true
+  }
+ };
+}
+function resize(){
+ for(const [k,id] of [
+  ["price","chart"],["volume","volumeChart"],
+  ["rsi","rsiChart"],["adx","adxChart"]
+ ]){
+  const el=$(id);
+  if(charts[k]&&el?.clientWidth>0&&el.clientHeight>0)
+   charts[k].resize(el.clientWidth,el.clientHeight);
+ }
+ resizeCanvas();
+ window.CryptolexuzFibonacci?.redraw?.();
+}
 function createCharts(){
-  if(!window.LightweightCharts || !$("chart")){
-    value("message","No se pudo cargar la gráfica.");
-    setConnection("Error de gráfica",C.red);
-    return false;
-  }
-
-  charts.price = LightweightCharts.createChart(
-    $("chart"),
-    chartOptions(360)
-  );
-
-  series.price = charts.price.addCandlestickSeries({
-    upColor:C.green,
-    downColor:C.red,
-    wickUpColor:C.green,
-    wickDownColor:C.red,
-    borderVisible:false,
-    priceLineVisible:true
+ if(!window.LightweightCharts||!$("chart")){
+  put("message","No se pudo cargar Lightweight Charts.");
+  connection("Error de gráfica",C.red);
+  return false;
+ }
+ charts.price=LightweightCharts.createChart($("chart"),options(360));
+ series.price=charts.price.addCandlestickSeries({
+  upColor:C.green,downColor:C.red,
+  wickUpColor:C.green,wickDownColor:C.red,
+  borderVisible:false
+ });
+ for(const [k,color] of Object.entries(COLORS)){
+  moving[k]=charts.price.addLineSeries({
+   color,lineWidth:2,priceLineVisible:false,
+   lastValueVisible:false,crosshairMarkerVisible:false
   });
-
-  for(const [key,color] of Object.entries({
-    ema21:C.purple,
-    ma55:C.orange,
-    ma100:C.red,
-    ma200:C.blue
-  })){
-    maSeries[key] = charts.price.addLineSeries({
-      color,
-      lineWidth:2,
-      priceLineVisible:false,
-      lastValueVisible:false,
-      crosshairMarkerVisible:false
-    });
-  }
-
-  for(const [key,id,height] of [
-    ["volume","volumeChart",115],
-    ["rsi","rsiChart",145],
-    ["adx","adxChart",145]
+ }
+ for(const [k,id,h] of [
+  ["volume","volumeChart",115],
+  ["rsi","rsiChart",145],
+  ["adx","adxChart",145]
+ ]){
+  if($(id))charts[k]=LightweightCharts.createChart($(id),options(h));
+ }
+ if(charts.volume){
+  series.volume=charts.volume.addHistogramSeries({
+   priceFormat:{type:"volume"},priceScaleId:""
+  });
+  series.volume.priceScale().applyOptions({
+   scaleMargins:{top:.12,bottom:0}
+  });
+ }
+ if(charts.rsi){
+  series.rsi=charts.rsi.addLineSeries({
+   color:C.purple,lineWidth:2,priceLineVisible:false
+  });
+  for(const level of [30,50,70])
+   series.rsi.createPriceLine({
+    price:level,color:"#657399",
+    lineStyle:LightweightCharts.LineStyle.Dashed,
+    axisLabelVisible:true
+   });
+ }
+ if(charts.adx){
+  for(const [k,color] of [
+   ["adx",C.yellow],["plus",C.green],["minus",C.red]
   ]){
-    if($(id)){
-      charts[key] = LightweightCharts.createChart(
-        $(id),
-        chartOptions(height)
-      );
+   series[k]=charts.adx.addLineSeries({
+    color,lineWidth:2,priceLineVisible:false
+   });
+  }
+ }
+ let syncing=false;
+ for(const chart of Object.values(charts)){
+  chart.timeScale().subscribeVisibleLogicalRangeChange(range=>{
+   if(syncing||!range)return;
+   syncing=true;
+   try{
+    for(const other of Object.values(charts)){
+     if(other!==chart){
+      try{other.timeScale().setVisibleLogicalRange(range);}
+      catch(e){}
+     }
     }
-  }
-
-  if(charts.volume){
-    series.volume = charts.volume.addHistogramSeries({
-      priceFormat:{type:"volume"},
-      priceScaleId:""
-    });
-
-    series.volume.priceScale().applyOptions({
-      scaleMargins:{
-        top:.12,
-        bottom:0
-      }
-    });
-  }
-
-  if(charts.rsi){
-    series.rsi = charts.rsi.addLineSeries({
-      color:C.purple,
-      lineWidth:2,
-      priceLineVisible:false
-    });
-
-    for(const level of [30,50,70]){
-      series.rsi.createPriceLine({
-        price:level,
-        color:level===50?"#607399":"#a24d9c",
-        lineWidth:1,
-        lineStyle:LightweightCharts.LineStyle.Dashed,
-        axisLabelVisible:true
-      });
-    }
-  }
-
-  if(charts.adx){
-    for(const [key,color] of [
-      ["adx",C.yellow],
-      ["plus",C.green],
-      ["minus",C.red]
-    ]){
-      series[key] = charts.adx.addLineSeries({
-        color,
-        lineWidth:2,
-        priceLineVisible:false
-      });
-    }
-
-    series.adx.createPriceLine({
-      price:25,
-      color:"#7d89a8",
-      lineStyle:LightweightCharts.LineStyle.Dashed,
-      axisLabelVisible:true
-    });
-  }
-
-  const all = Object.values(charts);
-  let syncing = false;
-
-  for(const chart of all){
-    chart.timeScale()
-      .subscribeVisibleLogicalRangeChange(range=>{
-        if(syncing || !range) return;
-
-        syncing = true;
-
-        try{
-          for(const other of all){
-            if(other!==chart){
-              try{
-                other.timeScale()
-                  .setVisibleLogicalRange(range);
-              }catch(_){}
-            }
-          }
-        }finally{
-          syncing = false;
-        }
-
-        drawZones();
-
-        window.CryptolexuzFibonacci
-          ?.redraw?.();
-      });
-  }
-
-  const resize = () => {
-    for(const [key,id] of [
-      ["price","chart"],
-      ["volume","volumeChart"],
-      ["rsi","rsiChart"],
-      ["adx","adxChart"]
-    ]){
-      const el = $(id);
-
-      if(
-        el &&
-        charts[key] &&
-        el.clientWidth>0 &&
-        el.clientHeight>0
-      ){
-        charts[key].resize(
-          el.clientWidth,
-          el.clientHeight
-        );
-      }
-    }
-
-    resizeCanvas();
-
-    window.CryptolexuzFibonacci
-      ?.redraw?.();
-  };
-
-  if(window.ResizeObserver){
-    resizeObserver = new ResizeObserver(resize);
-
-    for(const id of [
-      "chart",
-      "volumeChart",
-      "rsiChart",
-      "adxChart"
-    ]){
-      if($(id)) resizeObserver.observe($(id));
-    }
-  }
-
-  window.addEventListener("resize",resize);
-
-  setTimeout(resize,100);
-
-  setChartNavigation();
-  connectFibonacci();
-
-  return true;
-}
-
-/* NAVEGACIÓN TÁCTIL */
-
-function setChartNavigation(){
-  for(const chart of Object.values(charts)){
-    chart.applyOptions({
-      handleScroll:{
-        mouseWheel:true,
-        pressedMouseMove:true,
-        horzTouchDrag:true,
-        vertTouchDrag:false
-      },
-
-      handleScale:{
-        mouseWheel:true,
-        pinch:true,
-        axisPressedMouseMove:true
-      }
-    });
-  }
-
-  $("chartNavigation")?.remove();
-
-  value(
-    "chartTouchStatus",
-    "Desliza las velas horizontalmente con un dedo. Usa dos dedos para ampliar o reducir."
+   }finally{syncing=false;}
+   drawZones();
+   window.CryptolexuzFibonacci?.redraw?.();
+  });
+ }
+ if(window.ResizeObserver){
+  resizeObserver=new ResizeObserver(resize);
+  for(const id of ["chart","volumeChart","rsiChart","adxChart"])
+   if($(id))resizeObserver.observe($(id));
+ }
+ window.addEventListener("resize",resize);
+ setTimeout(resize,100);
+ try{
+  window.CryptolexuzFibonacci?.attach?.(
+   charts.price,series.price,{
+    getRows:()=>rows,getSelection:selection
+   }
   );
+ }catch(e){console.warn("Fibonacci:",e);}
+ window.dispatchEvent(new CustomEvent("cryptolexuz:chart-ready",{
+  detail:{chart:charts.price,candle:series.price}
+ }));
+ return true;
 }
-
-/* INTEGRACIÓN CON FIBONACCI */
-
-function connectFibonacci(){
-  const fib = window.CryptolexuzFibonacci;
-
-  if(
-    fib &&
-    typeof fib.attach==="function"
-  ){
-    try{
-      fib.attach(
-        charts.price,
-        series.price,
-        {
-          getRows:()=>rows,
-          getSelection:selected
-        }
-      );
-    }catch(error){
-      console.warn("Fibonacci:",error);
-    }
-  }
-
-  window.dispatchEvent(
-    new CustomEvent(
-      "cryptolexuz:chart-ready",
-      {
-        detail:{
-          chart:charts.price,
-          candle:series.price
-        }
-      }
-    )
-  );
-}
-
 function resetView(){
-  if(!charts.price || !rows.length) return;
-
-  charts.price.timeScale().setVisibleLogicalRange({
-    from:Math.max(0,rows.length-50),
-    to:rows.length+3
-  });
+ if(!charts.price||!rows.length)return;
+ charts.price.timeScale().setVisibleLogicalRange({
+  from:Math.max(0,rows.length-50),to:rows.length+3
+ });
 }
-
-/* ESTRUCTURA DEL PRECIO */
-
 function detectPivots(a){
-  const found = [];
-
-  for(let i=4;i<a.length-4;i++){
-    let hi = true;
-    let lo = true;
-
-    for(let j=i-4;j<=i+4;j++){
-      if(i===j) continue;
-
-      if(a[j].high>=a[i].high) hi = false;
-      if(a[j].low<=a[i].low) lo = false;
-    }
-
-    if(hi){
-      found.push({
-        index:i,
-        price:a[i].high,
-        type:"high"
-      });
-    }
-
-    if(lo){
-      found.push({
-        index:i,
-        price:a[i].low,
-        type:"low"
-      });
-    }
-  }
-
-  return found.slice(-40);
+ const result=[];
+ for(let i=4;i<a.length-4;i++){
+  const near=a.slice(i-4,i+5);
+  if(near.every((x,j)=>j===4||x.high<a[i].high))
+   result.push({index:i,price:a[i].high,type:"high"});
+  if(near.every((x,j)=>j===4||x.low>a[i].low))
+   result.push({index:i,price:a[i].low,type:"low"});
+ }
+ return result.slice(-40);
 }
-
 function detectFVG(a){
-  const found = [];
-
-  for(let i=2;i<a.length;i++){
-    const bull = a[i].low>a[i-2].high;
-    const bear = a[i].high<a[i-2].low;
-
-    if(!bull && !bear) continue;
-
-    const top = bull
-      ? a[i].low
-      : a[i-2].low;
-
-    const bottom = bull
-      ? a[i-2].high
-      : a[i].high;
-
-    const middle = (top+bottom)/2;
-
-    if((top-bottom)/middle<.00035) continue;
-
-    let end = a.length-1;
-    let filled = false;
-    let inverted = false;
-
-    for(let j=i+1;j<a.length;j++){
-      if(bull && a[j].low<=bottom){
-        end = j;
-        filled = true;
-        inverted = a[j].close<bottom;
-        break;
-      }
-
-      if(bear && a[j].high>=top){
-        end = j;
-        filled = true;
-        inverted = a[j].close>top;
-        break;
-      }
-    }
-
-    found.push({
-      start:i-2,
-      end,
-      top,
-      bottom,
-      bull,
-      filled,
-      inverted
-    });
+ const result=[];
+ for(let i=2;i<a.length;i++){
+  const bull=a[i].low>a[i-2].high;
+  const bear=a[i].high<a[i-2].low;
+  if(!bull&&!bear)continue;
+  const top=bull?a[i].low:a[i-2].low;
+  const bottom=bull?a[i-2].high:a[i].high;
+  if((top-bottom)/((top+bottom)/2)<.00035)continue;
+  let end=a.length-1,filled=false,inverted=false;
+  for(let j=i+1;j<a.length;j++){
+   if((bull&&a[j].low<=bottom)||(bear&&a[j].high>=top)){
+    end=j;filled=true;
+    inverted=bull?a[j].close<bottom:a[j].close>top;
+    break;
+   }
   }
-
-  return found.slice(-80);
+  result.push({start:i-2,end,top,bottom,bull,filled,inverted});
+ }
+ return result.slice(-80);
 }
-
 function detectSweeps(a){
-  const found = [];
-
-  for(let i=20;i<a.length-1;i++){
-    const previous = a.slice(i-20,i);
-
-    const high = Math.max(
-      ...previous.map(x=>x.high)
-    );
-
-    const low = Math.min(
-      ...previous.map(x=>x.low)
-    );
-
-    if(a[i].high>high && a[i].close<high){
-      found.push({
-        time:a[i].time,
-        position:"aboveBar",
-        color:C.red,
-        shape:"arrowDown",
-        text:"Barrido ↑"
-      });
-    }
-
-    if(a[i].low<low && a[i].close>low){
-      found.push({
-        time:a[i].time,
-        position:"belowBar",
-        color:C.green,
-        shape:"arrowUp",
-        text:"Barrido ↓"
-      });
-    }
-  }
-
-  return found.slice(-25);
+ const result=[];
+ for(let i=20;i<a.length-1;i++){
+  const prev=a.slice(i-20,i);
+  const high=Math.max(...prev.map(x=>x.high));
+  const low=Math.min(...prev.map(x=>x.low));
+  if(a[i].high>high&&a[i].close<high)
+   result.push({
+    time:a[i].time,position:"aboveBar",
+    color:C.red,shape:"arrowDown",text:"Barrido ↑"
+   });
+  if(a[i].low<low&&a[i].close>low)
+   result.push({
+    time:a[i].time,position:"belowBar",
+    color:C.green,shape:"arrowUp",text:"Barrido ↓"
+   });
+ }
+ return result.slice(-25);
 }
-
 function updateLevels(){
-  for(const line of drawnLines){
-    try{
-      series.price.removePriceLine(line);
-    }catch(_){}
-  }
-
-  drawnLines.length = 0;
-
-  const recent = pivots.slice(-18);
-
-  function add(price,color,title){
-    if(!Number.isFinite(price)) return;
-
-    drawnLines.push(
-      series.price.createPriceLine({
-        price,
-        color,
-        lineWidth:1,
-        lineStyle:LightweightCharts.LineStyle.Dashed,
-        axisLabelVisible:true,
-        title
-      })
-    );
-  }
-
-  if(enabled.has("support")){
-    const x = recent.filter(
-      x=>x.type==="low"
-    ).at(-1);
-
-    if(x) add(x.price,C.green,"Soporte");
-  }
-
-  if(enabled.has("resistance")){
-    const x = recent.filter(
-      x=>x.type==="high"
-    ).at(-1);
-
-    if(x) add(x.price,C.red,"Resistencia");
-  }
-
-  if(enabled.has("liquidity")){
-    for(const x of recent.filter(
-      x=>x.type==="high"
-    ).slice(-2)){
-      add(x.price,C.red,"Máximo previo");
-    }
-
-    for(const x of recent.filter(
-      x=>x.type==="low"
-    ).slice(-2)){
-      add(x.price,C.green,"Mínimo previo");
-    }
-  }
-}
-
-/* CAPA DE FVG */
-
-function resizeCanvas(){
-  const canvas = $("zonesCanvas");
-  const area = $("priceChartArea");
-
-  if(!canvas || !area) return;
-
-  canvas.style.pointerEvents = "none";
-
-  const dpr = Math.min(
-    window.devicePixelRatio || 1,
-    2
-  );
-
-  const width = Math.round(
-    area.clientWidth*dpr
-  );
-
-  const height = Math.round(
-    area.clientHeight*dpr
-  );
-
-  if(canvas.width!==width){
-    canvas.width = width;
-  }
-
-  if(canvas.height!==height){
-    canvas.height = height;
-  }
-
-  canvas.getContext("2d")?.setTransform(
-    dpr,0,0,dpr,0,0
-  );
-
-  drawZones();
-}
-
-function drawZones(){
-  const canvas = $("zonesCanvas");
-  const area = $("priceChartArea");
-
-  if(!canvas || !area || !charts.price) return;
-
-  const ctx = canvas.getContext("2d");
-
-  if(!ctx) return;
-
-  const width = area.clientWidth;
-  const height = area.clientHeight;
-
-  ctx.clearRect(0,0,width,height);
-
-  if(
-    !rows.length ||
-    (!enabled.has("fvg") && !enabled.has("ifvg"))
-  ) return;
-
-  const scale = charts.price.timeScale();
-  const maxX = Math.max(0,width-70);
-
-  const visible = zones.filter(z=>
-    (!z.filled && enabled.has("fvg")) ||
-    (z.inverted && enabled.has("ifvg"))
-  ).slice(-18);
-
-  for(const z of visible){
-    const x1 = scale.logicalToCoordinate(z.start);
-    const x2 = scale.logicalToCoordinate(z.end);
-
-    const y1 = series.price.priceToCoordinate(z.top);
-    const y2 = series.price.priceToCoordinate(z.bottom);
-
-    if(![x1,x2,y1,y2].every(Number.isFinite)){
-      continue;
-    }
-
-    const left = Math.max(0,x1);
-    const right = Math.min(maxX,x2);
-
-    const top = Math.max(
-      0,
-      Math.min(y1,y2)
-    );
-
-    const bottom = Math.min(
-      height,
-      Math.max(y1,y2)
-    );
-
-    if(right<=left || bottom<=top) continue;
-
-    ctx.fillStyle = z.inverted
-      ? "rgba(255,225,90,.10)"
-      : z.bull
-        ? "rgba(0,245,160,.09)"
-        : "rgba(255,71,108,.09)";
-
-    ctx.fillRect(
-      left,top,right-left,bottom-top
-    );
-
-    ctx.strokeStyle = z.inverted
-      ? "rgba(255,225,90,.50)"
-      : z.bull
-        ? "rgba(0,245,160,.40)"
-        : "rgba(255,71,108,.40)";
-
-    ctx.lineWidth = 1;
-
-    ctx.strokeRect(
-      left,top,right-left,bottom-top
-    );
-  }
-}
-
-/* INTERPRETACIONES */
-
-function rsiInterpretation(v){
-  if(!Number.isFinite(v)){
-    return "RSI no disponible.";
-  }
-
-  if(v<30){
-    return "RSI "+num(v,1)+
-      ": sobreventa; no confirma rebote.";
-  }
-
-  if(v<40){
-    return "RSI "+num(v,1)+
-      ": predominio vendedor.";
-  }
-
-  if(v<50){
-    return "RSI "+num(v,1)+
-      ": impulso ligeramente bajista.";
-  }
-
-  if(v<60){
-    return "RSI "+num(v,1)+
-      ": impulso ligeramente alcista.";
-  }
-
-  if(v<70){
-    return "RSI "+num(v,1)+
-      ": predominio comprador.";
-  }
-
-  return "RSI "+num(v,1)+
-    ": sobrecompra; no implica caída inmediata.";
-}
-
-function adxInterpretation(ax,plus,minus){
-  if(![ax,plus,minus].every(Number.isFinite)){
-    return "ADX no disponible.";
-  }
-
-  const strength = ax<20
-    ? "tendencia débil"
-    : ax<25
-      ? "tendencia en desarrollo"
-      : ax<40
-        ? "tendencia con fuerza"
-        : "tendencia muy fuerte";
-
-  const direction = plus>minus
-    ? "predominio comprador"
-    : minus>plus
-      ? "predominio vendedor"
-      : "equilibrio";
-
-  return "ADX "+num(ax,1)+": "+strength+
-    ". +DI "+num(plus,1)+
-    " y −DI "+num(minus,1)+
-    ": "+direction+".";
-}
-
-function volumeInterpretation(a){
-  if(a.length<22){
-    return "Volumen insuficiente.";
-  }
-
-  const closed = a.slice(0,-1);
-  const last = closed.at(-1);
-  const previous = closed.slice(-21,-1);
-
-  const average = previous.reduce(
-    (s,x)=>s+x.volume,0
-  )/previous.length;
-
-  if(!average){
-    return "No hay volumen suficiente.";
-  }
-
-  const ratio = last.volume/average;
-
-  const strength = ratio>=1.8
-    ? "volumen muy elevado"
-    : ratio>=1.3
-      ? "volumen superior al promedio"
-      : ratio<.7
-        ? "volumen reducido"
-        : "volumen cercano al promedio";
-
-  return "Última vela cerrada "+
-    (last.close>=last.open?"alcista":"bajista")+
-    ", con "+strength+
-    " ("+num(ratio,2)+" veces el promedio).";
-}
-
-/* ACTUALIZACIÓN DE INDICADORES */
-
-function updateIndicators(){
-  if(!rows.length || !series.price) return;
-
-  const closes = rows.map(x=>x.close);
-
-  const e21 = ema(closes,21);
-  const m55 = sma(closes,55);
-  const m100 = sma(closes,100);
-  const m200 = sma(closes,200);
-
-  const rv = rsi(closes);
-  const av = adx(rows);
-
-  for(const [key,arr] of Object.entries({
-    ema21:e21,
-    ma55:m55,
-    ma100:m100,
-    ma200:m200
-  })){
-    maSeries[key]?.setData(
-      enabled.has(key)
-        ? lineData(rows,arr)
-        : []
-    );
-  }
-
-  series.rsi?.setData(
-    enabled.has("rsi")
-      ? lineData(rows,rv)
-      : []
-  );
-
-  for(const [key,arr] of [
-    ["adx",av.adx],
-    ["plus",av.plus],
-    ["minus",av.minus]
-  ]){
-    series[key]?.setData(
-      enabled.has("adx")
-        ? lineData(rows,arr)
-        : []
-    );
-  }
-
-  const i = Math.max(0,rows.length-2);
-
-  value("ema21Value",num(e21[i]));
-  value("ma55Value",num(m55[i]));
-
-  value("rsiValue",num(rv[i],1));
-  value("adxValue",num(av.adx[i],1));
-
-  value("rsiChartValue",num(rv[i],1));
-  value("adxChartValue",num(av.adx[i],1));
-
-  currentRSIText = rsiInterpretation(rv[i]);
-
-  value("rsiInterpretation",currentRSIText);
-
-  value(
-    "adxInterpretation",
-    adxInterpretation(
-      av.adx[i],
-      av.plus[i],
-      av.minus[i]
-    )
-  );
-
-  value(
-    "volumeInterpretation",
-    volumeInterpretation(rows)
-  );
-
-  let trend = "Mixta";
-
-  if(
-    Number.isFinite(e21[i]) &&
-    Number.isFinite(m55[i])
-  ){
-    if(
-      closes[i]>e21[i] &&
-      e21[i]>m55[i]
-    ){
-      trend = "Sesgo alcista";
-    }else if(
-      closes[i]<e21[i] &&
-      e21[i]<m55[i]
-    ){
-      trend = "Sesgo bajista";
-    }
-  }
-
-  value(
-    "indicatorReadout",
-    trend+". "+currentRSIText
-  );
-
-  pivots = detectPivots(rows);
-  zones = detectFVG(rows);
-  sweeps = detectSweeps(rows);
-
-  updateLevels();
-
-  series.price.setMarkers(
-    enabled.has("sweeps") ? sweeps : []
-  );
-
-  if($("rsiSection")){
-    $("rsiSection").hidden = !enabled.has("rsi");
-  }
-
-  if($("adxSection")){
-    $("adxSection").hidden = !enabled.has("adx");
-  }
-
-  requestAnimationFrame(()=>{
-    for(const [key,id] of [
-      ["adx","adxChart"],
-      ["rsi","rsiChart"]
-    ]){
-      const el = $(id);
-
-      if(
-        enabled.has(key) &&
-        el?.clientWidth &&
-        charts[key]
-      ){
-        charts[key].resize(
-          el.clientWidth,
-          el.clientHeight
-        );
-      }
-    }
-
-    drawZones();
-
-    window.CryptolexuzFibonacci
-      ?.redraw?.();
-  });
-}
-
-/* MOTOR DE SEÑALES */
-
-function metricFor(data){
-  const closed = data.slice(0,-1);
-
-  if(closed.length<60) return null;
-
-  const closes = closed.map(x=>x.close);
-  const last = closed.at(-1);
-
-  const e = ema(closes,21).at(-1);
-  const m = sma(closes,55).at(-1);
-  const rv = rsi(closes).at(-1);
-
-  const ad = adx(closed);
-
-  const ax = ad.adx.at(-1);
-  const plus = ad.plus.at(-1);
-  const minus = ad.minus.at(-1);
-
-  if(![
-    e,m,rv,ax,plus,minus
-  ].every(Number.isFinite)){
-    return null;
-  }
-
-  const volBase = closed.slice(-21,-1)
-    .reduce((sum,x)=>sum+x.volume,0)/20;
-
-  const volRatio = volBase>0
-    ? last.volume/volBase
-    : null;
-
-  let bull = 0;
-  let bear = 0;
-
-  if(last.close>e) bull++;
-  if(last.close<e) bear++;
-
-  if(e>m) bull++;
-  if(e<m) bear++;
-
-  if(rv>=55) bull++;
-  if(rv<=45) bear++;
-
-  if(plus>minus) bull++;
-  if(minus>plus) bear++;
-
-  const previous = closed.slice(-7,-1);
-
-  return {
-    bull,
-    bear,
-    adx:ax,
-    rsi:rv,
-    plus,
-    minus,
-    volRatio,
-    close:last.close,
-    closedTime:last.time,
-
-    breakHigh:last.close>Math.max(
-      ...previous.map(x=>x.high)
-    ),
-
-    breakLow:last.close<Math.min(
-      ...previous.map(x=>x.low)
-    )
-  };
-}
-
-function analyzeSignal(data){
-  const m = metricFor(data);
-
-  if(!m){
-    return {
-      state:"SIN DATOS",
-      direction:"neutral",
-      detail:"Historial insuficiente.",
-      metrics:"Esperando indicadores",
-      price:null
-    };
-  }
-
-  let state = "LATERAL / MIXTO";
-  let direction = "neutral";
-
-  if(m.bull>=3 && m.bull>m.bear){
-    state = "SESGO ALCISTA";
-    direction = "bullish";
-  }else if(m.bear>=3 && m.bear>m.bull){
-    state = "SESGO BAJISTA";
-    direction = "bearish";
-  }
-
-  const opportunity =
-    m.bull===4 && m.adx>=25 && m.rsi<70
-      ? "Posible LONG"
-      : m.bear===4 && m.adx>=25 && m.rsi>30
-        ? "Posible SHORT"
-        : "Sin entrada confirmada";
-
-  return {
-    state,
-    direction,
-    detail:opportunity+
-      ". Requiere confirmación del precio.",
-
-    metrics:
-      "RSI "+num(m.rsi,1)+
-      " · ADX "+num(m.adx,1)+
-      " · +DI "+num(m.plus,1)+
-      " · −DI "+num(m.minus,1),
-
-    price:m.close
-  };
-}
-
-function recordSignal(tf,symbol,result){
-  if(result.state==="SIN DATOS") return;
-
-  const key = symbol+"|"+tf;
-
-  if(lastStates[key]===result.state) return;
-
-  lastStates[key] = result.state;
-
-  signalHistory.unshift({
-    time:new Date().toLocaleTimeString("es-MX"),
-    tf,
-    symbol,
-    state:result.state,
-    price:result.price,
-    detail:result.detail
-  });
-
-  if(signalHistory.length>30){
-    signalHistory.length = 30;
-  }
-
-  renderHistory();
-}
-
-function renderHistory(){
-  const tbody = $("signalLog");
-
-  if(!tbody) return;
-
-  tbody.replaceChildren();
-
-  for(const s of signalHistory){
-    const tr = document.createElement("tr");
-
-    for(const text of [
-      s.time,
-      s.tf,
-      s.symbol,
-      s.state,
-      num(s.price),
-      s.detail,
-      "Observación"
-    ]){
-      const td = document.createElement("td");
-      td.textContent = text;
-      tr.appendChild(td);
-    }
-
-    tbody.appendChild(tr);
-  }
-}
-
-function showSignal(tf,symbol,result){
-  const suffix = tf==="5m" ? "5" : "15";
-
-  value("state"+suffix,result.state);
-  value("detail"+suffix,result.detail);
-  value("metrics"+suffix,result.metrics);
-
-  const state = $("state"+suffix);
-
-  if(state){
-    state.className = "state "+result.direction;
-
-    const heading = state.closest(".signal-card")
-      ?.querySelector("h3");
-
-    if(heading){
-      heading.textContent =
-        symbol+" / "+
-        (tf==="5m"?"5":"15")+
-        " minutos";
-    }
-  }
-
-  recordSignal(tf,symbol,result);
-}
-
-/* API */
-
-async function getJSON(url,timeout=12000){
-  const controller = new AbortController();
-
-  const timer = setTimeout(
-    ()=>controller.abort(),
-    timeout
-  );
-
-  try{
-    const response = await fetch(url,{
-      signal:controller.signal,
-      cache:"no-store"
-    });
-
-    if(!response.ok){
-      throw new Error("HTTP "+response.status);
-    }
-
-    return await response.json();
-  }finally{
-    clearTimeout(timer);
-  }
-}
-
-function candleURL(
-  market,
-  symbol,
-  tf,
-  limit=300,
-  exchange="bingx"
-){
-  return "/api/exchange/"+
-    encodeURIComponent(exchange)+
-    "/klines/"+
-    encodeURIComponent(symbol)+
-    "?market="+encodeURIComponent(market)+
-    "&interval="+encodeURIComponent(tf)+
-    "&limit="+limit;
-}
-
-function tickerURL(
-  market,
-  symbol,
-  exchange="bingx"
-){
-  return "/api/exchange/"+
-    encodeURIComponent(exchange)+
-    "/ticker/"+
-    encodeURIComponent(symbol)+
-    "?market="+encodeURIComponent(market);
-}
-
-function unwrapTicker(raw){
-  let d = raw?.data ?? raw;
-
-  if(Array.isArray(d)){
-    d = d[0] ?? {};
-  }
-
-  if(d?.data) d = d.data;
-
-  if(Array.isArray(d)){
-    d = d[0] ?? {};
-  }
-
-  return d || {};
-}
-
-/* PRECIOS EN VIVO */
-
-function setLivePrice(price,source="websocket"){
-  const p = Number(price);
-
-  if(!Number.isFinite(p) || p<=0) return;
-
-  value("price",num(p));
-
-  value(
-    "updated",
-    new Date().toLocaleTimeString("es-MX")
-  );
-
-  if(source==="websocket"){
-    lastWsPriceAt = Date.now();
-
-    setConnection(
-      selected().exchange.toUpperCase()+
-      " · en vivo",
-      C.green
-    );
-  }else if(Date.now()-lastWsPriceAt>7000){
-    setConnection(
-      selected().exchange.toUpperCase()+
-      " · respaldo REST",
-      C.yellow
-    );
-  }
-}
-
-function scheduleIndicators(){
-  if(indicatorTimer) return;
-
-  const delay = Math.max(
-    0,
-    1500-(Date.now()-lastIndicatorUpdateAt)
-  );
-
-  indicatorTimer = setTimeout(()=>{
-    indicatorTimer = null;
-    lastIndicatorUpdateAt = Date.now();
-
-    if(rows.length){
-      updateIndicators();
-    }
-  },delay);
-}
-
-function applyLiveCandle(
-  price,
-  timestamp=Date.now()
-){
-  if(
-    !series.price ||
-    !rows.length ||
-    !Number.isFinite(price) ||
-    price<=0 ||
-    activeKey!==keyOf(selected())
-  ) return;
-
-  const s = selected();
-  const eventSeconds = Math.floor(timestamp/1000);
-  const bucket = candleStart(eventSeconds,s.tf);
-  const last = rows.at(-1);
-  const interval = TF_SECONDS[s.tf];
-
-  if(
-    !Number.isFinite(bucket) ||
-    !last ||
-    !interval ||
-    bucket<last.time ||
-    eventSeconds>Math.floor(Date.now()/1000)+10
-  ) return;
-
-  if(Math.abs(price/last.close-1)>.20){
-    value(
-      "status",
-      "Precio atípico: verificar REST"
-    );
-    return;
-  }
-
-  if(bucket-last.time>interval*2){
-    refresh();
-    return;
-  }
-
-  let candle;
-
-  if(bucket===last.time){
-    candle = {
-      ...last,
-      high:Math.max(last.high,price),
-      low:Math.min(last.low,price),
-      close:price
-    };
-
-    rows[rows.length-1] = candle;
-  }else{
-    candle = {
-      time:bucket,
-      open:price,
-      high:price,
-      low:price,
-      close:price,
-      volume:0
-    };
-
-    rows.push(candle);
-
-    if(rows.length>350){
-      let oldRange = null;
-
-      try{
-        oldRange = charts.price.timeScale()
-          .getVisibleLogicalRange();
-      }catch(_){}
-
-      rows.shift();
-
-      series.price.setData(rows);
-
-      series.volume?.setData(
-        rows.map(volumeBar)
-      );
-
-      if(oldRange){
-        try{
-          charts.price.timeScale()
-            .setVisibleLogicalRange({
-              from:oldRange.from-1,
-              to:oldRange.to-1
-            });
-        }catch(_){}
-      }
-
-      scheduleIndicators();
-
-      window.CryptolexuzFibonacci
-        ?.redraw?.();
-
-      return;
-    }
-  }
-
-  series.price.update(candle);
-
-  series.volume?.update(
-    volumeBar(candle)
-  );
-
-  scheduleIndicators();
-}
-
-function receiveLivePrice(
-  price,
-  source,
-  timestamp,
-  config
-){
-  const p = Number(price);
-  const ts = Number(timestamp);
-  const s = selected();
-
-  if(
-    !Number.isFinite(p) ||
-    p<=0 ||
-    config.exchange!==s.exchange ||
-    config.market!==s.market ||
-    config.symbol!==s.symbol
-  ) return;
-
-  const eventTime =
-    Number.isFinite(ts) &&
-    Math.abs(ts-Date.now())<60000
-      ? ts
-      : Date.now();
-
-  lastLiveEvent = {
-    price:p,
-    timestamp:eventTime,
-    receivedAt:Date.now(),
-    key:keyOf(s)
-  };
-
-  setLivePrice(p,source);
-  applyLiveCandle(p,eventTime);
-}
-
-function updateTicker(
-  raw,
-  allowPrice=true,
-  selection=selected()
-){
-  const d = unwrapTicker(raw);
-
-  const price = Number(
-    d.lastPrice ?? d.last ??
-    d.price ?? d.close ?? d.c
-  );
-
-  const high = Number(
-    d.highPrice ?? d.high24h ??
-    d.high ?? d.h
-  );
-
-  const low = Number(
-    d.lowPrice ?? d.low24h ??
-    d.low ?? d.l
-  );
-
-  const open = Number(
-    d.openPrice ?? d.open24h ??
-    d.open ?? d.o
-  );
-
-  const volume = Number(
-    d.volume ?? d.volume24h ??
-    d.vol ?? d.v
-  );
-
-  let change = Number(
-    d.priceChangePercent ??
-    d.changePercent ??
-    d.changeRate
-  );
-
-  if(
-    !Number.isFinite(change) &&
-    Number.isFinite(price) &&
-    Number.isFinite(open) &&
-    open!==0
-  ){
-    change = (price/open-1)*100;
-  }
-
-  if(
-    allowPrice &&
-    Number.isFinite(price) &&
-    price>0
-  ){
-    receiveLivePrice(
-      price,
-      "rest",
-      Date.now(),
-      selection
-    );
-  }
-
-  value("high",num(high));
-  value("low",num(low));
-  value("open",num(open));
-  value("volume",num(volume,0));
-
-  const el = $("change");
-
-  if(el){
-    el.textContent = Number.isFinite(change)
-      ? (change>=0?"+":"")+num(change)+"%"
-      : "—";
-
-    el.classList.toggle(
-      "negative",
-      change<0
-    );
-
-    el.style.color = change<0
-      ? C.red
-      : C.green;
-  }
-
-  value(
-    "bid",
-    num(d.bidPrice ?? d.bid ?? d.bestBid)
-  );
-
-  value(
-    "ask",
-    num(d.askPrice ?? d.ask ?? d.bestAsk)
-  );
-}
-
-/* MONITOR DE CINCO Y QUINCE MINUTOS */
-
-async function monitor(symbol,market,exchange){
-  if(
-    monitorBusy ||
-    Date.now()-lastMonitorAt<60000
-  ) return;
-
-  monitorBusy = true;
-  const generation = monitorGeneration;
-
-  try{
-    const [five,fifteen] = await Promise.all([
-      getJSON(
-        candleURL(
-          market,symbol,"5m",300,exchange
-        )
-      ),
-
-      getJSON(
-        candleURL(
-          market,symbol,"15m",300,exchange
-        )
-      )
-    ]);
-
-    const now = selected();
-
-    if(
-      generation!==monitorGeneration ||
-      now.symbol!==symbol ||
-      now.market!==market ||
-      now.exchange!==exchange
-    ) return;
-
-    showSignal(
-      "5m",
-      symbol,
-      analyzeSignal(normalize(five))
-    );
-
-    showSignal(
-      "15m",
-      symbol,
-      analyzeSignal(normalize(fifteen))
-    );
-
-    value("engineState","ANALIZANDO");
-
-    lastMonitorAt = Date.now();
-  }catch(error){
-    if(generation===monitorGeneration){
-      value("engineState","SIN CONEXIÓN");
-    }
-
-    console.warn(
-      "Monitor:",
-      error.message
-    );
-  }finally{
-    monitorBusy = false;
-
-    if(generation!==monitorGeneration){
-      const now = selected();
-
-      monitor(
-        now.symbol,
-        now.market,
-        now.exchange
-      ).catch(()=>{});
-    }
-  }
-}
-
-/* ACTUALIZACIÓN DE GRÁFICA */
-
-function applyCandles(data,s){
-  const changed = activeKey!==keyOf(s);
-
-  let previousRange = null;
-  let anchorTime = null;
-  let oldAnchorIndex = 0;
-
-  if(!changed){
-    try{
-      previousRange = charts.price.timeScale()
-        .getVisibleLogicalRange();
-
-      if(previousRange && rows.length){
-        oldAnchorIndex = Math.max(
-          0,
-          Math.min(
-            rows.length-1,
-            Math.floor(previousRange.from)
-          )
-        );
-
-        anchorTime = rows[oldAnchorIndex]?.time;
-      }
-    }catch(_){}
-  }
-
-  rows = data;
-  activeKey = keyOf(s);
-
-  series.price.setData(rows);
-
-  series.volume?.setData(
-    rows.map(volumeBar)
-  );
-
-  updateIndicators();
-
-  if(changed){
-    resetView();
-  }else if(previousRange){
-    try{
-      let shift = 0;
-
-      if(anchorTime!==null){
-        const newIndex = rows.findIndex(
-          x=>x.time===anchorTime
-        );
-
-        if(newIndex>=0){
-          shift = newIndex-oldAnchorIndex;
-        }
-      }
-
-      charts.price.timeScale()
-        .setVisibleLogicalRange({
-          from:previousRange.from+shift,
-          to:previousRange.to+shift
-        });
-    }catch(_){}
-  }
-
-  value(
-    "chartTitle",
-    s.symbol+" · "+s.tf
-  );
-
-  value(
-    "volumeLabel",
-    s.symbol===OIL_SYMBOL
-      ? "OIL WTI"
-      : s.symbol===GOLD_SYMBOL
-        ? "GOLD"
-        : s.symbol.split("-")[0]
-  );
-
-  if(
-    $("priceChartArea") &&
-    !$("zonesCanvas")?.width
-  ){
-    resizeCanvas();
-  }else{
-    drawZones();
-  }
-
-  window.CryptolexuzFibonacci
-    ?.redraw?.();
-}
-
-async function refresh(){
-  if(loading || !series.price) return;
-
-  loading = true;
-
-  const id = ++requestId;
-  loadingId = id;
-
-  const s = selected();
-  const started = Date.now();
-
-  value(
-    "status",
-    "Consultando velas de "+
-    s.exchange.toUpperCase()+"..."
-  );
-
-  try{
-    const result = await getJSON(
-      candleURL(
-        s.market,
-        s.symbol,
-        s.tf,
-        300,
-        s.exchange
-      )
-    );
-
-    if(
-      id!==requestId ||
-      keyOf(s)!==keyOf(selected())
-    ) return;
-
-    const data = normalize(result);
-
-    if(!data.length){
-      throw new Error(
-        "No se recibieron velas válidas"
-      );
-    }
-
-    const live = lastLiveEvent;
-
-    if(
-      live &&
-      live.key===keyOf(s) &&
-      live.receivedAt>=started
-    ){
-      const bucket = candleStart(
-        Math.floor(live.timestamp/1000),
-        s.tf
-      );
-
-      const last = data.at(-1);
-
-      if(
-        bucket===last.time &&
-        live.price>0 &&
-        Math.abs(live.price/last.close-1)<.20
-      ){
-        last.high = Math.max(
-          last.high,
-          live.price
-        );
-
-        last.low = Math.min(
-          last.low,
-          live.price
-        );
-
-        last.close = live.price;
-      }else if(
-        bucket>last.time &&
-        bucket-last.time<=TF_SECONDS[s.tf]*2 &&
-        Math.abs(live.price/last.close-1)<.20
-      ){
-        data.push({
-          time:bucket,
-          open:live.price,
-          high:live.price,
-          low:live.price,
-          close:live.price,
-          volume:0
-        });
-      }
-    }
-
-    applyCandles(data,s);
-
-    value("status","Velas actualizadas");
-    value("message","");
-
-    monitor(
-      s.symbol,
-      s.market,
-      s.exchange
-    );
-  }catch(error){
-    if(
-      id===requestId &&
-      keyOf(s)===keyOf(selected())
-    ){
-      value(
-        "status",
-        "Error de velas: "+error.message
-      );
-
-      value(
-        "message",
-        "Comprueba la conexión y el servidor."
-      );
-    }
-
-    console.warn("Velas:",error);
-  }finally{
-    if(loadingId===id){
-      loading = false;
-    }
-  }
-}
-
-async function refreshTicker(){
-  const s = selected();
-
-  try{
-    const raw = await getJSON(
-      tickerURL(
-        s.market,
-        s.symbol,
-        s.exchange
-      ),
-      8000
-    );
-
-    if(keyOf(s)!==keyOf(selected())){
-      return;
-    }
-
-    updateTicker(
-      raw,
-      Date.now()-lastWsPriceAt>7000,
-      s
-    );
-  }catch(error){
-    console.warn(
-      "Ticker:",
-      error.message
-    );
-  }
-}
-
-/* WEBSOCKET */
-
-function disconnectWS(){
-  wsGeneration++;
-
-  if(wsTimer){
-    clearTimeout(wsTimer);
-    wsTimer = null;
-  }
-
-  if(ws){
-    const old = ws;
-    ws = null;
-
-    old.onopen = null;
-    old.onmessage = null;
-    old.onerror = null;
-    old.onclose = null;
-
-    try{
-      old.close();
-    }catch(_){}
-  }
-}
-
-function connectWS(){
-  disconnectWS();
-
-  const generation = wsGeneration;
-
-  const {
-    exchange,
-    symbol,
-    market
-  } = selected();
-
-  const config = {
-    exchange,
-    symbol,
-    market
-  };
-
-  const scheme = location.protocol==="https:"
-    ? "wss:"
-    : "ws:";
-
-  const url =
-    scheme+"//"+location.host+
-    "/ws?exchange="+encodeURIComponent(exchange)+
-    "&market="+encodeURIComponent(market)+
-    "&symbol="+encodeURIComponent(symbol);
-
-  lastWsPriceAt = 0;
-
-  setConnection(
-    exchange.toUpperCase()+" · conectando",
-    C.yellow
-  );
-
-  let socket;
-
-  try{
-    socket = new WebSocket(url);
-  }catch(_){
-    scheduleReconnect(generation);
-    return;
-  }
-
-  ws = socket;
-
-  socket.onopen = ()=>{
-    if(generation===wsGeneration){
-      setConnection(
-        exchange.toUpperCase()+
-        " · esperando precios",
-        C.yellow
-      );
-    }
-  };
-
-  socket.onmessage = event=>{
-    if(generation!==wsGeneration) return;
-
-    let data;
-
-    try{
-      data = JSON.parse(event.data);
-    }catch(_){
-      return;
-    }
-
-    if(data.type==="price"){
-      if(
-        data.exchange!==exchange ||
-        data.market!==market ||
-        data.symbol!==symbol
-      ) return;
-
-      receiveLivePrice(
-        Number(data.price),
-        data.source==="websocket"
-          ? "websocket"
-          : "rest",
-        Number(data.timestamp),
-        config
-      );
-    }else if(
-      data.type==="status" &&
-      data.status==="reconnecting"
-    ){
-      setConnection(
-        exchange.toUpperCase()+
-        " · reconectando",
-        C.yellow
-      );
-    }
-  };
-
-  socket.onerror = ()=>{
-    if(generation===wsGeneration){
-      setConnection(
-        exchange.toUpperCase()+
-        " · conexión interrumpida",
-        C.yellow
-      );
-    }
-  };
-
-  socket.onclose = ()=>{
-    if(generation!==wsGeneration) return;
-
-    ws = null;
-
-    setConnection(
-      exchange.toUpperCase()+
-      " · reconectando",
-      C.yellow
-    );
-
-    scheduleReconnect(generation);
-  };
-}
-
-function scheduleReconnect(generation){
-  if(generation!==wsGeneration) return;
-
-  if(wsTimer){
-    clearTimeout(wsTimer);
-  }
-
-  wsTimer = setTimeout(()=>{
-    if(
-      generation===wsGeneration &&
-      !document.hidden
-    ){
-      connectWS();
-    }
-  },3000);
-}
-
-/* ACTIVOS */
-
-function ensureCommodityOptions(){
-  const select = $("symbol");
-
-  if(!select) return;
-
-  const goldAliases = new Set([
-    "XAU-USDT",
-    "GOLD-USDT",
-    GOLD_SYMBOL
-  ]);
-
-  const goldOptions = [...select.options]
-    .filter(o=>goldAliases.has(o.value));
-
-  const gold = goldOptions[0] ||
-    document.createElement("option");
-
-  gold.value = GOLD_SYMBOL;
-  gold.textContent = "GOLD (XAU) · BingX";
-
-  if(!gold.parentElement){
-    select.appendChild(gold);
-  }
-
-  for(const duplicate of goldOptions.slice(1)){
-    duplicate.remove();
-  }
-
-  const oilOptions = [...select.options]
-    .filter(o=>o.value===OIL_SYMBOL);
-
-  const oil = oilOptions[0] ||
-    document.createElement("option");
-
-  oil.value = OIL_SYMBOL;
-  oil.textContent = "OIL WTI · BingX";
-
-  if(!oil.parentElement){
-    select.appendChild(oil);
-  }
-
-  for(const duplicate of oilOptions.slice(1)){
-    duplicate.remove();
-  }
-}
-
-/* ESCÁNER MULTITEMPORAL */
-
-function ensureScannerUI(){
-  if($("clScanner")) return;
-
-  const section = document.createElement("section");
-
-  section.id = "clScanner";
-
-  section.style.cssText = [
-    "margin:16px 0",
-    "padding:16px",
-    "background:#0c1529",
-    "color:#dbe7ff",
-    "border:1px solid #263b60",
-    "border-radius:14px",
-    "font:14px system-ui,sans-serif"
-  ].join(";");
-
-  section.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
-      <div>
-        <strong style="font-size:17px">📡 Escáner CRYPTOLEXUZ V15</strong>
-        <div id="clScanStatus" style="color:#a5b0cf;font-size:12px;margin-top:4px">
-          Esperando primer análisis...
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <button type="button" id="clNotify" style="background:#243b60;color:white;border:0;border-radius:8px;padding:9px">
-          🔔 Activar avisos
-        </button>
-        <button type="button" id="clScanNow" style="background:#166c60;color:white;border:0;border-radius:8px;padding:9px">
-          ↻ Escanear
-        </button>
-      </div>
-    </div>
-
-    <div style="font-size:12px;color:#a5b0cf;margin:12px 0">
-      8 activos · 7 temporalidades · Ranking LONG/SHORT · Actualización cada minuto con la página activa.
-    </div>
-
-    <div style="overflow-x:auto">
-      <table style="border-collapse:collapse;width:100%;font-size:12px;min-width:560px">
-        <thead>
-          <tr style="color:#a5b0cf;text-align:left">
-            <th style="padding:8px">#</th>
-            <th>Activo</th>
-            <th>Dirección</th>
-            <th>Puntos</th>
-            <th>Estado</th>
-            <th>Confirmaciones</th>
-          </tr>
-        </thead>
-        <tbody id="clScanBody">
-          <tr>
-            <td colspan="6" style="padding:12px">
-              Iniciando...
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div id="clScanErrors" style="color:#ff9a35;font-size:12px;margin-top:10px"></div>
-  `;
-
-  const main = document.querySelector("main") ||
-    document.body;
-
-  const intro = main.querySelector(".intro");
-
-  if(intro){
-    intro.insertAdjacentElement(
-      "afterend",
-      section
-    );
-  }else{
-    main.insertBefore(
-      section,
-      main.firstChild
-    );
-  }
-
-  $("clScanNow").addEventListener(
-    "click",
-    ()=>runScanner(true)
-  );
-
-  $("clNotify").addEventListener(
-    "click",
-    async()=>{
-      if(!("Notification" in window)){
-        alert(
-          "Este navegador no admite notificaciones."
-        );
-        return;
-      }
-
-      try{
-        const result =
-          await Notification.requestPermission();
-
-        $("clNotify").textContent =
-          result==="granted"
-            ? "🔔 Avisos activos"
-            : "🔕 Sin permiso";
-      }catch(error){
-        console.warn(
-          "Notificaciones:",
-          error
-        );
-      }
-    }
-  );
-
-  if(
-    "Notification" in window &&
-    Notification.permission==="granted"
-  ){
-    $("clNotify").textContent =
-      "🔔 Avisos activos";
-  }
-}
-
-function scanMarkets(){
-  const s = selected();
-
-  const markets = CRYPTOS.map(symbol=>({
-    symbol,
-    exchange:s.exchange,
-    market:s.market,
-    label:symbol.replace("-","/")
+ for(const l of lines){
+  try{series.price.removePriceLine(l);}catch(e){}
+ }
+ lines.length=0;
+ function add(price,color,title){
+  if(!Number.isFinite(price))return;
+  lines.push(series.price.createPriceLine({
+   price,color,title,lineWidth:1,
+   lineStyle:LightweightCharts.LineStyle.Dashed,
+   axisLabelVisible:true
   }));
-
-  markets.push({
-    symbol:GOLD_SYMBOL,
-    exchange:"bingx",
-    market:"perpetual",
-    label:"GOLD (XAU)",
-    gold:true
+ }
+ const recent=pivots.slice(-18);
+ if(enabled.has("support")){
+  const x=recent.filter(x=>x.type==="low").at(-1);
+  if(x)add(x.price,C.green,"Soporte");
+ }
+ if(enabled.has("resistance")){
+  const x=recent.filter(x=>x.type==="high").at(-1);
+  if(x)add(x.price,C.red,"Resistencia");
+ }
+ if(enabled.has("liquidity")){
+  for(const x of recent.filter(x=>x.type==="high").slice(-2))
+   add(x.price,C.red,"Máximo");
+  for(const x of recent.filter(x=>x.type==="low").slice(-2))
+   add(x.price,C.green,"Mínimo");
+ }
+}
+function resizeCanvas(){
+ const canvas=$("zonesCanvas"),area=$("priceChartArea");
+ if(!canvas||!area)return;
+ const dpr=Math.min(devicePixelRatio||1,2);
+ canvas.width=Math.round(area.clientWidth*dpr);
+ canvas.height=Math.round(area.clientHeight*dpr);
+ canvas.getContext("2d")?.setTransform(dpr,0,0,dpr,0,0);
+ drawZones();
+}
+function drawZones(){
+ const canvas=$("zonesCanvas"),area=$("priceChartArea");
+ if(!canvas||!area||!charts.price)return;
+ const ctx=canvas.getContext("2d");
+ if(!ctx)return;
+ ctx.clearRect(0,0,area.clientWidth,area.clientHeight);
+ if(!enabled.has("fvg")&&!enabled.has("ifvg"))return;
+ const scale=charts.price.timeScale();
+ for(const z of zones.slice(-25)){
+  if(!((!z.filled&&enabled.has("fvg"))||
+       (z.inverted&&enabled.has("ifvg"))))continue;
+  const x1=scale.logicalToCoordinate(z.start);
+  const x2=scale.logicalToCoordinate(z.end);
+  const y1=series.price.priceToCoordinate(z.top);
+  const y2=series.price.priceToCoordinate(z.bottom);
+  if(![x1,x2,y1,y2].every(Number.isFinite))continue;
+  const left=Math.max(0,x1);
+  const right=Math.min(area.clientWidth-70,x2);
+  const top=Math.max(0,Math.min(y1,y2));
+  const bottom=Math.min(area.clientHeight,Math.max(y1,y2));
+  if(right<=left||bottom<=top)continue;
+  ctx.fillStyle=z.inverted?"rgba(255,225,90,.12)":
+   z.bull?"rgba(0,245,160,.09)":"rgba(255,71,108,.09)";
+  ctx.fillRect(left,top,right-left,bottom-top);
+  ctx.strokeStyle=z.inverted?"#ffe15a":
+   z.bull?"rgba(0,245,160,.4)":"rgba(255,71,108,.4)";
+  ctx.strokeRect(left,top,right-left,bottom-top);
+ }
+}
+function updateIndicators(){
+ if(!rows.length||!series.price)return;
+ const closes=rows.map(x=>x.close);
+ const ma={
+  ema21:ema(closes,21),
+  ma55:sma(closes,55),
+  ma100:sma(closes,100),
+  ma200:sma(closes,200)
+ };
+ const rv=rsi(closes),av=adx(rows);
+ for(const [k,v] of Object.entries(ma))
+  moving[k]?.setData(enabled.has(k)?lineData(rows,v):[]);
+ series.rsi?.setData(enabled.has("rsi")?lineData(rows,rv):[]);
+ for(const [k,v] of [
+  ["adx",av.adx],["plus",av.plus],["minus",av.minus]
+ ])series[k]?.setData(enabled.has("adx")?lineData(rows,v):[]);
+ const valid=closed(rows,selection().tf);
+ const t=valid.at(-1)?.time;
+ const i=rows.findIndex(x=>x.time===t);
+ if(i>=0){
+  put("ema21Value",fmt(ma.ema21[i]));
+  put("ma55Value",fmt(ma.ma55[i]));
+  put("rsiValue",fmt(rv[i],1));
+  put("adxValue",fmt(av.adx[i],1));
+  put("rsiChartValue",fmt(rv[i],1));
+  put("adxChartValue",fmt(av.adx[i],1));
+  const r=rv[i];
+  lastRSI=!Number.isFinite(r)?"RSI no disponible":
+   r<30?"RSI en sobreventa; rebote no confirmado.":
+   r>70?"RSI en sobrecompra; caída no confirmada.":
+   r>=50?"RSI con predominio comprador.":
+   "RSI con predominio vendedor.";
+  put("rsiInterpretation",lastRSI);
+  const ax=av.adx[i];
+  put("adxInterpretation",Number.isFinite(ax)
+   ?"ADX "+fmt(ax,1)+
+    (ax>=25?". Tendencia con fuerza.":". Tendencia débil o en desarrollo.")
+   :"ADX no disponible.");
+  const trend=Number.isFinite(ma.ema21[i])&&
+   Number.isFinite(ma.ma55[i])
+   ?closes[i]>ma.ema21[i]&&ma.ema21[i]>ma.ma55[i]
+    ?"Sesgo alcista"
+    :closes[i]<ma.ema21[i]&&ma.ema21[i]<ma.ma55[i]
+     ?"Sesgo bajista":"Mercado mixto"
+   :"Historial insuficiente";
+  put("indicatorReadout",trend+". "+lastRSI);
+ }
+ const last=valid.at(-1),previous=valid.slice(-21,-1);
+ if(last&&previous.length===20){
+  const avg=previous.reduce((s,x)=>s+x.volume,0)/20;
+  put("volumeInterpretation",avg>0
+   ?"Volumen de la última vela cerrada: "+
+    fmt(last.volume/avg,2)+" veces el promedio."
+   :"Volumen insuficiente.");
+ }
+ pivots=detectPivots(rows);
+ zones=detectFVG(rows);
+ sweeps=detectSweeps(rows);
+ updateLevels();
+ series.price.setMarkers(enabled.has("sweeps")?sweeps:[]);
+ if($("rsiSection"))$("rsiSection").hidden=!enabled.has("rsi");
+ if($("adxSection"))$("adxSection").hidden=!enabled.has("adx");
+ requestAnimationFrame(resize);
+}
+function metric(data,tf){
+ const a=closed(data,tf);
+ if(a.length<60)return null;
+ const closes=a.map(x=>x.close),last=a.at(-1);
+ const e=ema(closes,21).at(-1);
+ const m=sma(closes,55).at(-1);
+ const rv=rsi(closes).at(-1);
+ const ad=adx(a);
+ const ax=ad.adx.at(-1),plus=ad.plus.at(-1);
+ const minus=ad.minus.at(-1);
+ if(![e,m,rv,ax,plus,minus].every(Number.isFinite))return null;
+ let bull=0,bear=0;
+ if(last.close>e)bull++;
+ if(last.close<e)bear++;
+ if(e>m)bull++;
+ if(e<m)bear++;
+ if(rv>=55)bull++;
+ if(rv<=45)bear++;
+ if(plus>minus)bull++;
+ if(minus>plus)bear++;
+ const prev=a.slice(-7,-1);
+ const avg=a.slice(-21,-1).reduce((s,x)=>s+x.volume,0)/20;
+ return {
+  bull,bear,adx:ax,plus,minus,rsi:rv,
+  volRatio:avg?last.volume/avg:0,
+  close:last.close,closedTime:last.time,
+  atr:atr(a),
+  breakHigh:last.close>Math.max(...prev.map(x=>x.high)),
+  breakLow:last.close<Math.min(...prev.map(x=>x.low))
+ };
+}
+function analyze(data,tf){
+ const m=metric(data,tf);
+ if(!m)return {
+  state:"SIN DATOS",direction:"neutral",
+  detail:"Historial insuficiente.",metrics:"—",price:null
+ };
+ const bullish=m.bull>=3&&m.bull>m.bear;
+ const bearish=m.bear>=3&&m.bear>m.bull;
+ const state=bullish?"SESGO ALCISTA":
+  bearish?"SESGO BAJISTA":"LATERAL / MIXTO";
+ const direction=bullish?"bullish":bearish?"bearish":"neutral";
+ const opportunity=m.bull===4&&m.adx>=25&&m.rsi<70
+  ?"Posible LONG":
+  m.bear===4&&m.adx>=25&&m.rsi>30
+   ?"Posible SHORT":"Sin entrada confirmada";
+ return {
+  state,direction,
+  detail:opportunity+". Requiere confirmación.",
+  metrics:"RSI "+fmt(m.rsi,1)+" · ADX "+fmt(m.adx,1),
+  price:m.close
+ };
+}
+async function getJSON(url,timeout=12000){
+ const controller=new AbortController();
+ const timer=setTimeout(()=>controller.abort(),timeout);
+ try{
+  const response=await fetch(url,{
+   signal:controller.signal,cache:"no-store"
   });
-
-  markets.push({
-    symbol:OIL_SYMBOL,
-    exchange:"bingx",
-    market:"perpetual",
-    label:"OIL WTI",
-    oil:true
-  });
-
-  return markets;
+  if(!response.ok)throw Error("HTTP "+response.status);
+  return await response.json();
+ }finally{clearTimeout(timer);}
 }
-
-function rankAsset(market,frames){
-  const metrics = {};
-
-  for(const tf of TF){
-    metrics[tf] = metricFor(
-      frames[tf] || []
-    );
-  }
-
-  if(
-    !metrics["1m"] ||
-    !metrics["5m"] ||
-    !metrics["15m"]
-  ){
-    return {
-      market,
-      score:0,
-      state:"DATOS INSUFICIENTES",
-      direction:"NEUTRAL",
-      confirmations:"—",
-      metrics
-    };
-  }
-
-  const weights = {
-    "1d":5,
-    "4h":7,
-    "1h":9,
-    "30m":10,
-    "15m":13,
-    "5m":17,
-    "1m":19
-  };
-
-  let bull = 0;
-  let bear = 0;
-  let available = 0;
-
-  for(const tf of TF){
-    const m = metrics[tf];
-
-    if(!m) continue;
-
-    available++;
-
-    const w = weights[tf];
-
-    bull += w*(m.bull/4);
-    bear += w*(m.bear/4);
-  }
-
-  const direction = bull>=bear
-    ? "LONG"
-    : "SHORT";
-
-  const fast = metrics["1m"];
-  const mid = metrics["5m"];
-  const confirm = metrics["15m"];
-
-  const aligned = [
-    fast,
-    mid,
-    confirm
-  ].filter(m=>
-    direction==="LONG"
-      ? m.bull>=3
-      : m.bear>=3
-  ).length;
-
-  const breakout = direction==="LONG"
-    ? fast.breakHigh
-    : fast.breakLow;
-
-  let score = Math.round(
-    Math.max(bull,bear)
-  );
-
-  score += aligned===3
-    ? 8
-    : aligned===2
-      ? 4
-      : 0;
-
-  score += fast.adx>=25
-    ? 5
-    : fast.adx>=20
-      ? 2
-      : 0;
-
-  if(
-    Number.isFinite(fast.volRatio) &&
-    fast.volRatio>=1.3
-  ){
-    score += 5;
-  }
-
-  if(breakout) score += 4;
-
-  score = Math.min(100,score);
-
-  const confirmed =
-    aligned===3 &&
-    fast.adx>=20 &&
-    score>=65 &&
-    (
-      direction==="LONG"
-        ? fast.rsi<75
-        : fast.rsi>25
-    );
-
-  const state = confirmed
-    ? "CONFIRMADA"
-    : score>=55
-      ? "EN OBSERVACIÓN"
-      : "SIN ENTRADA";
-
-  return {
-    market,
-    score,
-    state,
-    direction,
-    confirmations:
-      aligned+"/3 rápidas · "+
-      available+"/7 marcos",
-    metrics,
-    closedTime:fast.closedTime,
-    price:fast.close
-  };
+function candleURL(s,limit=300){
+ return "/api/exchange/"+encodeURIComponent(s.exchange)+
+  "/klines/"+encodeURIComponent(s.symbol)+
+  "?market="+encodeURIComponent(s.market)+
+  "&interval="+encodeURIComponent(s.tf)+
+  "&limit="+limit;
 }
-
-async function fetchFrames(market){
-  const frames = {};
-
-  for(const tf of TF){
-    const cacheKey = [
-      market.exchange,
-      market.market,
-      market.symbol,
-      tf
-    ].join("|");
-
-    const cached = scanCache.get(cacheKey);
-
-    const ttl = TF_SECONDS[tf]>=3600
-      ? 180000
-      : TF_SECONDS[tf]>=900
-        ? 90000
-        : 50000;
-
-    if(
-      cached &&
-      Date.now()-cached.at<ttl
-    ){
-      frames[tf] = cached.data;
-      continue;
-    }
-
-    const raw = await getJSON(
-      candleURL(
-        market.market,
-        market.symbol,
-        tf,
-        130,
-        market.exchange
-      ),
-      12000
-    );
-
-    const data = normalize(raw);
-
-    if(data.length<60){
-      throw new Error(
-        tf+": historial insuficiente"
-      );
-    }
-
-    frames[tf] = data;
-
-    scanCache.set(cacheKey,{
-      at:Date.now(),
-      data
-    });
-  }
-
-  return frames;
+function tickerURL(s){
+ return "/api/exchange/"+encodeURIComponent(s.exchange)+
+  "/ticker/"+encodeURIComponent(s.symbol)+
+  "?market="+encodeURIComponent(s.market);
 }
-
-async function resolveGold(market){
+function applyCandles(data,s){
+ const changed=activeKey!==key(s);
+ let range=null;
+ if(!changed){
+  try{range=charts.price.timeScale().getVisibleLogicalRange();}
+  catch(e){}
+ }
+ rows=data;
+ activeKey=key(s);
+ series.price.setData(rows);
+ series.volume?.setData(rows.map(volumeBar));
+ updateIndicators();
+ if(changed)resetView();
+ else if(range){
+  try{charts.price.timeScale().setVisibleLogicalRange(range);}
+  catch(e){}
+ }
+ put("chartTitle",s.symbol+" · "+s.tf);
+ put("volumeLabel",s.symbol===GOLD?"GOLD":
+  s.symbol===OIL?"OIL WTI":s.symbol.split("-")[0]);
+ drawZones();
+ window.CryptolexuzFibonacci?.redraw?.();
+}
+async function refresh(){
+ if(chartBusy||!series.price)return;
+ chartBusy=true;
+ const id=generation,s=selection();
+ put("status","Consultando velas...");
+ try{
+  const data=normalize(await getJSON(candleURL(s)));
+  if(id!==generation||key(s)!==key(selection()))return;
+  if(!data.length)throw Error("Sin velas válidas");
+  applyCandles(data,s);
+  put("status","Velas actualizadas");
+  put("message","");
+  monitor();
+ }catch(e){
+  if(id===generation){
+   put("status","Error: "+e.message);
+   put("message","Comprueba la conexión con el servidor.");
+  }
+ }finally{chartBusy=false;}
+}
+async function refreshTicker(){
+ const s=selection(),id=generation;
+ try{
+  const raw=await getJSON(tickerURL(s),8000);
+  if(id!==generation||key(s)!==key(selection()))return;
+  let d=raw?.data??raw;
+  if(Array.isArray(d))d=d[0];
+  if(d?.data)d=d.data;
+  if(Array.isArray(d))d=d[0];
+  d=d||{};
+  const price=Number(d.lastPrice??d.last??d.price??d.close??d.c);
+  const high=d.highPrice??d.high24h??d.high??d.h;
+  const low=d.lowPrice??d.low24h??d.low??d.l;
+  const open=d.openPrice??d.open24h??d.open??d.o;
+  const vol=d.volume??d.volume24h??d.vol??d.v;
+  if(Number.isFinite(price)&&price>0){
+   if(Date.now()-lastWS>7000){
+    put("price",fmt(price));
+    connection(s.exchange.toUpperCase()+" · REST",C.yellow);
+   }
+  }
+  put("high",fmt(high));put("low",fmt(low));
+  put("open",fmt(open));put("volume",fmt(vol,0));
+  let change=Number(d.priceChangePercent??d.changePercent);
+  if(!Number.isFinite(change)&&price>0&&Number(open)>0)
+   change=(price/Number(open)-1)*100;
+  put("change",Number.isFinite(change)
+   ?(change>=0?"+":"")+fmt(change)+"%":"—");
+  $("change")?.classList.toggle("negative",change<0);
+  put("bid",fmt(d.bidPrice??d.bid??d.bestBid));
+  put("ask",fmt(d.askPrice??d.ask??d.bestAsk));
+  put("updated",new Date().toLocaleTimeString("es-MX"));
+ }catch(e){console.warn("Ticker:",e.message);}
+}
+function disconnect(){
+ socketId++;
+ clearTimeout(reconnect);
+ if(socket){
+  const old=socket;socket=null;
+  old.onopen=old.onmessage=old.onclose=old.onerror=null;
+  try{old.close();}catch(e){}
+ }
+}
+function connect(){
+ disconnect();
+ const id=socketId,s=selection();
+ const protocol=location.protocol==="https:"?"wss:":"ws:";
+ const url=protocol+"//"+location.host+
+  "/ws?exchange="+encodeURIComponent(s.exchange)+
+  "&market="+encodeURIComponent(s.market)+
+  "&symbol="+encodeURIComponent(s.symbol);
+ connection(s.exchange.toUpperCase()+" · conectando");
+ try{socket=new WebSocket(url);}
+ catch(e){scheduleReconnect(id);return;}
+ socket.onopen=()=>{
+  if(id===socketId)connection("Esperando precios",C.yellow);
+ };
+ socket.onmessage=event=>{
+  if(id!==socketId)return;
+  let d;
+  try{d=JSON.parse(event.data);}catch(e){return;}
+  if(d.type!=="price")return;
+  if(d.symbol!==s.symbol||d.market!==s.market||
+     d.exchange!==s.exchange)return;
+  const price=Number(d.price);
+  if(!Number.isFinite(price)||price<=0)return;
+  put("price",fmt(price));
+  put("updated",new Date().toLocaleTimeString("es-MX"));
+  lastWS=Date.now();
+  connection(s.exchange.toUpperCase()+" · en vivo",C.green);
+ };
+ socket.onerror=()=>{
+  if(id===socketId)connection("Conexión interrumpida",C.yellow);
+ };
+ socket.onclose=()=>{
+  if(id!==socketId)return;
+  socket=null;scheduleReconnect(id);
+ };
+}
+function scheduleReconnect(id){
+ clearTimeout(reconnect);
+ reconnect=setTimeout(()=>{
+  if(id===socketId&&!document.hidden)connect();
+ },4000);
+}
+async function monitor(){
+ if(Date.now()-monitorLast<60000)return;
+ monitorLast=Date.now();
+ const s=selection(),id=generation;
+ try{
+  const results=await Promise.all(["5m","15m"].map(async tf=>
+   normalize(await getJSON(candleURL({...s,tf})))
+  ));
+  if(id!==generation)return;
+  for(let i=0;i<2;i++){
+   const tf=i===0?"5m":"15m",suffix=i===0?"5":"15";
+   const r=analyze(results[i],tf);
+   put("state"+suffix,r.state);
+   put("detail"+suffix,r.detail);
+   put("metrics"+suffix,r.metrics);
+   const el=$("state"+suffix);
+   if(el)el.className="state "+r.direction;
+   const heading=el?.closest(".signal-card")?.querySelector("h3");
+   if(heading)heading.textContent=s.symbol+" / "+tf;
+  }
+  put("engineState","ANALIZANDO");
+ }catch(e){
+  put("engineState","SIN CONEXIÓN");
+  console.warn("Monitor:",e.message);
+ }
+}
+function scannerUI(){
+ if($("clScanner"))return;
+ const host=$("clScannerHost")||$("clScreenScanner");
+ if(!host)return;
+ const section=document.createElement("section");
+ section.id="clScanner";
+ section.className="cl-module";
+ section.innerHTML=`
+ <h2>📡 Escáner CRYPTOLEXUZ V16</h2>
+ <p id="clScanStatus">Esperando análisis...</p>
+ <div style="display:flex;gap:8px;flex-wrap:wrap">
+  <button id="clScanNow" type="button">↻ Escanear</button>
+  <button id="clNotify" type="button">🔔 Activar avisos</button>
+ </div>
+ <p>Ocho activos · Siete temporalidades · LONG / SHORT</p>
+ <div class="table-wrap">
+  <table>
+   <thead><tr>
+    <th>#</th><th>Activo</th><th>Dirección</th>
+    <th>Puntos</th><th>Estado</th><th>Confirmaciones</th>
+   </tr></thead>
+   <tbody id="clScanBody">
+    <tr><td colspan="6">Iniciando...</td></tr>
+   </tbody>
+  </table>
+ </div>
+ <p id="clScanErrors"></p>`;
+ host.appendChild(section);
+ $("clScanNow")?.addEventListener("click",()=>scan(true));
+ $("clNotify")?.addEventListener("click",async()=>{
+  if(!("Notification" in window)){
+   alert("Notificaciones no disponibles.");
+   return;
+  }
+  const p=await Notification.requestPermission();
+  put("clNotify",p==="granted"?"🔔 Avisos activos":"🔕 Sin permiso");
+ });
+}
+function markets(){
+ const s=selection();
+ return ASSETS.map(symbol=>({
+  symbol,
+  exchange:[GOLD,OIL].includes(symbol)?"bingx":s.exchange,
+  market:[GOLD,OIL].includes(symbol)?"perpetual":s.market,
+  label:symbol===GOLD?"GOLD (XAU)":
+   symbol===OIL?"OIL WTI":symbol.replace("-","/")
+ }));
+}
+async function frames(m){
+ const result={};
+ for(const tf of TF){
+  const s={...m,tf},k=key(s);
+  const ttl=SEC[tf]>=3600?180000:SEC[tf]>=900?90000:50000;
+  const cached=cache.get(k);
+  if(cached&&Date.now()-cached.at<ttl){
+   result[tf]=cached.data;continue;
+  }
+  const data=normalize(await getJSON(candleURL(s,130)));
+  if(closed(data,tf).length<60)
+   throw Error(tf+": historial insuficiente");
+  result[tf]=data;
+  cache.set(k,{at:Date.now(),data});
+ }
+ return result;
+}
+function rank(m,f){
+ const metrics={};
+ for(const tf of TF)metrics[tf]=metric(f[tf]||[],tf);
+ if(!metrics["1m"]||!metrics["5m"]||!metrics["15m"])
+  return {market:m,score:0,state:"SIN DATOS",
+   direction:"NEUTRAL",confirmations:"—"};
+ const weights={
+  "1d":5,"4h":7,"1h":9,"30m":10,
+  "15m":13,"5m":17,"1m":19
+ };
+ let bull=0,bear=0,available=0;
+ for(const tf of TF){
+  const v=metrics[tf];
+  if(!v)continue;
+  available++;
+  bull+=weights[tf]*v.bull/4;
+  bear+=weights[tf]*v.bear/4;
+ }
+ const direction=bull===bear?"NEUTRAL":bull>bear?"LONG":"SHORT";
+ const fast=metrics["1m"];
+ const aligned=["1m","5m","15m"].filter(tf=>{
+  const v=metrics[tf];
+  return direction==="LONG"?v.bull>=3:
+   direction==="SHORT"?v.bear>=3:false;
+ }).length;
+ let score=Math.round(Math.max(bull,bear));
+ score+=aligned===3?8:aligned===2?4:0;
+ score+=fast.adx>=25?5:fast.adx>=20?2:0;
+ if(fast.volRatio>=1.3)score+=5;
+ if((direction==="LONG"&&fast.breakHigh)||
+    (direction==="SHORT"&&fast.breakLow))score+=4;
+ score=Math.min(100,score);
+ const confirmed=direction!=="NEUTRAL"&&aligned===3&&
+  fast.adx>=20&&score>=65&&
+  (direction==="LONG"?fast.rsi<75:fast.rsi>25);
+ return {
+  market:m,score,direction,
+  state:confirmed?"CONFIRMADA":
+   score>=55?"EN OBSERVACIÓN":"SIN ENTRADA",
+  confirmations:aligned+"/3 rápidas · "+available+"/7 marcos",
+  closedTime:fast.closedTime,price:fast.close,
+  atr:fast.atr
+ };
+}
+function saveHistory(){
+ try{
+  localStorage.setItem(STORE,JSON.stringify(history.slice(0,300)));
+ }catch(e){console.warn("Guardar historial:",e);}
+}
+function addSignal(r){
+ if(r.state!=="CONFIRMADA"||!r.closedTime||
+    !Number.isFinite(r.atr)||r.atr<=0)return;
+ const id=[
+  r.market.exchange,r.market.market,r.market.symbol,
+  r.direction,r.closedTime
+ ].join("|");
+ if(history.some(x=>x.id===id))return;
+ const entry=r.price,dist=r.atr,side=r.direction;
+ history.unshift({
+  id,symbol:r.market.symbol,
+  exchange:r.market.exchange,market:r.market.market,
+  tf:"1m",direction:side,created:r.closedTime,
+  entry,
+  stop:side==="LONG"?entry-dist:entry+dist,
+  target:side==="LONG"?entry+2*dist:entry-2*dist,
+  state:"PENDIENTE",activated:null,ended:null,
+  reason:"Alineación multitemporal + ADX + RSI",
+  lastChecked:r.closedTime
+ });
+ history=history.slice(0,300);
+ saveHistory();renderHistory();
+}
+function evaluateSignal(s,data){
+ if(!["PENDIENTE","ACTIVADA"].includes(s.state))return false;
+ let changed=false;
+ for(const c of closed(data,s.tf)){
+  if(c.time<=s.lastChecked||c.time<=s.created)continue;
+  s.lastChecked=c.time;changed=true;
+  if(s.state==="PENDIENTE"){
+   if(!(c.low<=s.entry&&c.high>=s.entry))continue;
+   s.state="ACTIVADA";s.activated=c.time;
+  }
+  const stop=s.direction==="LONG"
+   ?c.low<=s.stop:c.high>=s.stop;
+  const target=s.direction==="LONG"
+   ?c.high>=s.target:c.low<=s.target;
+  if(stop&&target){
+   s.state="NO VERIFICABLE";s.ended=c.time;break;
+  }
+  if(stop||target){
+   s.state=target?"OBJETIVO":"STOP";
+   s.ended=c.time;break;
+  }
+ }
+ return changed;
+}
+async function verifySignals(){
+ const pending=history.filter(s=>
+  ["PENDIENTE","ACTIVADA"].includes(s.state)
+ );
+ const groups=new Map();
+ for(const s of pending){
+  const k=key(s);
+  if(!groups.has(k))groups.set(k,[]);
+  groups.get(k).push(s);
+ }
+ let dirty=false;
+ for(const group of groups.values()){
+  const s=group[0];
   try{
-    const raw = await getJSON(
-      candleURL(
-        "perpetual",
-        GOLD_SYMBOL,
-        "1m",
-        80,
-        "bingx"
-      ),
-      10000
-    );
-
-    const data = normalize(raw);
-
-    if(data.length<60){
-      throw new Error(
-        "Sin velas suficientes"
-      );
+   const data=normalize(await getJSON(candleURL(s,300)));
+   const valid=closed(data,s.tf);
+   if(!valid.length)continue;
+   for(const item of group){
+    if(item.lastChecked<valid[0].time-SEC[item.tf]){
+     item.state="NO VERIFICABLE";
+     item.ended=now();dirty=true;continue;
     }
-
-    return {
-      ...market,
-      symbol:GOLD_SYMBOL
-    };
-  }catch(error){
-    throw new Error(
-      "GOLD (XAU) no disponible en API: "+
-      error.message
-    );
+    if(evaluateSignal(item,data))dirty=true;
+   }
+  }catch(e){console.warn("Verificación:",e.message);}
+ }
+ if(dirty){saveHistory();renderHistory();}
+}
+function renderHistory(){
+ const wins=history.filter(x=>x.state==="OBJETIVO").length;
+ const losses=history.filter(x=>x.state==="STOP").length;
+ put("clTotalSignals",history.length);
+ put("clTargetsHit",wins);
+ put("clStopsHit",losses);
+ put("clWinRate",wins+losses
+  ?fmt(wins/(wins+losses)*100,1)+"%":"—");
+ const body=$("signalLog");
+ if(!body)return;
+ body.replaceChildren();
+ if(!history.length){
+  const tr=document.createElement("tr");
+  const td=document.createElement("td");
+  td.colSpan=7;
+  td.textContent="Todavía no hay señales registradas.";
+  tr.appendChild(td);body.appendChild(tr);
+  return;
+ }
+ for(const s of history.slice(0,30)){
+  const tr=document.createElement("tr");
+  const cells=[
+   new Date(s.created*1000).toLocaleString("es-MX"),
+   s.tf,s.symbol,s.direction,fmt(s.entry),
+   s.reason+" · TP "+fmt(s.target)+" · SL "+fmt(s.stop),
+   s.state
+  ];
+  for(const v of cells){
+   const td=document.createElement("td");
+   td.textContent=v;tr.appendChild(td);
   }
+  body.appendChild(tr);
+ }
 }
-
-async function scanOne(market){
-  const m = market.gold
-    ? await resolveGold(market)
-    : market;
-
-  const frames = await fetchFrames(m);
-
-  return rankAsset(m,frames);
+function notify(r){
+ if(r.state!=="CONFIRMADA"||
+    !("Notification" in window)||
+    Notification.permission!=="granted")return;
+ try{
+  new Notification(
+   "CRYPTOLEXUZ · "+r.market.label+" · "+r.direction,{
+    body:"Señal técnica "+r.score+
+     "/100 · Precio "+fmt(r.price),
+    tag:r.market.symbol+"|"+r.direction+"|"+r.closedTime
+   }
+  );
+ }catch(e){console.warn("Notificación:",e);}
 }
-
-function renderScanner(){
-  const body = $("clScanBody");
-
-  if(!body) return;
-
-  body.replaceChildren();
-
-  for(const [i,r] of scanResults.entries()){
-    const tr = document.createElement("tr");
-
-    tr.style.borderTop =
-      "1px solid #233452";
-
-    if(r.market.oil){
-      tr.dataset.commodity = "oil-wti";
-    }
-
-    const texts = [
-      String(i+1),
-      r.market.label,
-      r.direction,
-      r.score+"/100",
-      r.state,
-      r.confirmations
+async function scan(force=false){
+ if(scanBusy||document.hidden)return;
+ if(!force&&Date.now()-scanLast<55000)return;
+ scanBusy=true;
+ const id=scanGeneration,items=markets();
+ const results=[],errors=[];
+ put("clScanStatus","Analizando ocho activos...");
+ let cursor=0;
+ async function worker(){
+  while(cursor<items.length){
+   const m=items[cursor++];
+   try{results.push(rank(m,await frames(m)));}
+   catch(e){errors.push(m.label+": "+e.message);}
+  }
+ }
+ try{
+  await Promise.all([worker(),worker()]);
+  if(id!==scanGeneration)return;
+  results.sort((a,b)=>b.score-a.score);
+  const body=$("clScanBody");
+  if(body){
+   body.replaceChildren();
+   for(const [i,r] of results.entries()){
+    const tr=document.createElement("tr");
+    const cells=[
+     i+1,r.market.label,r.direction,
+     r.score+"/100",r.state,r.confirmations
     ];
-
-    texts.forEach((text,j)=>{
-      const td = document.createElement("td");
-
-      td.textContent = text;
-      td.style.padding = "10px 8px";
-
-      if(j===2){
-        td.style.color =
-          r.direction==="LONG"
-            ? C.green
-            : r.direction==="SHORT"
-              ? C.red
-              : C.muted;
-      }
-
-      if(
-        j===4 &&
-        r.state==="CONFIRMADA"
-      ){
-        td.style.color = C.green;
-      }
-
-      tr.appendChild(td);
-    });
-
+    for(const text of cells){
+     const td=document.createElement("td");
+     td.textContent=text;
+     td.style.padding="9px 6px";
+     tr.appendChild(td);
+    }
     body.appendChild(tr);
+   }
+   if(!results.length){
+    const tr=document.createElement("tr");
+    const td=document.createElement("td");
+    td.colSpan=6;td.textContent="Sin resultados disponibles.";
+    tr.appendChild(td);body.appendChild(tr);
+   }
   }
-
-  if(!scanResults.length){
-    const tr = document.createElement("tr");
-    const td = document.createElement("td");
-
-    td.colSpan = 6;
-    td.textContent =
-      "No se obtuvieron resultados válidos";
-
-    td.style.padding = "12px";
-
-    tr.appendChild(td);
-    body.appendChild(tr);
-  }
-
-  value(
-    "clScanErrors",
-    scanErrors.length
-      ? "Sin datos: "+scanErrors.join(" · ")
-      : ""
-  );
+  put("clScanErrors",errors.length
+   ?"Sin datos: "+errors.join(" · "):"");
+  put("clScanStatus","Última revisión: "+
+   new Date().toLocaleTimeString("es-MX")+
+   " · "+results.length+"/"+items.length+" activos");
+  scanLast=Date.now();
+  for(const r of results){addSignal(r);notify(r);}
+  await verifySignals();
+ }finally{scanBusy=false;}
 }
-
-function notifySignal(r){
-  if(
-    r.state!=="CONFIRMADA" ||
-    !r.closedTime
-  ) return;
-
-  const key = [
-    r.market.exchange,
-    r.market.market,
-    r.market.symbol,
-    r.direction,
-    r.closedTime
-  ].join("|");
-
-  if(alertHistory.has(key)) return;
-
-  alertHistory.set(key,Date.now());
-
-  if(alertHistory.size>150){
-    for(const k of [
-      ...alertHistory.keys()
-    ].slice(0,50)){
-      alertHistory.delete(k);
-    }
-  }
-
-  if(
-    !("Notification" in window) ||
-    Notification.permission!=="granted"
-  ) return;
-
-  try{
-    const notification = new Notification(
-      "CRYPTOLEXUZ · "+
-      r.market.label+
-      " · "+r.direction,
-      {
-        body:
-          "Señal técnica "+
-          r.score+"/100 · "+
-          r.confirmations+
-          " · Precio "+num(r.price),
-        tag:key
-      }
-    );
-
-    notification.onclick = ()=>{
-      window.focus();
-      notification.close();
-    };
-  }catch(error){
-    console.warn(
-      "Notificación:",
-      error.message
-    );
-  }
+function clearMarket(){
+ generation++;scanGeneration++;
+ scanLast=0;monitorLast=0;activeKey="";
+ rows=[];zones=[];pivots=[];sweeps=[];
+ lastWS=0;
+ series.price?.setData([]);
+ series.volume?.setData([]);
+ for(const s of Object.values(moving))s.setData([]);
+ for(const k of ["rsi","adx","plus","minus"])
+  series[k]?.setData([]);
+ for(const l of lines){
+  try{series.price?.removePriceLine(l);}catch(e){}
+ }
+ lines.length=0;
+ series.price?.setMarkers([]);
+ put("price","—");
+ put("message","Cargando nuevo mercado...");
+ resizeCanvas();
 }
-
-async function runScanner(force=false){
-  if(scanBusy || document.hidden) return;
-
-  if(
-    !force &&
-    Date.now()-scanLastAt<55000
-  ) return;
-
-  scanBusy = true;
-  const generation = ++scanGeneration;
-
-  const markets = scanMarkets();
-  const results = [];
-  const errors = [];
-
-  value(
-    "clScanStatus",
-    "Analizando "+
-    markets.length+
-    " activos y siete temporalidades..."
-  );
-
-  let index = 0;
-
-  async function worker(){
-    while(index<markets.length){
-      const market = markets[index++];
-
-      try{
-        results.push(
-          await scanOne(market)
-        );
-      }catch(error){
-        errors.push(
-          market.label+": "+error.message
-        );
-      }
-    }
-  }
-
-  try{
-    await Promise.all([
-      worker(),
-      worker()
-    ]);
-
-    if(generation!==scanGeneration) return;
-
-    scanResults = results.sort(
-      (a,b)=>b.score-a.score
-    );
-
-    scanErrors = errors;
-    scanLastAt = Date.now();
-
-    renderScanner();
-
-    value(
-      "clScanStatus",
-      "Última revisión: "+
-      new Date().toLocaleTimeString("es-MX")+
-      " · "+results.length+
-      "/"+markets.length+" activos"
-    );
-
-    for(const r of scanResults){
-      notifySignal(r);
-    }
-  }finally{
-    scanBusy = false;
-
-    if(
-      generation!==scanGeneration &&
-      !document.hidden
-    ){
-      runScanner(true).catch(()=>{});
-    }
-  }
-}
-
-/* BOTONES DE INDICADORES */
-
-function toggleIndicator(key){
-  if(!supported.has(key)) return;
-
-  if(enabled.has(key)){
-    enabled.delete(key);
-  }else{
-    enabled.add(key);
-  }
-
-  updateButtons();
-
-  if(rows.length){
-    updateIndicators();
-  }
-}
-
 function updateButtons(){
-  document.querySelectorAll(
-    "[data-indicator]"
-  ).forEach(button=>{
-    const key = button.dataset.indicator;
-
-    if(!supported.has(key)){
-      button.disabled = true;
-      return;
-    }
-
-    const active = enabled.has(key);
-
-    button.classList.toggle(
-      "active",
-      active
-    );
-
-    button.setAttribute(
-      "aria-pressed",
-      String(active)
-    );
-  });
+ document.querySelectorAll("[data-indicator]").forEach(b=>{
+  const k=b.dataset.indicator;
+  b.classList.toggle("active",enabled.has(k));
+  b.setAttribute("aria-pressed",String(enabled.has(k)));
+ });
 }
-
-function speakRSI(){
-  if(!("speechSynthesis" in window)) return;
-
+function events(){
+ document.querySelectorAll("[data-indicator]").forEach(b=>{
+  b.addEventListener("click",()=>{
+   const k=b.dataset.indicator;
+   if(enabled.has(k))enabled.delete(k);
+   else enabled.add(k);
+   updateButtons();
+   if(rows.length)updateIndicators();
+  });
+ });
+ $("refresh")?.addEventListener("click",()=>{
+  refresh();refreshTicker();
+ });
+ $("chartReset")?.addEventListener("click",resetView);
+ $("rsiSpeak")?.addEventListener("click",()=>{
+  if(!("speechSynthesis" in window))return;
   speechSynthesis.cancel();
-
-  const speech = new SpeechSynthesisUtterance(
-    currentRSIText ||
-    "El RSI no está disponible."
-  );
-
-  speech.lang = "es-MX";
-  speech.rate = .95;
-
-  speechSynthesis.speak(speech);
-}
-
-/* CAMBIOS DE MERCADO */
-
-function resetMarketState(){
-  requestId++;
-  loading = false;
-  loadingId = 0;
-
-  monitorGeneration++;
-  scanGeneration++;
-  scanLastAt = 0;
-
-  lastWsPriceAt = 0;
-  lastLiveEvent = null;
-  activeKey = "";
-
-  rows = [];
-  zones = [];
-  pivots = [];
-  sweeps = [];
-
-  if(indicatorTimer){
-    clearTimeout(indicatorTimer);
-    indicatorTimer = null;
-  }
-
-  series.price?.setData([]);
-  series.volume?.setData([]);
-
-  for(const s of Object.values(maSeries)){
-    s.setData([]);
-  }
-
-  for(const k of [
-    "rsi",
-    "adx",
-    "plus",
-    "minus"
-  ]){
-    series[k]?.setData([]);
-  }
-
-  for(const line of drawnLines){
-    try{
-      series.price?.removePriceLine(line);
-    }catch(_){}
-  }
-
-  drawnLines.length = 0;
-
-  series.price?.setMarkers([]);
-
-  resizeCanvas();
-
-  value("price","—");
-
-  value(
-    "message",
-    "Cargando nuevo activo o temporalidad..."
-  );
-
-  window.CryptolexuzFibonacci
-    ?.redraw?.();
-}
-
-/* EVENTOS */
-
-function setupEvents(){
-  document.querySelectorAll(
-    "[data-indicator]"
-  ).forEach(button=>{
-    button.addEventListener(
-      "click",
-      ()=>toggleIndicator(
-        button.dataset.indicator
-      )
-    );
+  const u=new SpeechSynthesisUtterance(lastRSI);
+  u.lang="es-MX";speechSynthesis.speak(u);
+ });
+ if($("rsiSpeak")&&"speechSynthesis" in window)
+  $("rsiSpeak").disabled=false;
+ for(const id of ["symbol","interval","exchange","market"]){
+  $(id)?.addEventListener("change",()=>{
+   syncCommodity();clearMarket();connect();
+   refresh();refreshTicker();scan(true);
   });
-
-  $("refresh")?.addEventListener(
-    "click",
-    ()=>{
-      refresh();
-      refreshTicker();
-    }
-  );
-
-  $("chartReset")?.addEventListener(
-    "click",
-    resetView
-  );
-
-  $("rsiSpeak")?.addEventListener(
-    "click",
-    speakRSI
-  );
-
-  if(
-    $("rsiSpeak") &&
-    "speechSynthesis" in window
-  ){
-    $("rsiSpeak").disabled = false;
-
-    $("rsiSpeak").textContent =
-      "🔊 Escuchar interpretación RSI";
+ }
+ document.addEventListener("visibilitychange",()=>{
+  if(document.hidden)disconnect();
+  else{
+   connect();refresh();refreshTicker();scan(true);
   }
-
-  for(const id of [
-    "symbol",
-    "interval",
-    "market",
-    "exchange"
-  ]){
-    $(id)?.addEventListener(
-      "change",
-      ()=>{
-        syncCommoditySelection();
-
-        lastMonitorAt = 0;
-
-        resetMarketState();
-
-        connectWS();
-        refresh();
-        refreshTicker();
-        runScanner(true);
-      }
-    );
-  }
-
-  updateButtons();
+ });
+ window.addEventListener("cryptolexuz:screen-change",e=>{
+  if(e.detail?.screen==="charts")setTimeout(resize,100);
+  if(e.detail?.screen==="results")renderHistory();
+ });
+ updateButtons();
 }
-
-/* INICIO DE CRYPTOLEXUZ */
-
 function init(){
-  ensureCommodityOptions();
-  syncCommoditySelection();
-  ensureScannerUI();
-  setupEvents();
-
-  if(!createCharts()) return;
-
-  connectWS();
-  refresh();
-  refreshTicker();
-  runScanner(true);
-
-  chartTimer = setInterval(()=>{
-    if(!document.hidden){
-      refresh();
-    }
-  },15000);
-
-  tickerTimer = setInterval(()=>{
-    if(!document.hidden){
-      refreshTicker();
-    }
-  },10000);
-
-  scanTimer = setInterval(()=>{
-    if(!document.hidden){
-      runScanner();
-    }
-  },60000);
-
-  document.addEventListener(
-    "visibilitychange",
-    ()=>{
-      if(document.hidden){
-        disconnectWS();
-      }else{
-        connectWS();
-        refresh();
-        refreshTicker();
-        runScanner(true);
-      }
-    }
-  );
-
-  window.addEventListener(
-    "beforeunload",
-    ()=>{
-      disconnectWS();
-
-      if(indicatorTimer){
-        clearTimeout(indicatorTimer);
-      }
-
-      clearInterval(chartTimer);
-      clearInterval(tickerTimer);
-      clearInterval(scanTimer);
-
-      resizeObserver?.disconnect();
-    }
-  );
+ syncCommodity();
+ scannerUI();
+ renderHistory();
+ events();
+ if(!createCharts())return;
+ connect();refresh();refreshTicker();scan(true);
+ chartTimer=setInterval(()=>{
+  if(!document.hidden)refresh();
+ },15000);
+ tickerTimer=setInterval(()=>{
+  if(!document.hidden)refreshTicker();
+ },10000);
+ scanTimer=setInterval(()=>{
+  if(!document.hidden)scan();
+ },60000);
+ verifyTimer=setInterval(()=>{
+  if(!document.hidden)verifySignals().catch(console.warn);
+ },60000);
+ window.addEventListener("beforeunload",()=>{
+  disconnect();
+  clearInterval(chartTimer);
+  clearInterval(tickerTimer);
+  clearInterval(scanTimer);
+  clearInterval(verifyTimer);
+  resizeObserver?.disconnect();
+ });
 }
-
-if(document.readyState==="loading"){
-  document.addEventListener(
-    "DOMContentLoaded",
-    init
-  );
-}else{
-  init();
-}
-
+if(document.readyState==="loading")
+ document.addEventListener("DOMContentLoaded",init);
+else init();
 })();
