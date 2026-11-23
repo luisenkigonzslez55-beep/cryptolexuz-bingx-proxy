@@ -5,7 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#080a1b">
-<meta name="description" content="CRYPTOLEXUZ PRO: gráficas, escáner, scalping, Fibonacci, Volume Profile, profundidad de mercado y resultados.">
+<meta name="description" content="CRYPTOLEXUZ PRO: gráficas, escáner, scalping, Fibonacci, Volume Profile, liquidez y resultados.">
 <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
 
 <link rel="stylesheet" href="styles.css?v=10">
@@ -24,7 +24,10 @@
   --cl-yellow:#ffe15a;
 }
 *,*::before,*::after{box-sizing:border-box}
-html{scroll-behavior:smooth;scroll-padding-top:95px}
+html{
+  scroll-behavior:smooth;
+  scroll-padding-top:95px;
+}
 body{
   margin:0;
   background:var(--cl-bg);
@@ -35,201 +38,371 @@ body{
 button,select,input{font:inherit}
 button{cursor:pointer}
 .app-header{
-  display:flex;align-items:center;gap:10px;
-  min-height:86px;padding:10px 14px;
-  background:#080a1b;border-bottom:1px solid var(--cl-border);
-  position:relative;z-index:100;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  min-height:86px;
+  padding:10px 14px;
+  background:#080a1b;
+  border-bottom:1px solid var(--cl-border);
+  position:relative;
+  z-index:100;
 }
 .app-header .brand{
-  display:flex;align-items:center;flex:1;
-  min-width:0;overflow:hidden;
+  display:flex;
+  align-items:center;
+  flex:1;
+  min-width:0;
+  overflow:hidden;
 }
 .app-header .logo-3d{
   width:clamp(155px,38vw,310px);
-  height:66px;max-width:100%;
-  object-fit:contain;object-position:left center;
+  height:66px;
+  max-width:100%;
+  object-fit:contain;
+  object-position:left center;
 }
 .app-header .connection{
-  flex:0 0 auto;max-width:125px;
-  font-size:11px;overflow-wrap:anywhere;
+  flex:0 0 auto;
+  max-width:125px;
+  font-size:11px;
+  overflow-wrap:anywhere;
 }
-.app-shell,.app-container,.cl-screen{width:100%;min-width:0}
-.app-container{max-width:1440px;margin:auto;padding:12px}
+.app-shell,.app-container,.cl-screen{
+  width:100%;
+  min-width:0;
+}
+.app-container{
+  max-width:1440px;
+  margin:auto;
+  padding:12px;
+}
 .cl-screen{display:none}
 .cl-screen.cl-active{display:block}
-.cl-screen>section,.cl-screen>div{margin-bottom:15px}
+.cl-screen>section,
+.cl-screen>div{margin-bottom:15px}
 .cl-screen-title{
-  padding:14px;margin-bottom:14px;
+  padding:14px;
+  margin-bottom:14px;
   border:1px solid var(--cl-border);
   border-radius:13px;
   background:linear-gradient(135deg,#24133f,#111b34);
 }
-.cl-screen-title h1{margin:0 0 7px;font-size:20px}
+.cl-screen-title h1{
+  margin:0 0 7px;
+  font-size:20px;
+}
 .cl-screen-title p{
-  margin:0;color:var(--cl-muted);
-  font-size:12px;line-height:1.6;
+  margin:0;
+  color:var(--cl-muted);
+  font-size:12px;
+  line-height:1.6;
 }
 .cl-module{
   background:var(--cl-panel);
   border:1px solid var(--cl-border);
-  border-radius:13px;padding:13px;
-  margin-bottom:14px;min-width:0;
+  border-radius:13px;
+  padding:13px;
+  margin-bottom:14px;
+  min-width:0;
 }
-.cl-module h2{margin:0 0 10px;font-size:17px}
+.cl-module h2{
+  margin:0 0 10px;
+  font-size:17px;
+}
 .cl-module p{
-  font-size:12px;line-height:1.6;color:var(--cl-muted);
+  font-size:12px;
+  line-height:1.6;
+  color:var(--cl-muted);
 }
 .cl-module-placeholder{
   border:1px dashed #43517a;
-  border-radius:10px;padding:13px;
-  color:var(--cl-muted);font-size:12px;
+  border-radius:10px;
+  padding:13px;
+  color:var(--cl-muted);
+  font-size:12px;
 }
 .cl-extra-select{
-  display:flex;flex-wrap:wrap;gap:12px;margin:12px 0;
+  display:flex;
+  flex-wrap:wrap;
+  gap:12px;
+  margin:12px 0;
 }
 .cl-extra-select label{
-  display:flex;flex-direction:column;gap:6px;
-  min-width:135px;flex:1;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width:135px;
+  flex:1;
 }
 .cl-extra-select select{
-  width:100%;min-height:40px;background:#111b32;
-  color:#e3ebff;border:1px solid #304469;
-  border-radius:9px;padding:7px 10px;
+  width:100%;
+  min-height:40px;
+  background:#111b32;
+  color:#e3ebff;
+  border:1px solid #304469;
+  border-radius:9px;
+  padding:7px 10px;
 }
 .cl-trade-pair{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:10px;margin:12px 0;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin:12px 0;
 }
 .cl-trade-card{
-  min-width:0;border:1px solid var(--cl-border);
-  border-radius:12px;background:#111a32;padding:12px;
+  min-width:0;
+  border:1px solid var(--cl-border);
+  border-radius:12px;
+  background:#111a32;
+  padding:12px;
 }
 .cl-trade-card.long{border-color:#167b62}
 .cl-trade-card.short{border-color:#a63b59}
-.cl-trade-card h3{margin:0 0 9px;font-size:16px}
+.cl-trade-card h3{
+  margin:0 0 9px;
+  font-size:16px;
+}
 .cl-trade-card.long h3{color:var(--cl-green)}
 .cl-trade-card.short h3{color:var(--cl-red)}
 .cl-trade-card p{
-  margin:7px 0;font-size:12px;overflow-wrap:anywhere;
+  margin:7px 0;
+  font-size:12px;
+  overflow-wrap:anywhere;
 }
 .cl-trade-card strong{color:#fff}
 
 /* MERCADO */
 .market-card{
-  width:100%;min-width:0;padding:15px;margin:0 0 12px;
-  border:1px solid #4d397f;border-radius:15px;
+  width:100%;
+  min-width:0;
+  padding:15px;
+  margin:0 0 12px;
+  border:1px solid #4d397f;
+  border-radius:15px;
   background:linear-gradient(145deg,#231442,#111b34 72%);
   box-shadow:0 8px 24px rgba(0,0,0,.16);
 }
-.market-top{display:flex;flex-direction:column;gap:12px}
+.market-top{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
 .selectors-row{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:10px;
 }
 .compact-field{
-  display:flex;flex-direction:column;gap:6px;min-width:0;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width:0;
 }
-.compact-field span{font-size:11px;color:#b7c4e7}
+.compact-field span{
+  font-size:11px;
+  color:#b7c4e7;
+}
 .compact-field select{
-  width:100%;min-width:0;min-height:43px;padding:9px;
-  border-radius:9px;border:1px solid #50568a;
-  background:#111b34;color:#fff;
+  width:100%;
+  min-width:0;
+  min-height:43px;
+  padding:9px;
+  border-radius:9px;
+  border:1px solid #50568a;
+  background:#111b34;
+  color:#fff;
 }
 .market-price{
-  display:flex;align-items:baseline;flex-wrap:wrap;gap:10px;
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:10px;
 }
 .market-price strong{
   font-size:clamp(26px,7vw,39px);
-  line-height:1.2;color:#fff;font-variant-numeric:tabular-nums;
+  line-height:1.2;
+  color:#fff;
+  font-variant-numeric:tabular-nums;
 }
 .market-price span{
-  font-size:15px;font-weight:700;color:var(--cl-green);
+  font-size:15px;
+  font-weight:700;
+  color:var(--cl-green);
 }
 .market-price span.negative{color:var(--cl-red)}
 .market-bottom{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:10px;padding-top:12px;border-top:1px solid #3c426d;
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  padding-top:12px;
+  border-top:1px solid #3c426d;
 }
 .market-bottom>div{
-  min-width:0;padding:10px;background:rgba(7,12,30,.45);
-  border:1px solid #343d65;border-radius:9px;
+  min-width:0;
+  padding:10px;
+  background:rgba(7,12,30,.45);
+  border:1px solid #343d65;
+  border-radius:9px;
 }
 .market-bottom span{
-  display:block;font-size:11px;color:var(--cl-muted);
+  display:block;
+  font-size:11px;
+  color:var(--cl-muted);
   margin-bottom:5px;
 }
 .market-bottom strong{
-  display:block;font-size:clamp(13px,3.7vw,17px);
-  color:#fff;overflow-wrap:anywhere;
+  display:block;
+  font-size:clamp(13px,3.7vw,17px);
+  color:#fff;
+  overflow-wrap:anywhere;
 }
 
 /* GRÁFICAS */
-.chart-card{min-width:0;overflow:hidden}
+.chart-card{
+  min-width:0;
+  overflow:hidden;
+}
 .chart-heading{
-  display:flex;align-items:center;justify-content:space-between;
-  flex-wrap:wrap;gap:10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  flex-wrap:wrap;
+  gap:10px;
 }
 .chart-heading h2{margin:0 0 5px}
-.chart-heading small{font-size:10px;color:var(--cl-muted)}
-.chart-controls{
-  display:flex;flex-wrap:wrap;align-items:center;
-  gap:10px;margin:10px 0;
+.chart-heading small{
+  font-size:10px;
+  color:var(--cl-muted);
 }
-.chart-control-note{font-size:11px;color:var(--cl-muted)}
+.chart-controls{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:10px;
+  margin:10px 0;
+}
+.chart-control-note{
+  font-size:11px;
+  color:var(--cl-muted);
+}
 #priceChartArea{
-  position:relative;width:100%;min-width:0;
-  padding:0!important;overflow:hidden;background:#080e20;
+  position:relative;
+  width:100%;
+  min-width:0;
+  padding:0!important;
+  overflow:hidden;
+  background:#080e20;
 }
 #chart{
-  width:100%;height:360px;min-width:0;touch-action:pan-y;
+  width:100%;
+  height:360px;
+  min-width:0;
+  touch-action:pan-y;
 }
 #volumeChart{height:115px}
 #rsiChart,#adxChart{height:145px}
 #chart,#volumeChart,#rsiChart,#adxChart,#squeezeChart{
-  width:100%;min-width:0;
+  width:100%;
+  min-width:0;
 }
 #zonesCanvas,#fibonacciCanvas{
-  position:absolute;inset:0;width:100%;height:100%;
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
   pointer-events:none;
 }
 #zonesCanvas{z-index:2}
 #clVpCanvas{z-index:3}
 #fibonacciCanvas{z-index:50}
 #fibToolbar{
-  display:flex;flex-wrap:wrap;align-items:center;
-  gap:7px;margin:10px 0;
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:7px;
+  margin:10px 0;
 }
-#fibToolbar button,#fibPanel button{min-height:40px}
+#fibToolbar button,
+#fibPanel button{min-height:40px}
 #fibPanel input{
-  background:#111b32;color:#e3ebff;
-  border:1px solid #40547c;border-radius:6px;padding:5px;
+  background:#111b32;
+  color:#e3ebff;
+  border:1px solid #40547c;
+  border-radius:6px;
+  padding:5px;
 }
-#fibPanel input[type=checkbox]{width:18px;height:18px}
-#fibPanel input[type=color]{width:38px;height:32px}
-#fibLevels{margin:12px 0;max-height:340px;overflow-y:auto}
+#fibPanel input[type=checkbox]{
+  width:18px;
+  height:18px;
+}
+#fibPanel input[type=color]{
+  width:38px;
+  height:32px;
+}
+#fibLevels{
+  margin:12px 0;
+  max-height:340px;
+  overflow-y:auto;
+}
 .cl-fib-loading{
-  padding:12px;margin:10px 0;border:1px dashed #485b88;
-  border-radius:10px;color:#b7c5e5;
-  background:#101a32;font-size:12px;
+  padding:12px;
+  margin:10px 0;
+  border:1px dashed #485b88;
+  border-radius:10px;
+  color:#b7c5e5;
+  background:#101a32;
+  font-size:12px;
 }
 .cl-tool-panel{
-  border:1px solid #3d4770;border-radius:11px;
-  margin:12px 0;background:#10172c;overflow:hidden;
+  border:1px solid #3d4770;
+  border-radius:11px;
+  margin:12px 0;
+  background:#10172c;
+  overflow:hidden;
 }
 .cl-tool-panel summary{
-  padding:13px;font-weight:700;color:#d9c3ff;cursor:pointer;
+  padding:13px;
+  font-weight:700;
+  color:#d9c3ff;
+  cursor:pointer;
 }
 .cl-tool-content{padding:0 12px 12px}
 .cl-pattern-heading{
-  margin:18px 0 9px;color:var(--cl-purple);font-size:14px;
+  margin:18px 0 9px;
+  color:var(--cl-purple);
+  font-size:14px;
 }
 .cl-pattern-note{
-  margin:9px 0;color:#a5b0cf;font-size:11px;line-height:1.5;
+  margin:9px 0;
+  color:#a5b0cf;
+  font-size:11px;
+  line-height:1.5;
 }
 .cl-pattern-status{
-  margin:10px 0;padding:9px;border:1px solid var(--cl-border);
-  border-radius:8px;background:#101a32;
-  color:var(--cl-muted);font-size:11px;
+  margin:10px 0;
+  padding:9px;
+  border:1px solid var(--cl-border);
+  border-radius:8px;
+  background:#101a32;
+  color:var(--cl-muted);
+  font-size:11px;
+}
+
+/* MAPA DE LIQUIDEZ */
+#liquiditySection{
+  min-width:0;
+  overflow:hidden;
+}
+#liquidityMap{
+  width:100%;
+  min-width:0;
+}
+#clHeatmap{
+  max-width:100%;
+}
+#clMapStatus{
+  overflow-wrap:anywhere;
 }
 
 /* MERCADO PRO */
@@ -238,77 +411,117 @@ button{cursor:pointer}
   flex-direction:column;
   gap:12px;
 }
-#clMercadoProHost>.clmp-panel{
-  margin:0;
-}
+#clMercadoProHost>.clmp-panel{margin:0}
 #clMercadoProStatus[hidden]{
   display:none!important;
 }
 
 /* NAVEGACIÓN */
 .cl-bottom-nav{
-  position:fixed;left:0;right:0;bottom:0;z-index:9990;
-  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:7px;padding:9px 10px calc(9px + env(safe-area-inset-bottom));
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  z-index:9990;
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:7px;
+  padding:9px 10px calc(9px + env(safe-area-inset-bottom));
   background:rgba(7,10,27,.97);
   border-top:1px solid var(--cl-border);
   box-shadow:0 -8px 30px rgba(0,0,0,.4);
 }
 .cl-nav-button{
-  min-width:0;min-height:58px;border:1px solid #394875;
-  border-radius:12px;background:#151c38;color:#c4cde7;
-  display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:3px;
+  min-width:0;
+  min-height:58px;
+  border:1px solid #394875;
+  border-radius:12px;
+  background:#151c38;
+  color:#c4cde7;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
   font:600 12px system-ui,sans-serif;
 }
-.cl-nav-icon{font-size:21px;line-height:1}
+.cl-nav-icon{
+  font-size:21px;
+  line-height:1;
+}
 .cl-nav-button.active{
-  color:#fff;border-color:#a45dff;
+  color:#fff;
+  border-color:#a45dff;
   background:linear-gradient(135deg,#412064,#242456);
 }
 .cl-nav-button:focus-visible{
-  outline:2px solid var(--cl-purple);outline-offset:2px;
+  outline:2px solid var(--cl-purple);
+  outline-offset:2px;
 }
 .cl-stats{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
   gap:10px;
 }
 .cl-stat{
-  background:#151d39;border:1px solid var(--cl-border);
-  border-radius:11px;padding:13px;
+  background:#151d39;
+  border:1px solid var(--cl-border);
+  border-radius:11px;
+  padding:13px;
 }
 .cl-stat span{
-  display:block;color:var(--cl-muted);
-  font-size:11px;margin-bottom:8px;
+  display:block;
+  color:var(--cl-muted);
+  font-size:11px;
+  margin-bottom:8px;
 }
-.cl-stat strong{font-size:20px;color:#fff}
+.cl-stat strong{
+  font-size:20px;
+  color:#fff;
+}
 .cl-notice{
-  color:var(--cl-muted);font-size:12px;
-  line-height:1.6;margin:12px 0;
+  color:var(--cl-muted);
+  font-size:12px;
+  line-height:1.6;
+  margin:12px 0;
 }
 .cl-screen .table-wrap{
-  max-width:100%;overflow-x:auto;
+  max-width:100%;
+  overflow-x:auto;
 }
 .cl-screen table{width:100%}
 .app-container>footer{
-  padding:18px 5px;text-align:center;
-  color:var(--cl-muted);font-size:11px;
+  padding:18px 5px;
+  text-align:center;
+  color:var(--cl-muted);
+  font-size:11px;
 }
 @media(max-width:390px){
-  .app-header{gap:6px;padding:8px}
-  .app-header .logo-3d{width:150px;height:58px}
+  .app-header{
+    gap:6px;
+    padding:8px;
+  }
+  .app-header .logo-3d{
+    width:150px;
+    height:58px;
+  }
   .app-header .connection{font-size:10px}
   .app-container{padding:9px}
   .cl-trade-pair{gap:7px}
   .cl-trade-card{padding:9px}
 }
 @media(min-width:900px){
-  .app-header .logo-3d{width:310px;height:75px}
+  .app-header .logo-3d{
+    width:310px;
+    height:75px;
+  }
   .market-bottom{
     grid-template-columns:repeat(4,minmax(0,1fr));
   }
   .cl-bottom-nav{
-    max-width:560px;left:50%;right:auto;
+    max-width:560px;
+    left:50%;
+    right:auto;
     width:calc(100% - 24px);
     transform:translateX(-50%);
     border:1px solid var(--cl-border);
@@ -326,7 +539,7 @@ button{cursor:pointer}
 <script defer src="patterns.js?v=2"></script>
 <script defer src="patterns-bridge.js?v=1"></script>
 <script defer src="app.js?v=16"></script>
-<script defer src="liquidity.js?v=11"></script>
+<script defer src="liquidity.js?v=12"></script>
 <script defer src="trade-plans.js?v=1"></script>
 <script defer src="scalping-rapido.js?v=2"></script>
 <script defer src="range-boxes.js?v=1"></script>
@@ -336,14 +549,18 @@ button{cursor:pointer}
 
 <body>
 <header class="app-header">
-  <button id="menuToggle" class="menu-toggle" type="button"
-    aria-label="Abrir menú" aria-expanded="false"
+  <button id="menuToggle" class="menu-toggle"
+    type="button"
+    aria-label="Abrir menú"
+    aria-expanded="false"
     aria-controls="sidebar">☰</button>
+
   <div class="brand">
     <img class="logo-3d"
       src="file_00000000600881fb8ee48d81ba77b640.png"
       alt="CRYPTOLEXUZ PRO">
   </div>
+
   <span id="connection" class="connection" role="status">
     ● Conectando...
   </span>
@@ -354,7 +571,8 @@ button{cursor:pointer}
 <aside id="sidebar" class="sidebar" aria-label="Herramientas">
   <div class="sidebar-head">
     <strong>Herramientas</strong>
-    <button id="menuClose" type="button" aria-label="Cerrar menú">✕</button>
+    <button id="menuClose" type="button"
+      aria-label="Cerrar menú">✕</button>
   </div>
 
   <nav class="side-nav" aria-label="Secciones">
@@ -371,6 +589,7 @@ button{cursor:pointer}
   </nav>
 
   <h3>Indicadores</h3>
+
   <div id="indicatorButtons" class="indicator-buttons">
     <button type="button" data-indicator="ema21" aria-pressed="true">EMA 21</button>
     <button type="button" data-indicator="ma55" aria-pressed="true">MA 55</button>
@@ -422,7 +641,7 @@ button{cursor:pointer}
   <h3>Mapa de liquidez</h3>
   <label class="switch-row">
     <span>Mostrar mapa</span>
-    <input id="liquidityMapToggle" type="checkbox" disabled>
+    <input id="liquidityMapToggle" type="checkbox" checked disabled>
     <span class="muted">Preparando conexión...</span>
   </label>
 </aside>
@@ -433,7 +652,8 @@ button{cursor:pointer}
 <main class="app-container">
 
 <!-- GRÁFICAS -->
-<div id="clScreenCharts" class="cl-screen cl-active" data-cl-screen="charts">
+<div id="clScreenCharts" class="cl-screen cl-active"
+  data-cl-screen="charts">
 
   <div class="cl-screen-title">
     <h1>📈 Gráficas e indicadores</h1>
@@ -445,6 +665,7 @@ button{cursor:pointer}
   <section class="market-card">
     <div class="market-top">
       <div class="selectors-row">
+
         <label class="compact-field">
           <span>Activo</span>
           <select id="symbol">
@@ -472,6 +693,7 @@ button{cursor:pointer}
             <option value="1w">1 semana</option>
           </select>
         </label>
+
       </div>
 
       <div class="market-price">
@@ -587,7 +809,6 @@ button{cursor:pointer}
     </div>
   </section>
 
-  <!-- MERCADO PRO -->
   <section id="clMercadoProHost" class="cl-module">
     <h2>📊 Indicador de tendencia y mercado PRO</h2>
     <div id="clMercadoProStatus" class="cl-module-placeholder">
@@ -598,11 +819,15 @@ button{cursor:pointer}
   <section id="liquiditySection" class="liquidity-card">
     <div class="section-heading">
       <h2>🌡️ Mapa de liquidez</h2>
-      <span class="muted">Profundidad de mercado</span>
+      <span class="muted">
+        Profundidad real · actualización automática
+      </span>
     </div>
+
     <div id="liquidityMap" class="liquidity-placeholder">
       Conectando con el libro de órdenes...
     </div>
+
     <p class="cl-notice">
       La profundidad de órdenes no equivale a un mapa de liquidaciones reales.
     </p>
@@ -613,12 +838,14 @@ button{cursor:pointer}
       <h2>Indicadores técnicos</h2>
       <small>Última vela cerrada</small>
     </div>
+
     <div class="indicator-values">
       <div><span>EMA 21</span><strong id="ema21Value">—</strong></div>
       <div><span>MA 55</span><strong id="ma55Value">—</strong></div>
       <div><span>RSI 14</span><strong id="rsiValue">—</strong></div>
       <div><span>ADX 14</span><strong id="adxValue">—</strong></div>
     </div>
+
     <p id="indicatorReadout" class="indicator-readout">
       Esperando cálculos...
     </p>
@@ -631,6 +858,7 @@ button{cursor:pointer}
       <p>Ask <strong id="ask">—</strong></p>
       <p class="muted">Profundidad de diez niveles.</p>
     </article>
+
     <article>
       <h2>Estado del servidor</h2>
       <p id="status">Comprobando conexión...</p>
@@ -642,6 +870,7 @@ button{cursor:pointer}
 
   <section id="settingsSection" class="market-settings">
     <h2>⚙️ Ajustes de mercado</h2>
+
     <div class="cl-extra-select">
       <label>
         <span>Exchange</span>
@@ -652,6 +881,7 @@ button{cursor:pointer}
           <option value="okx">OKX</option>
         </select>
       </label>
+
       <label>
         <span>Tipo de mercado</span>
         <select id="market">
@@ -660,6 +890,7 @@ button{cursor:pointer}
         </select>
       </label>
     </div>
+
     <p class="muted">
       GOLD y OIL WTI se consultan exclusivamente en BingX.
     </p>
@@ -667,7 +898,8 @@ button{cursor:pointer}
 </div>
 
 <!-- ESCÁNER -->
-<div id="clScreenScanner" class="cl-screen" data-cl-screen="scanner">
+<div id="clScreenScanner" class="cl-screen"
+  data-cl-screen="scanner">
 
   <div class="cl-screen-title">
     <h1>📡 Escáner de mercado</h1>
@@ -681,6 +913,7 @@ button{cursor:pointer}
 
   <section id="clTradePlansHost" class="cl-module">
     <h2>🎯 Planes LONG y SHORT</h2>
+
     <div class="cl-trade-pair">
       <article class="cl-trade-card long">
         <h3>▲ LONG</h3>
@@ -688,6 +921,7 @@ button{cursor:pointer}
         <p>Stop: <strong>—</strong></p>
         <p>Objetivo: <strong>—</strong></p>
       </article>
+
       <article class="cl-trade-card short">
         <h3>▼ SHORT</h3>
         <p>Entrada: <strong>Esperando análisis</strong></p>
@@ -695,6 +929,7 @@ button{cursor:pointer}
         <p>Objetivo: <strong>—</strong></p>
       </article>
     </div>
+
     <p class="cl-notice">
       Los planes requieren confirmación técnica.
       No representan órdenes reales.
@@ -704,15 +939,18 @@ button{cursor:pointer}
   <section id="clQuickScalp" class="cl-module">
     <h2>⚡ Scalping rápido</h2>
     <p>Monitor exclusivo para BTC, oro y petróleo WTI.</p>
+
     <p>
       Bitcoin y oro: apalancamiento de referencia hasta 100x.
       Petróleo: hasta 50x.
     </p>
+
     <div id="clQuickScalpHost">
       <div class="cl-module-placeholder">
         Esperando módulo de scalping rápido...
       </div>
     </div>
+
     <p class="cl-notice">
       El apalancamiento multiplica ganancias y pérdidas.
       Una variación adversa pequeña puede liquidar la posición.
@@ -724,6 +962,7 @@ button{cursor:pointer}
       <h2>Monitor de señales</h2>
       <span id="engineState" class="pill">INICIANDO</span>
     </div>
+
     <div class="signal-grid">
       <article class="signal-card">
         <h3>BTC-USDT / 5 minutos</h3>
@@ -733,6 +972,7 @@ button{cursor:pointer}
         <p id="detail5">—</p>
         <small id="metrics5">—</small>
       </article>
+
       <article class="signal-card">
         <h3>BTC-USDT / 15 minutos</h3>
         <strong id="state15" class="state">
@@ -746,7 +986,8 @@ button{cursor:pointer}
 </div>
 
 <!-- RESULTADOS -->
-<div id="clScreenResults" class="cl-screen" data-cl-screen="results">
+<div id="clScreenResults" class="cl-screen"
+  data-cl-screen="results">
 
   <div class="cl-screen-title">
     <h1>📊 Resultados y efectividad</h1>
@@ -758,24 +999,29 @@ button{cursor:pointer}
 
   <section id="clResultsStats" class="cl-module">
     <h2>Resumen de efectividad</h2>
+
     <div class="cl-stats">
       <div class="cl-stat">
         <span>Señales registradas</span>
         <strong id="clTotalSignals">—</strong>
       </div>
+
       <div class="cl-stat">
         <span>Objetivos alcanzados</span>
         <strong id="clTargetsHit">—</strong>
       </div>
+
       <div class="cl-stat">
         <span>Stops alcanzados</span>
         <strong id="clStopsHit">—</strong>
       </div>
+
       <div class="cl-stat">
         <span>Efectividad comprobada</span>
         <strong id="clWinRate">—</strong>
       </div>
     </div>
+
     <p class="cl-notice">
       Las operaciones pendientes y no activadas no se incluyen
       en la efectividad.
@@ -784,6 +1030,7 @@ button{cursor:pointer}
 
   <section id="clScalpingResults" class="cl-module">
     <h2>⚡ Efectividad de scalping por activo</h2>
+
     <p>
       Seguimiento separado de Bitcoin, oro y petróleo WTI.
       Objetivos de ROI bruto sobre margen.
@@ -802,24 +1049,19 @@ button{cursor:pointer}
             <th>Aciertos</th>
           </tr>
         </thead>
+
         <tbody id="clScalpingResultsBody">
           <tr>
             <td>Bitcoin</td>
-            <td colspan="6">
-              Esperando seguimiento verificable...
-            </td>
+            <td colspan="6">Esperando seguimiento verificable...</td>
           </tr>
           <tr>
             <td>Oro</td>
-            <td colspan="6">
-              Esperando seguimiento verificable...
-            </td>
+            <td colspan="6">Esperando seguimiento verificable...</td>
           </tr>
           <tr>
             <td>Petróleo WTI</td>
-            <td colspan="6">
-              Esperando seguimiento verificable...
-            </td>
+            <td colspan="6">Esperando seguimiento verificable...</td>
           </tr>
         </tbody>
       </table>
@@ -827,8 +1069,8 @@ button{cursor:pointer}
 
     <p class="cl-notice">
       Los objetivos de 50%, 100% y 200% se registran por separado.
-      Las estadísticas permanecen pendientes hasta contar con
-      resultados comprobados.
+      Las estadísticas permanecen pendientes hasta contar
+      con resultados comprobados.
     </p>
   </section>
 
@@ -837,6 +1079,7 @@ button{cursor:pointer}
       <h2>Historial de señales</h2>
       <small>Últimas 30</small>
     </div>
+
     <div class="table-wrap">
       <table>
         <thead>
@@ -850,6 +1093,7 @@ button{cursor:pointer}
             <th>Estado</th>
           </tr>
         </thead>
+
         <tbody id="signalLog">
           <tr>
             <td colspan="7">
@@ -865,8 +1109,8 @@ button{cursor:pointer}
     <h2>Seguimiento de operaciones</h2>
     <p>
       El registro distinguirá señal pendiente, entrada activada,
-      objetivo alcanzado, stop alcanzado, cancelada y resultado
-      no verificable.
+      objetivo alcanzado, stop alcanzado, cancelada
+      y resultado no verificable.
     </p>
     <p>
       Las estadísticas no contarán operaciones pendientes
@@ -883,23 +1127,26 @@ button{cursor:pointer}
 </main>
 </div>
 
-<!-- TRES BOTONES INFERIORES -->
+<!-- NAVEGACIÓN INFERIOR -->
 <nav class="cl-bottom-nav" aria-label="Navegación principal">
 
-  <button class="cl-nav-button active" type="button"
-    data-cl-tab="charts" aria-pressed="true">
+  <button class="cl-nav-button active"
+    type="button" data-cl-tab="charts"
+    aria-pressed="true">
     <span class="cl-nav-icon">📈</span>
     <span>Gráficas</span>
   </button>
 
-  <button class="cl-nav-button" type="button"
-    data-cl-tab="scanner" aria-pressed="false">
+  <button class="cl-nav-button"
+    type="button" data-cl-tab="scanner"
+    aria-pressed="false">
     <span class="cl-nav-icon">📡</span>
     <span>Escáner</span>
   </button>
 
-  <button class="cl-nav-button" type="button"
-    data-cl-tab="results" aria-pressed="false">
+  <button class="cl-nav-button"
+    type="button" data-cl-tab="results"
+    aria-pressed="false">
     <span class="cl-nav-icon">📊</span>
     <span>Resultados</span>
   </button>
@@ -918,15 +1165,23 @@ button{cursor:pointer}
   const close = $("menuClose");
 
   let activeScreen = "charts";
+  let organizing = false;
 
   function setOpen(open) {
     if (!sidebar || !backdrop || !toggle) return;
 
     sidebar.classList.toggle("is-open", open);
-    toggle.setAttribute("aria-expanded", String(open));
+    toggle.setAttribute(
+      "aria-expanded",
+      String(open)
+    );
+
     backdrop.hidden = !open;
 
-    document.body.classList.toggle("menu-open", open);
+    document.body.classList.toggle(
+      "menu-open",
+      open
+    );
   }
 
   function refreshCharts() {
@@ -939,38 +1194,57 @@ button{cursor:pointer}
     setTimeout(() => {
       window.dispatchEvent(new Event("resize"));
 
-      for (const module of [
+      for (const name of [
         "CryptolexuzPatterns",
         "CryptolexuzFibonacci",
         "CryptolexuzVolumeProfile"
       ]) {
         try {
-          window[module]?.layout?.();
-          window[module]?.redraw?.();
+          window[name]?.layout?.();
+          window[name]?.redraw?.();
         } catch (error) {
-          console.warn(module, error);
+          console.warn(name, error);
         }
       }
     }, 250);
   }
 
   function activateTab(tab, targetId) {
-    if (!["scanner", "charts", "results"].includes(tab)) return;
+    if (
+      !["charts", "scanner", "results"].includes(tab)
+    ) return;
 
     activeScreen = tab;
 
-    document.querySelectorAll("[data-cl-screen]").forEach(screen => {
-      const active = screen.dataset.clScreen === tab;
+    document.querySelectorAll(
+      "[data-cl-screen]"
+    ).forEach(screen => {
+      const active =
+        screen.dataset.clScreen === tab;
 
-      screen.classList.toggle("cl-active", active);
+      screen.classList.toggle(
+        "cl-active",
+        active
+      );
+
       screen.hidden = !active;
     });
 
-    document.querySelectorAll("[data-cl-tab]").forEach(button => {
-      const active = button.dataset.clTab === tab;
+    document.querySelectorAll(
+      "[data-cl-tab]"
+    ).forEach(button => {
+      const active =
+        button.dataset.clTab === tab;
 
-      button.classList.toggle("active", active);
-      button.setAttribute("aria-pressed", String(active));
+      button.classList.toggle(
+        "active",
+        active
+      );
+
+      button.setAttribute(
+        "aria-pressed",
+        String(active)
+      );
     });
 
     setOpen(false);
@@ -978,23 +1252,27 @@ button{cursor:pointer}
     requestAnimationFrame(() => {
       if (targetId && $(targetId)) {
         $(targetId).scrollIntoView({
-          behavior: "smooth",
-          block: "start"
+          behavior:"smooth",
+          block:"start"
         });
       } else {
         window.scrollTo({
-          top: 0,
-          behavior: "smooth"
+          top:0,
+          behavior:"smooth"
         });
       }
 
-      if (tab === "charts") refreshCharts();
+      if (tab === "charts") {
+        refreshCharts();
+      }
     });
 
-    window.dispatchEvent(new CustomEvent(
-      "cryptolexuz:screen-change",
-      { detail: { screen: tab } }
-    ));
+    window.dispatchEvent(
+      new CustomEvent(
+        "cryptolexuz:screen-change",
+        { detail:{ screen:tab } }
+      )
+    );
   }
 
   window.CryptolexuzNavigation = {
@@ -1002,24 +1280,40 @@ button{cursor:pointer}
     getScreen: () => activeScreen
   };
 
-  toggle?.addEventListener("click", () => {
-    setOpen(!sidebar.classList.contains("is-open"));
-  });
+  toggle?.addEventListener(
+    "click",
+    () => {
+      setOpen(
+        !sidebar.classList.contains("is-open")
+      );
+    }
+  );
 
-  close?.addEventListener("click", () => setOpen(false));
+  close?.addEventListener(
+    "click",
+    () => setOpen(false)
+  );
 
-  backdrop?.addEventListener("click", () => setOpen(false));
+  backdrop?.addEventListener(
+    "click",
+    () => setOpen(false)
+  );
 
-  document.querySelectorAll("[data-cl-tab]").forEach(button => {
+  document.querySelectorAll(
+    "[data-cl-tab]"
+  ).forEach(button => {
     button.addEventListener("click", () => {
       activateTab(button.dataset.clTab);
     });
   });
 
-  sidebar?.querySelectorAll(".side-nav a").forEach(link => {
+  sidebar?.querySelectorAll(
+    ".side-nav a"
+  ).forEach(link => {
     link.addEventListener("click", event => {
       const tab = link.dataset.screen;
-      const id = link.getAttribute("href")?.replace("#", "");
+      const id = link.getAttribute("href")
+        ?.replace("#", "");
 
       if (tab) {
         event.preventDefault();
@@ -1028,50 +1322,47 @@ button{cursor:pointer}
     });
   });
 
-  function moveScanner() {
-    const scanner = $("clScanner");
-    const host = $("clScannerHost");
-
+  function moveInto(element, host) {
     if (
-      scanner &&
-      host &&
-      scanner.parentElement !== host
-    ) {
-      host.appendChild(scanner);
-    }
+      !element ||
+      !host ||
+      element === host ||
+      host.contains(element) ||
+      element.contains(host)
+    ) return false;
+
+    host.appendChild(element);
+    return true;
+  }
+
+  function moveScanner() {
+    moveInto(
+      $("clScanner"),
+      $("clScannerHost")
+    );
   }
 
   function moveFibonacci() {
     const host = $("clFibonacciHost");
-
     if (!host) return;
 
     for (const id of [
       "fibToolbar",
       "fibPanel"
     ]) {
-      const element = $(id);
-
-      if (
-        element &&
-        element.parentElement !== host
-      ) {
-        host.appendChild(element);
-      }
+      moveInto($(id), host);
     }
   }
 
   function moveQuickScalp() {
     const host = $("clQuickScalpHost");
-
     if (!host) return;
 
     const candidates = [
       "clQuickScalpPanel",
       "clQuickScalpSection",
       "clScalpingRapido",
-      "clQuickScalpDashboard",
-      "clQuickScalp"
+      "clQuickScalpDashboard"
     ];
 
     for (const id of candidates) {
@@ -1083,15 +1374,34 @@ button{cursor:pointer}
         !host.contains(element) &&
         !element.contains(host)
       ) {
-        host.replaceChildren(element);
+        const placeholder =
+          host.querySelector(
+            ".cl-module-placeholder"
+          );
+
+        if (placeholder) {
+          placeholder.remove();
+        }
+
+        host.appendChild(element);
         return;
       }
+    }
+
+    if (
+      host.children.length > 1 ||
+      host.querySelector(
+        ":scope > :not(.cl-module-placeholder)"
+      )
+    ) {
+      host.querySelector(
+        ".cl-module-placeholder"
+      )?.remove();
     }
   }
 
   function moveRangeBoxes() {
     const host = $("clRangeBoxesControls");
-
     if (!host) return;
 
     for (const id of [
@@ -1100,22 +1410,12 @@ button{cursor:pointer}
       "clRangeToolbar",
       "clRangePanel"
     ]) {
-      const element = $(id);
-
-      if (
-        element &&
-        element !== host &&
-        !host.contains(element) &&
-        !element.contains(host)
-      ) {
-        host.appendChild(element);
-      }
+      moveInto($(id), host);
     }
   }
 
   function organizeMarketPro() {
     const host = $("clMercadoProHost");
-
     if (!host) return;
 
     const panels = [
@@ -1127,22 +1427,20 @@ button{cursor:pointer}
     if (!panels.length) return;
 
     for (const panel of panels) {
-      if (panel.parentElement !== host) {
-        host.appendChild(panel);
-      }
+      moveInto(panel, host);
     }
 
     const status = $("clMercadoProStatus");
-
     if (status) status.hidden = true;
   }
 
   function checkFibonacci() {
     const fallback = $("fibFallback");
-
     if (!fallback) return;
 
-    const fib = window.CryptolexuzFibonacci;
+    const fib =
+      window.CryptolexuzFibonacci;
+
     const toolbar = $("fibToolbar");
 
     if (toolbar && fib) {
@@ -1158,12 +1456,12 @@ button{cursor:pointer}
 
   function updatePatternsReadout(event) {
     const host = $("clPatternsReadout");
-
     if (!host) return;
 
     const findings =
       event?.detail?.findings ||
-      window.CryptolexuzPatterns?.getFindings?.() ||
+      window.CryptolexuzPatterns
+        ?.getFindings?.() ||
       [];
 
     host.replaceChildren();
@@ -1183,7 +1481,9 @@ button{cursor:pointer}
     list.style.display = "grid";
     list.style.gap = "8px";
 
-    for (const finding of findings.slice(0, 12)) {
+    for (
+      const finding of findings.slice(0,12)
+    ) {
       const item = document.createElement("div");
 
       item.style.cssText = [
@@ -1194,18 +1494,21 @@ button{cursor:pointer}
         "font-size:12px"
       ].join(";");
 
-      const direction = finding.direction === "bull"
-        ? "ALCISTA"
-        : finding.direction === "bear"
-          ? "BAJISTA"
-          : "NEUTRAL";
+      const direction =
+        finding.direction === "bull"
+          ? "ALCISTA"
+          : finding.direction === "bear"
+            ? "BAJISTA"
+            : "NEUTRAL";
 
-      const status = finding.confirmed
+      const state = finding.confirmed
         ? "Confirmación básica"
         : "En observación";
 
       item.textContent =
-        finding.label + " · " + direction + " · " + status;
+        (finding.label || "Patrón") +
+        " · " + direction +
+        " · " + state;
 
       list.appendChild(item);
     }
@@ -1219,22 +1522,43 @@ button{cursor:pointer}
   );
 
   function organizeModules() {
-    moveScanner();
-    moveFibonacci();
-    moveQuickScalp();
-    moveRangeBoxes();
-    organizeMarketPro();
+    if (organizing) return;
+    organizing = true;
+
+    try {
+      moveScanner();
+      moveFibonacci();
+      moveQuickScalp();
+      moveRangeBoxes();
+      organizeMarketPro();
+    } finally {
+      organizing = false;
+    }
+  }
+
+  let organizeQueued = false;
+
+  function scheduleOrganize() {
+    if (organizeQueued) return;
+    organizeQueued = true;
+
+    requestAnimationFrame(() => {
+      organizeQueued = false;
+      organizeModules();
+    });
   }
 
   function initNavigation() {
     activateTab("charts");
     organizeModules();
 
-    const observer = new MutationObserver(organizeModules);
+    const observer = new MutationObserver(
+      scheduleOrganize
+    );
 
     observer.observe(document.body, {
-      childList: true,
-      subtree: true
+      childList:true,
+      subtree:true
     });
 
     window.addEventListener("load", () => {
@@ -1254,7 +1578,8 @@ button{cursor:pointer}
   if (document.readyState === "loading") {
     document.addEventListener(
       "DOMContentLoaded",
-      initNavigation
+      initNavigation,
+      { once:true }
     );
   } else {
     initNavigation();
