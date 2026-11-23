@@ -1,11 +1,21 @@
 
 /*
- CRYPTOLEXUZ PRO — PATTERNS.JS V1
- Reconocimiento automático de estructuras.
- Compatible con Lightweight Charts 4.2.2.
+ CRYPTOLEXUZ PRO — PATTERNS.JS V2
 
- Analiza velas cerradas.
- No ejecuta operaciones.
+ Compatible con:
+ - app.js V15
+ - patterns-bridge.js V1
+ - Lightweight Charts 4.2.2
+
+ Mejoras:
+ - MAX y MIN con precio exacto
+ - Ondas con letras y números cortos
+ - Sin textos largos sobre las velas
+ - Cuñas con dos directrices
+ - Panel separado de patrones
+ - Análisis con velas cerradas
+
+ No ejecuta operaciones reales.
  Los patrones son hipótesis técnicas.
 */
 
@@ -20,7 +30,8 @@
     bull: "#00f5a0",
     bear: "#ff476c",
     neutral: "#ffe15a",
-    text: "#ffffff"
+    text: "#ffffff",
+    background: "#081020"
   };
 
   const NAMES = {
@@ -52,6 +63,7 @@
   let findings = [];
   let frame = 0;
   let initialized = false;
+  let priceScaleObserver = null;
 
   function load() {
     try {
@@ -59,12 +71,12 @@
         localStorage.getItem(STORE) || "[]"
       );
 
-      if(Array.isArray(saved)) {
+      if (Array.isArray(saved)) {
         saved.forEach(key => {
-          if(NAMES[key]) enabled.add(key);
+          if (NAMES[key]) enabled.add(key);
         });
       }
-    } catch(error) {
+    } catch (error) {
       console.warn("Patrones: memoria", error);
     }
   }
@@ -75,7 +87,7 @@
         STORE,
         JSON.stringify([...enabled])
       );
-    } catch(error) {
+    } catch (error) {
       console.warn("Patrones: guardado", error);
     }
   }
@@ -83,17 +95,17 @@
   function rows() {
     try {
       const data = getRows();
-      return Array.isArray(data) ? data : [];
-    } catch(_) {
+
+      return Array.isArray(data)
+        ? data
+        : [];
+    } catch (_) {
       return [];
     }
   }
 
-  function closedRows() {
-    const data = rows();
-    const tf = getSelection()?.tf || "15m";
-
-    const seconds = {
+  function tfSeconds(tf) {
+    return {
       "1m": 60,
       "3m": 180,
       "5m": 300,
@@ -104,14 +116,19 @@
       "4h": 14400,
       "1d": 86400,
       "1w": 604800
-    }[tf];
+    }[tf] || 900;
+  }
 
-    if(!data.length) return [];
+  function closedRows() {
+    const data = rows();
 
-    const last = data[data.length - 1];
+    if (!data.length) return [];
 
-    if(
-      seconds &&
+    const tf = getSelection()?.tf || "15m";
+    const seconds = tfSeconds(tf);
+    const last = data.at(-1);
+
+    if (
       Number(last.time) + seconds >
       Date.now() / 1000
     ) {
@@ -123,11 +140,15 @@
 
   function sma(data, period) {
     return data.map((_, i) => {
-      if(i < period - 1) return null;
+      if (i < period - 1) return null;
 
       let sum = 0;
 
-      for(let j = i - period + 1; j <= i; j++) {
+      for (
+        let j = i - period + 1;
+        j <= i;
+        j++
+      ) {
         sum += data[j];
       }
 
@@ -136,15 +157,19 @@
   }
 
   function rsi(data, period = 14) {
-    const result = Array(data.length).fill(null);
+    const result =
+      Array(data.length).fill(null);
 
-    if(data.length <= period) return result;
+    if (data.length <= period) {
+      return result;
+    }
 
     let gain = 0;
     let loss = 0;
 
-    for(let i = 1; i <= period; i++) {
+    for (let i = 1; i <= period; i++) {
       const delta = data[i] - data[i - 1];
+
       gain += Math.max(delta, 0);
       loss += Math.max(-delta, 0);
     }
@@ -153,21 +178,30 @@
     loss /= period;
 
     function calculate() {
-      if(loss === 0) return gain === 0 ? 50 : 100;
+      if (loss === 0) {
+        return gain === 0 ? 50 : 100;
+      }
+
       return 100 - 100 / (1 + gain / loss);
     }
 
     result[period] = calculate();
 
-    for(let i = period + 1; i < data.length; i++) {
+    for (
+      let i = period + 1;
+      i < data.length;
+      i++
+    ) {
       const delta = data[i] - data[i - 1];
 
       gain = (
-        gain * (period - 1) + Math.max(delta, 0)
+        gain * (period - 1) +
+        Math.max(delta, 0)
       ) / period;
 
       loss = (
-        loss * (period - 1) + Math.max(-delta, 0)
+        loss * (period - 1) +
+        Math.max(-delta, 0)
       ) / period;
 
       result[i] = calculate();
@@ -179,18 +213,35 @@
   function pivots(data, span = 3) {
     const result = [];
 
-    for(let i = span; i < data.length - span; i++) {
+    for (
+      let i = span;
+      i < data.length - span;
+      i++
+    ) {
       let high = true;
       let low = true;
 
-      for(let j = i - span; j <= i + span; j++) {
-        if(i === j) continue;
+      for (
+        let j = i - span;
+        j <= i + span;
+        j++
+      ) {
+        if (i === j) continue;
 
-        if(data[j].high >= data[i].high) high = false;
-        if(data[j].low <= data[i].low) low = false;
+        if (
+          data[j].high >= data[i].high
+        ) {
+          high = false;
+        }
+
+        if (
+          data[j].low <= data[i].low
+        ) {
+          low = false;
+        }
       }
 
-      if(high) {
+      if (high) {
         result.push({
           index: i,
           time: data[i].time,
@@ -199,7 +250,7 @@
         });
       }
 
-      if(low) {
+      if (low) {
         result.push({
           index: i,
           time: data[i].time,
@@ -209,24 +260,31 @@
       }
     }
 
-    return result.sort((a, b) => a.index - b.index);
+    return result.sort(
+      (a, b) => a.index - b.index
+    );
   }
 
   function alternate(points) {
     const result = [];
 
-    for(const point of points) {
-      const last = result[result.length - 1];
+    for (const point of points) {
+      const last = result.at(-1);
 
-      if(!last || last.type !== point.type) {
+      if (
+        !last ||
+        last.type !== point.type
+      ) {
         result.push(point);
       } else {
-        const moreExtreme = point.type === "H"
-          ? point.price > last.price
-          : point.price < last.price;
+        const extreme =
+          point.type === "H"
+            ? point.price > last.price
+            : point.price < last.price;
 
-        if(moreExtreme) {
-          result[result.length - 1] = point;
+        if (extreme) {
+          result[result.length - 1] =
+            point;
         }
       }
     }
@@ -234,13 +292,24 @@
     return result;
   }
 
-  function add(key, label, points, direction, confirmed = false) {
-    if(!enabled.has(key)) return;
+  function add(
+    key,
+    label,
+    points,
+    direction,
+    confirmed = false
+  ) {
+    if (!enabled.has(key)) return;
 
-    const id = key + "|" +
+    const id =
+      key + "|" +
       points.map(p => p.time).join("|");
 
-    if(findings.some(f => f.id === id)) return;
+    if (
+      findings.some(f => f.id === id)
+    ) {
+      return;
+    }
 
     findings.push({
       id,
@@ -253,44 +322,68 @@
   }
 
   function detectDouble(points, data) {
-    const highs = points.filter(p => p.type === "H");
-    const lows = points.filter(p => p.type === "L");
+    const highs =
+      points.filter(p => p.type === "H");
 
-    function inspect(list, key, direction) {
-      for(let i = 1; i < list.length; i++) {
+    const lows =
+      points.filter(p => p.type === "L");
+
+    function inspect(
+      list,
+      key,
+      direction
+    ) {
+      for (
+        let i = 1;
+        i < list.length;
+        i++
+      ) {
         const a = list[i - 1];
         const b = list[i];
 
-        if(b.index - a.index < 5) continue;
-        if(b.index - a.index > 75) continue;
+        if (
+          b.index - a.index < 5 ||
+          b.index - a.index > 75
+        ) {
+          continue;
+        }
 
         const difference =
           Math.abs(a.price - b.price) /
           ((a.price + b.price) / 2);
 
-        if(difference > 0.008) continue;
+        if (difference > 0.008) {
+          continue;
+        }
 
         const between = data.slice(
           a.index + 1,
           b.index
         );
 
-        if(!between.length) continue;
+        if (!between.length) continue;
 
-        const neckline = direction === "bear"
-          ? Math.min(...between.map(x => x.low))
-          : Math.max(...between.map(x => x.high));
+        const neckline =
+          direction === "bear"
+            ? Math.min(
+                ...between.map(x => x.low)
+              )
+            : Math.max(
+                ...between.map(x => x.high)
+              );
 
         const depth =
-          Math.abs(a.price - neckline) / a.price;
+          Math.abs(a.price - neckline) /
+          a.price;
 
-        if(depth < 0.003) continue;
+        if (depth < 0.003) continue;
 
-        const last = data[data.length - 1];
+        const last = data.at(-1);
 
-        const confirmed = direction === "bear"
-          ? last.close < neckline
-          : last.close > neckline;
+        const confirmed =
+          direction === "bear"
+            ? last.close < neckline
+            : last.close > neckline;
 
         add(
           key,
@@ -302,15 +395,32 @@
       }
     }
 
-    inspect(highs.slice(-8), "doubletop", "bear");
-    inspect(lows.slice(-8), "doublebottom", "bull");
+    inspect(
+      highs.slice(-8),
+      "doubletop",
+      "bear"
+    );
+
+    inspect(
+      lows.slice(-8),
+      "doublebottom",
+      "bull"
+    );
   }
 
   function detectWedges(points, data) {
-    const highs = points.filter(p => p.type === "H");
-    const lows = points.filter(p => p.type === "L");
+    const highs =
+      points.filter(p => p.type === "H");
 
-    if(highs.length < 3 || lows.length < 3) return;
+    const lows =
+      points.filter(p => p.type === "L");
+
+    if (
+      highs.length < 3 ||
+      lows.length < 3
+    ) {
+      return;
+    }
 
     const h = highs.slice(-3);
     const l = lows.slice(-3);
@@ -335,33 +445,47 @@
       (l[2].price - l[0].price) /
       (l[2].index - l[0].index);
 
-    const lastIndex = data.length - 1;
+    const lastIndex =
+      data.length - 1;
+
     const last = data[lastIndex];
 
     const upper =
-      h[2].price + slopeH * (lastIndex - h[2].index);
+      h[2].price +
+      slopeH *
+      (lastIndex - h[2].index);
 
     const lower =
-      l[2].price + slopeL * (lastIndex - l[2].index);
+      l[2].price +
+      slopeL *
+      (lastIndex - l[2].index);
 
-    const firstWidth = Math.abs(
-      h[0].price - l[0].price
-    );
+    const firstWidth =
+      h[0].price - l[0].price;
 
-    const finalWidth = upper - lower;
+    const finalWidth =
+      upper - lower;
 
-    if(
+    if (
       !Number.isFinite(finalWidth) ||
+      firstWidth <= 0 ||
       finalWidth <= 0 ||
-      finalWidth >= firstWidth ||
-      firstWidth <= 0
-    ) return;
+      finalWidth >= firstWidth
+    ) {
+      return;
+    }
 
-    const pointsUsed = [...h, ...l].sort(
+    const pointsUsed = [
+      ...h,
+      ...l
+    ].sort(
       (a, b) => a.index - b.index
     );
 
-    if(descending && slopeL > slopeH) {
+    if (
+      descending &&
+      slopeL > slopeH
+    ) {
       add(
         "fallingwedge",
         "Cuña descendente",
@@ -371,7 +495,10 @@
       );
     }
 
-    if(ascending && slopeL > slopeH) {
+    if (
+      ascending &&
+      slopeL > slopeH
+    ) {
       add(
         "risingwedge",
         "Cuña ascendente",
@@ -383,9 +510,14 @@
   }
 
   function detectWaves(points) {
-    const p = alternate(points).slice(-12);
+    const p =
+      alternate(points).slice(-12);
 
-    for(let i = 0; i <= p.length - 4; i++) {
+    for (
+      let i = 0;
+      i <= p.length - 4;
+      i++
+    ) {
       const q = p.slice(i, i + 4);
 
       const up =
@@ -404,7 +536,7 @@
         q[2].price < q[0].price &&
         q[3].price < q[1].price;
 
-      if(up || down) {
+      if (up || down) {
         add(
           "impulses",
           "Posibles ondas 1 · 2 · 3",
@@ -415,7 +547,11 @@
       }
     }
 
-    for(let i = 0; i <= p.length - 4; i++) {
+    for (
+      let i = 0;
+      i <= p.length - 4;
+      i++
+    ) {
       const q = p.slice(i, i + 4);
 
       const swings = [
@@ -425,15 +561,19 @@
       ];
 
       const valid =
-        Math.sign(swings[0]) === Math.sign(swings[2]) &&
-        Math.sign(swings[0]) !== Math.sign(swings[1]) &&
-        Math.abs(swings[1]) >= Math.abs(swings[0]) * 0.25;
+        Math.sign(swings[0]) ===
+          Math.sign(swings[2]) &&
+        Math.sign(swings[0]) !==
+          Math.sign(swings[1]) &&
+        Math.abs(swings[1]) >=
+          Math.abs(swings[0]) * 0.25;
 
-      if(!valid) continue;
+      if (!valid) continue;
 
-      const direction = swings[2] > 0
-        ? "bull"
-        : "bear";
+      const direction =
+        swings[2] > 0
+          ? "bull"
+          : "bear";
 
       add(
         "abc",
@@ -452,9 +592,14 @@
       );
 
       const flatRatio =
-        Math.abs(swings[1] / swings[0]);
+        Math.abs(
+          swings[1] / swings[0]
+        );
 
-      if(flatRatio >= 0.8 && flatRatio <= 1.2) {
+      if (
+        flatRatio >= 0.8 &&
+        flatRatio <= 1.2
+      ) {
         add(
           "flat",
           "Posible plana / Flat",
@@ -467,15 +612,28 @@
   }
 
   function detectTriangles(points) {
-    const p = alternate(points).slice(-10);
+    const p =
+      alternate(points).slice(-10);
 
-    for(let i = 0; i <= p.length - 6; i++) {
+    for (
+      let i = 0;
+      i <= p.length - 6;
+      i++
+    ) {
       const q = p.slice(i, i + 6);
 
-      const h = q.filter(x => x.type === "H");
-      const l = q.filter(x => x.type === "L");
+      const h =
+        q.filter(x => x.type === "H");
 
-      if(h.length !== 3 || l.length !== 3) continue;
+      const l =
+        q.filter(x => x.type === "L");
+
+      if (
+        h.length !== 3 ||
+        l.length !== 3
+      ) {
+        continue;
+      }
 
       const upperDescending =
         h[0].price > h[1].price &&
@@ -485,16 +643,26 @@
         l[0].price < l[1].price &&
         l[1].price < l[2].price;
 
-      if(!upperDescending || !lowerAscending) continue;
+      if (
+        !upperDescending ||
+        !lowerAscending
+      ) {
+        continue;
+      }
 
-      const firstWidth = h[0].price - l[0].price;
-      const lastWidth = h[2].price - l[2].price;
+      const firstWidth =
+        h[0].price - l[0].price;
 
-      if(
+      const lastWidth =
+        h[2].price - l[2].price;
+
+      if (
         firstWidth <= 0 ||
         lastWidth <= 0 ||
         lastWidth >= firstWidth
-      ) continue;
+      ) {
+        continue;
+      }
 
       add(
         "abcde",
@@ -506,23 +674,36 @@
     }
   }
 
-  function detectDivergences(points, data) {
-    const values = rsi(data.map(x => x.close));
+  function detectDivergences(
+    points,
+    data
+  ) {
+    const values =
+      rsi(data.map(x => x.close));
 
-    for(const type of ["H", "L"]) {
-      const list = points.filter(p => p.type === type);
+    for (const type of ["H", "L"]) {
+      const list =
+        points.filter(
+          p => p.type === type
+        );
 
-      for(let i = 1; i < list.length; i++) {
+      for (
+        let i = 1;
+        i < list.length;
+        i++
+      ) {
         const a = list[i - 1];
         const b = list[i];
 
         const ra = values[a.index];
         const rb = values[b.index];
 
-        if(
+        if (
           !Number.isFinite(ra) ||
           !Number.isFinite(rb)
-        ) continue;
+        ) {
+          continue;
+        }
 
         const bearish =
           type === "H" &&
@@ -534,7 +715,10 @@
           b.price < a.price &&
           rb > ra + 2;
 
-        if(bearish || bullish) {
+        if (
+          bearish ||
+          bullish
+        ) {
           add(
             "divergences",
             bullish
@@ -550,33 +734,50 @@
   }
 
   function detectHeadShoulders(points) {
-    const p = alternate(points).slice(-14);
+    const p =
+      alternate(points).slice(-14);
 
-    for(let i = 0; i <= p.length - 5; i++) {
+    for (
+      let i = 0;
+      i <= p.length - 5;
+      i++
+    ) {
       const q = p.slice(i, i + 5);
 
-      for(const inverse of [false, true]) {
-        const outer = inverse ? "L" : "H";
+      for (
+        const inverse of [false, true]
+      ) {
+        const outer =
+          inverse ? "L" : "H";
 
-        if(
+        if (
           q[0].type !== outer ||
           q[2].type !== outer ||
           q[4].type !== outer
-        ) continue;
+        ) {
+          continue;
+        }
 
-        const head = inverse
-          ? q[2].price < q[0].price &&
-            q[2].price < q[4].price
-          : q[2].price > q[0].price &&
-            q[2].price > q[4].price;
+        const head =
+          inverse
+            ? q[2].price < q[0].price &&
+              q[2].price < q[4].price
+            : q[2].price > q[0].price &&
+              q[2].price > q[4].price;
 
         const shoulders =
-          Math.abs(q[0].price - q[4].price) /
-          q[2].price < 0.025;
+          Math.abs(
+            q[0].price - q[4].price
+          ) / q[2].price < 0.025;
 
-        if(head && shoulders) {
+        if (
+          head &&
+          shoulders
+        ) {
           add(
-            inverse ? "inversehs" : "headshoulders",
+            inverse
+              ? "inversehs"
+              : "headshoulders",
             inverse
               ? "Posible HCH invertido"
               : "Posible hombro-cabeza-hombro",
@@ -590,16 +791,37 @@
   }
 
   function detectTriple(points) {
-    for(const type of ["H", "L"]) {
-      const p = points.filter(x => x.type === type);
+    for (
+      const type of ["H", "L"]
+    ) {
+      const p =
+        points.filter(
+          x => x.type === type
+        );
 
-      for(let i = 2; i < p.length; i++) {
-        const q = p.slice(i - 2, i + 1);
+      for (
+        let i = 2;
+        i < p.length;
+        i++
+      ) {
+        const q =
+          p.slice(i - 2, i + 1);
 
-        const max = Math.max(...q.map(x => x.price));
-        const min = Math.min(...q.map(x => x.price));
+        const max =
+          Math.max(
+            ...q.map(x => x.price)
+          );
 
-        if((max - min) / max > 0.008) continue;
+        const min =
+          Math.min(
+            ...q.map(x => x.price)
+          );
+
+        if (
+          (max - min) / max > 0.008
+        ) {
+          continue;
+        }
 
         add(
           "triple",
@@ -607,7 +829,9 @@
             ? "Posible triple techo"
             : "Posible triple suelo",
           q,
-          type === "H" ? "bear" : "bull",
+          type === "H"
+            ? "bear"
+            : "bull",
           false
         );
       }
@@ -615,90 +839,147 @@
   }
 
   function detectSqueeze(data) {
-    if(data.length < 45) return;
+    if (data.length < 45) return;
 
-    const closes = data.map(x => x.close);
-    const basis = sma(closes, 20);
+    const closes =
+      data.map(x => x.close);
 
-    const i = data.length - 1;
-    const window = closes.slice(i - 19, i + 1);
+    const basis =
+      sma(closes, 20);
+
+    const i =
+      data.length - 1;
+
+    const windowData =
+      closes.slice(
+        i - 19,
+        i + 1
+      );
 
     const mean = basis[i];
 
-    if(!Number.isFinite(mean)) return;
+    if (
+      !Number.isFinite(mean)
+    ) {
+      return;
+    }
 
-    const variance = window.reduce(
-      (sum, x) => sum + (x - mean) ** 2,
-      0
-    ) / 20;
+    const variance =
+      windowData.reduce(
+        (sum, x) =>
+          sum + (x - mean) ** 2,
+        0
+      ) / 20;
 
-    const deviation = Math.sqrt(variance);
+    const deviation =
+      Math.sqrt(variance);
 
-    const tr = data.map((x, j) => {
-      if(j === 0) return x.high - x.low;
+    const tr =
+      data.map((x, j) => {
+        if (j === 0) {
+          return x.high - x.low;
+        }
 
-      return Math.max(
-        x.high - x.low,
-        Math.abs(x.high - data[j - 1].close),
-        Math.abs(x.low - data[j - 1].close)
-      );
-    });
+        return Math.max(
+          x.high - x.low,
+          Math.abs(
+            x.high -
+            data[j - 1].close
+          ),
+          Math.abs(
+            x.low -
+            data[j - 1].close
+          )
+        );
+      });
 
-    const atr = sma(tr, 20)[i];
+    const atr =
+      sma(tr, 20)[i];
 
-    if(!Number.isFinite(atr) || atr <= 0) return;
+    if (
+      !Number.isFinite(atr) ||
+      atr <= 0
+    ) {
+      return;
+    }
 
-    const bbWidth = 4 * deviation;
-    const kcWidth = 3 * atr;
+    const bbWidth =
+      4 * deviation;
 
-    if(bbWidth >= kcWidth) return;
+    const kcWidth =
+      3 * atr;
 
-    const point = {
-      time: data[i].time,
-      price: data[i].close,
-      index: i
-    };
+    if (
+      bbWidth >= kcWidth
+    ) {
+      return;
+    }
 
     add(
       "squeeze",
       "Compresión Squeeze · sin ruptura",
-      [point],
+      [{
+        time: data[i].time,
+        price: data[i].close,
+        index: i
+      }],
       "neutral",
       false
     );
   }
 
   function detectOrderBlocks(data) {
-    if(data.length < 25) return;
+    if (
+      data.length < 25
+    ) {
+      return;
+    }
 
-    for(let i = Math.max(20, data.length - 45);
-        i < data.length - 2;
-        i++) {
+    for (
+      let i = Math.max(
+        20,
+        data.length - 45
+      );
+      i < data.length - 2;
+      i++
+    ) {
+      const previous =
+        data.slice(i - 15, i);
 
-      const previous = data.slice(i - 15, i);
-      const candle = data[i];
+      const bar = data[i];
       const next = data[i + 1];
 
-      const average = previous.reduce(
-        (sum, x) => sum + x.volume,
-        0
-      ) / previous.length;
+      const average =
+        previous.reduce(
+          (sum, x) =>
+            sum + x.volume,
+          0
+        ) / previous.length;
 
-      if(average <= 0 || next.volume < average * 1.5) {
+      if (
+        average <= 0 ||
+        next.volume <
+          average * 1.5
+      ) {
         continue;
       }
 
       const bullish =
-        candle.close < candle.open &&
+        bar.close < bar.open &&
         next.close > next.open &&
-        next.close > candle.high;
+        next.close > bar.high;
 
       const bearish =
-        candle.close > candle.open &&
+        bar.close > bar.open &&
         next.close < next.open &&
-        next.close < candle.low;
+        next.close < bar.low;
 
-      if(!bullish && !bearish) continue;
+      if (
+        !bullish &&
+        !bearish
+      ) {
+        continue;
+      }
 
       add(
         "orderblocks",
@@ -706,8 +987,9 @@
           ? "Posible bloque comprador"
           : "Posible bloque vendedor",
         [{
-          time: candle.time,
-          price: (candle.high + candle.low) / 2,
+          time: bar.time,
+          price:
+            (bar.high + bar.low) / 2,
           index: i
         }],
         bullish ? "bull" : "bear",
@@ -719,17 +1001,24 @@
   function analyze() {
     findings = [];
 
-    const data = closedRows();
+    const data =
+      closedRows();
 
-    if(data.length < 65) {
+    if (
+      data.length < 65
+    ) {
       updateStatus(
         "Esperando suficientes velas cerradas."
       );
+
+      renderPanel();
       redraw();
+
       return [];
     }
 
-    const points = pivots(data);
+    const points =
+      pivots(data);
 
     detectDouble(points, data);
     detectWedges(points, data);
@@ -743,190 +1032,812 @@
 
     findings = findings
       .sort((a, b) => {
-        const ta = a.points.at(-1)?.time || 0;
-        const tb = b.points.at(-1)?.time || 0;
+        const ta =
+          a.points.at(-1)?.time || 0;
+
+        const tb =
+          b.points.at(-1)?.time || 0;
+
         return tb - ta;
       })
       .slice(0, 35);
 
-    const confirmed = findings.filter(
-      x => x.confirmed
-    ).length;
+    const confirmed =
+      findings.filter(
+        x => x.confirmed
+      ).length;
 
     updateStatus(
       findings.length
         ? findings.length +
           " estructuras detectadas · " +
           confirmed +
-          " con confirmación básica. " +
-          "Las demás siguen en observación."
+          " con confirmación básica."
         : "Sin estructuras detectadas con los filtros actuales."
     );
 
+    renderPanel();
     redraw();
 
     window.dispatchEvent(
-      new CustomEvent("cryptolexuz:patterns-updated", {
-        detail: {
-          findings: findings.map(x => ({
-            key: x.key,
-            label: x.label,
-            direction: x.direction,
-            confirmed: x.confirmed
-          }))
+      new CustomEvent(
+        "cryptolexuz:patterns-updated",
+        {
+          detail: {
+            findings:
+              findings.map(x => ({
+                key: x.key,
+                label: x.label,
+                direction: x.direction,
+                confirmed: x.confirmed
+              }))
+          }
         }
-      })
+      )
     );
 
     return findings;
   }
 
   function updateStatus(text) {
-    const el = $("patternStatus");
-    if(el) el.textContent = text;
+    const el =
+      $("patternStatus");
+
+    if (el) {
+      el.textContent = text;
+    }
+  }
+
+  function priceDigits(value) {
+    const n =
+      Math.abs(Number(value));
+
+    if (n >= 100) return 2;
+    if (n >= 1) return 4;
+    return 6;
+  }
+
+  function formatPrice(value) {
+    return Number(value).toLocaleString(
+      "en-US",
+      {
+        minimumFractionDigits:
+          priceDigits(value),
+        maximumFractionDigits:
+          priceDigits(value)
+      }
+    );
   }
 
   function redraw() {
-    if(frame) return;
+    if (frame) return;
 
-    frame = requestAnimationFrame(() => {
-      frame = 0;
-      paint();
-    });
+    frame = requestAnimationFrame(
+      () => {
+        frame = 0;
+        paint();
+      }
+    );
   }
 
-  function paint() {
-    if(!canvas || !chart || !candle) return;
+  function coord(point, indexByTime) {
+    const index =
+      indexByTime.get(
+        Number(point.time)
+      );
 
-    const rect = canvas.getBoundingClientRect();
-    const width = rect.width;
-    const height = rect.height;
+    if (
+      index === undefined
+    ) {
+      return null;
+    }
 
-    if(!width || !height) return;
+    const x =
+      chart.timeScale()
+        .logicalToCoordinate(index);
 
-    const ratio = Math.min(
-      window.devicePixelRatio || 1,
+    const y =
+      candle.priceToCoordinate(
+        point.price
+      );
+
+    if (
+      !Number.isFinite(x) ||
+      !Number.isFinite(y)
+    ) {
+      return null;
+    }
+
+    return { x, y };
+  }
+
+  function line(
+    ctx,
+    a,
+    b,
+    color,
+    dashed = false,
+    thickness = 1.5
+  ) {
+    if (
+      !a ||
+      !b
+    ) {
+      return;
+    }
+
+    ctx.save();
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = thickness;
+
+    ctx.setLineDash(
+      dashed ? [5, 4] : []
+    );
+
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function dot(
+    ctx,
+    p,
+    color
+  ) {
+    if (!p) return;
+
+    ctx.beginPath();
+    ctx.arc(
+      p.x,
+      p.y,
+      2.5,
+      0,
+      Math.PI * 2
+    );
+
+    ctx.fillStyle = color;
+    ctx.fill();
+  }
+
+  function shortLabel(
+    ctx,
+    text,
+    point,
+    color,
+    above = true
+  ) {
+    if (!point) return;
+
+    ctx.save();
+
+    ctx.font =
+      "bold 11px system-ui";
+
+    const width =
+      ctx.measureText(text).width;
+
+    const x = Math.max(
+      3,
+      Math.min(
+        ctx.canvas.clientWidth -
+          width - 6,
+        point.x - width / 2
+      )
+    );
+
+    const y = above
+      ? point.y - 10
+      : point.y + 18;
+
+    ctx.fillStyle =
+      "rgba(6,10,24,.88)";
+
+    ctx.fillRect(
+      x - 3,
+      y - 12,
+      width + 6,
+      16
+    );
+
+    ctx.fillStyle = color;
+    ctx.fillText(
+      text,
+      x,
+      y
+    );
+
+    ctx.restore();
+  }
+
+  function drawExtremes(
+    ctx,
+    data,
+    indexByTime,
+    width,
+    height
+  ) {
+    if (!data.length) return;
+
+    const visible =
+      chart.timeScale()
+        .getVisibleLogicalRange();
+
+    let start = 0;
+    let end =
+      data.length - 1;
+
+    if (visible) {
+      start = Math.max(
+        0,
+        Math.floor(visible.from)
+      );
+
+      end = Math.min(
+        data.length - 1,
+        Math.ceil(visible.to)
+      );
+    }
+
+    const closed =
+      closedRows();
+
+    const lastClosedTime =
+      closed.at(-1)?.time;
+
+    if (
+      lastClosedTime === undefined
+    ) {
+      return;
+    }
+
+    const closedEnd =
+      data.findIndex(
+        x =>
+          x.time === lastClosedTime
+      );
+
+    if (closedEnd < 0) return;
+
+    end = Math.min(
+      end,
+      closedEnd
+    );
+
+    if (end < start) return;
+
+    const section =
+      data.slice(
+        start,
+        end + 1
+      );
+
+    if (!section.length) return;
+
+    let max = section[0];
+    let min = section[0];
+
+    for (const bar of section) {
+      if (
+        bar.high > max.high
+      ) {
+        max = bar;
+      }
+
+      if (
+        bar.low < min.low
+      ) {
+        min = bar;
+      }
+    }
+
+    const maximum = coord(
+      {
+        time: max.time,
+        price: max.high
+      },
+      indexByTime
+    );
+
+    const minimum = coord(
+      {
+        time: min.time,
+        price: min.low
+      },
+      indexByTime
+    );
+
+    function tag(
+      point,
+      label,
+      color,
+      above
+    ) {
+      if (!point) return;
+
+      ctx.save();
+
+      ctx.font =
+        "bold 11px system-ui";
+
+      const textWidth =
+        ctx.measureText(label).width;
+
+      const x =
+        Math.max(
+          5,
+          Math.min(
+            width - textWidth - 13,
+            point.x - textWidth / 2
+          )
+        );
+
+      const desiredY =
+        above
+          ? point.y - 28
+          : point.y + 13;
+
+      const y =
+        Math.max(
+          3,
+          Math.min(
+            height - 22,
+            desiredY
+          )
+        );
+
+      ctx.fillStyle =
+        "rgba(6,10,24,.94)";
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1;
+
+      ctx.fillRect(
+        x - 4,
+        y,
+        textWidth + 8,
+        20
+      );
+
+      ctx.strokeRect(
+        x - 4,
+        y,
+        textWidth + 8,
+        20
+      );
+
+      ctx.fillStyle = color;
+
+      ctx.fillText(
+        label,
+        x,
+        y + 14
+      );
+
+      ctx.restore();
+    }
+
+    tag(
+      maximum,
+      "MAX " +
+        formatPrice(max.high),
+      COLORS.bull,
+      true
+    );
+
+    tag(
+      minimum,
+      "MIN " +
+        formatPrice(min.low),
+      COLORS.bear,
+      false
+    );
+  }
+
+  function drawWedge(
+    ctx,
+    finding,
+    indexByTime
+  ) {
+    const highs =
+      finding.points.filter(
+        p => p.type === "H"
+      );
+
+    const lows =
+      finding.points.filter(
+        p => p.type === "L"
+      );
+
+    if (
+      highs.length < 2 ||
+      lows.length < 2
+    ) {
+      return;
+    }
+
+    const color =
+      COLORS[finding.direction] ||
+      COLORS.neutral;
+
+    const h1 = coord(
+      highs[0],
+      indexByTime
+    );
+
+    const h2 = coord(
+      highs.at(-1),
+      indexByTime
+    );
+
+    const l1 = coord(
+      lows[0],
+      indexByTime
+    );
+
+    const l2 = coord(
+      lows.at(-1),
+      indexByTime
+    );
+
+    line(
+      ctx,
+      h1,
+      h2,
+      color,
+      !finding.confirmed,
       2
     );
 
-    canvas.width = Math.round(width * ratio);
-    canvas.height = Math.round(height * ratio);
+    line(
+      ctx,
+      l1,
+      l2,
+      color,
+      !finding.confirmed,
+      2
+    );
+  }
 
-    const ctx = canvas.getContext("2d");
-    if(!ctx) return;
+  function drawFinding(
+    ctx,
+    finding,
+    indexByTime
+  ) {
+    const color =
+      COLORS[finding.direction] ||
+      COLORS.neutral;
 
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    ctx.clearRect(0, 0, width, height);
+    if (
+      finding.key ===
+        "fallingwedge" ||
+      finding.key ===
+        "risingwedge"
+    ) {
+      drawWedge(
+        ctx,
+        finding,
+        indexByTime
+      );
 
-    const data = rows();
+      return;
+    }
 
-    if(!data.length) return;
+    /*
+      Squeeze y Order Blocks
+      se muestran en el panel,
+      sin textos sobre las velas.
+    */
+    if (
+      finding.key === "squeeze" ||
+      finding.key === "orderblocks"
+    ) {
+      return;
+    }
 
-    const indexByTime = new Map(
-      data.map((x, i) => [Number(x.time), i])
+    const points =
+      finding.points.map(
+        p => coord(
+          p,
+          indexByTime
+        )
+      );
+
+    if (
+      points.some(p => !p)
+    ) {
+      return;
+    }
+
+    const isWave = [
+      "impulses",
+      "abc",
+      "zigzag",
+      "flat",
+      "abcde"
+    ].includes(finding.key);
+
+    for (
+      let i = 1;
+      i < points.length;
+      i++
+    ) {
+      line(
+        ctx,
+        points[i - 1],
+        points[i],
+        color,
+        !finding.confirmed,
+        isWave ? 1.6 : 1.3
+      );
+    }
+
+    if (!isWave) {
+      return;
+    }
+
+    const labels =
+      finding.key === "impulses"
+        ? ["", "1", "2", "3"]
+        : finding.key === "abcde"
+          ? ["A", "B", "C", "D", "E"]
+          : ["", "A", "B", "C"];
+
+    points.forEach(
+      (p, i) => {
+        dot(
+          ctx,
+          p,
+          color
+        );
+
+        if (!labels[i]) return;
+
+        const original =
+          finding.points[i];
+
+        shortLabel(
+          ctx,
+          labels[i],
+          p,
+          color,
+          original.type === "H"
+        );
+      }
+    );
+  }
+
+  function paint() {
+    if (
+      !canvas ||
+      !chart ||
+      !candle
+    ) {
+      return;
+    }
+
+    const rect =
+      canvas.getBoundingClientRect();
+
+    const width = rect.width;
+    const height = rect.height;
+
+    if (
+      !width ||
+      !height
+    ) {
+      return;
+    }
+
+    const ratio =
+      Math.min(
+        window.devicePixelRatio || 1,
+        2
+      );
+
+    canvas.width =
+      Math.round(width * ratio);
+
+    canvas.height =
+      Math.round(height * ratio);
+
+    const ctx =
+      canvas.getContext("2d");
+
+    if (!ctx) return;
+
+    ctx.setTransform(
+      ratio,
+      0,
+      0,
+      ratio,
+      0,
+      0
     );
 
-    const displayed = findings.slice(0, 8).reverse();
+    ctx.clearRect(
+      0,
+      0,
+      width,
+      height
+    );
 
-    for(const finding of displayed) {
-      const points = finding.points.map(p => {
-        const index = indexByTime.get(Number(p.time));
+    const data =
+      rows();
 
-        if(index === undefined) return null;
+    if (!data.length) return;
 
-        const x = chart.timeScale()
-          .logicalToCoordinate(index);
-
-        const y = candle.priceToCoordinate(p.price);
-
-        if(
-          !Number.isFinite(x) ||
-          !Number.isFinite(y)
-        ) return null;
-
-        return {x, y};
-      });
-
-      if(points.some(p => !p)) continue;
-
-      const color =
-        COLORS[finding.direction] ||
-        COLORS.neutral;
-
-      ctx.strokeStyle = color;
-      ctx.fillStyle = color;
-      ctx.lineWidth = finding.confirmed ? 2 : 1.5;
-      ctx.setLineDash(
-        finding.confirmed ? [] : [5, 4]
+    const indexByTime =
+      new Map(
+        data.map(
+          (x, i) => [
+            Number(x.time),
+            i
+          ]
+        )
       );
 
-      if(points.length > 1) {
-        ctx.beginPath();
+    /*
+      Limitar los dibujos evita
+      saturar la gráfica.
+    */
+    const displayed = [];
 
-        points.forEach((p, i) => {
-          if(i === 0) ctx.moveTo(p.x, p.y);
-          else ctx.lineTo(p.x, p.y);
-        });
+    const used = new Set();
 
-        ctx.stroke();
+    for (const finding of findings) {
+      const group = [
+        "abc",
+        "zigzag",
+        "flat"
+      ].includes(finding.key)
+        ? "correction"
+        : finding.key;
+
+      if (used.has(group)) {
+        continue;
       }
 
-      ctx.setLineDash([]);
+      displayed.push(finding);
+      used.add(group);
 
-      const waveLabels =
-        finding.key === "impulses"
-          ? ["0", "1", "2", "3"]
-          : ["abc", "zigzag", "flat"].includes(finding.key)
-            ? ["0", "A", "B", "C"]
-            : finding.key === "abcde"
-              ? ["A", "B", "C", "D", "E"]
-              : null;
+      if (
+        displayed.length >= 4
+      ) {
+        break;
+      }
+    }
 
-      points.forEach((p, i) => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
-        ctx.fill();
+    displayed.reverse().forEach(
+      finding => {
+        drawFinding(
+          ctx,
+          finding,
+          indexByTime
+        );
+      }
+    );
 
-        if(waveLabels?.[i]) {
-          ctx.font = "bold 12px system-ui";
-          ctx.fillText(
-            waveLabels[i],
-            p.x + 5,
-            Math.max(13, p.y - 7)
-          );
-        }
-      });
+    /*
+      MAX y MIN se dibujan
+      al final para quedar visibles.
+    */
+    drawExtremes(
+      ctx,
+      data,
+      indexByTime,
+      width,
+      height
+    );
+  }
 
-      const last = points[points.length - 1];
+  function renderPanel() {
+    const area =
+      $("chartSection");
 
-      ctx.font = "11px system-ui";
+    if (!area) return;
 
-      const label =
+    let panel =
+      $("clPatternResults");
+
+    if (!panel) {
+      panel =
+        document.createElement(
+          "section"
+        );
+
+      panel.id =
+        "clPatternResults";
+
+      panel.style.cssText = [
+        "margin:14px 0",
+        "padding:13px",
+        "background:#101a32",
+        "border:1px solid #35416e",
+        "border-radius:12px",
+        "color:#dce6ff"
+      ].join(";");
+
+      const title =
+        document.createElement("h3");
+
+      title.textContent =
+        "Patrones detectados";
+
+      title.style.cssText =
+        "font-size:15px;margin:0 0 9px";
+
+      panel.appendChild(title);
+
+      const body =
+        document.createElement("div");
+
+      body.id =
+        "clPatternResultsBody";
+
+      panel.appendChild(body);
+
+      area.appendChild(panel);
+    }
+
+    const body =
+      $("clPatternResultsBody");
+
+    if (!body) return;
+
+    body.replaceChildren();
+
+    if (!findings.length) {
+      const note =
+        document.createElement("p");
+
+      note.textContent =
+        "Sin patrones activos detectados. " +
+        "Activa los filtros desde el menú.";
+
+      note.style.cssText =
+        "font-size:12px;color:#aebcdd";
+
+      body.appendChild(note);
+      return;
+    }
+
+    for (
+      const finding of findings.slice(0, 8)
+    ) {
+      const item =
+        document.createElement("div");
+
+      item.style.cssText = [
+        "padding:9px 0",
+        "border-bottom:1px solid #293754",
+        "font-size:12px",
+        "line-height:1.5"
+      ].join(";");
+
+      const direction =
+        finding.direction === "bull"
+          ? "Alcista"
+          : finding.direction === "bear"
+            ? "Bajista"
+            : "Neutral";
+
+      const state =
+        finding.confirmed
+          ? "Confirmación básica"
+          : "En observación";
+
+      item.textContent =
         finding.label +
-        (finding.confirmed ? " ✓" : " ?");
+        " · " +
+        direction +
+        " · " +
+        state;
 
-      const textWidth = ctx.measureText(label).width;
-
-      const x = Math.max(
-        4,
-        Math.min(width - textWidth - 8, last.x + 8)
-      );
-
-      const y = Math.max(
-        16,
-        Math.min(height - 5, last.y - 12)
-      );
-
-      ctx.fillStyle = "rgba(8,14,32,.9)";
-      ctx.fillRect(
-        x - 3,
-        y - 12,
-        textWidth + 6,
-        16
-      );
-
-      ctx.fillStyle = color;
-      ctx.fillText(label, x, y);
+      body.appendChild(item);
     }
   }
 
@@ -934,21 +1845,18 @@
     document.querySelectorAll(
       "[data-pattern]"
     ).forEach(button => {
-      const key = button.dataset.pattern;
+      const key =
+        button.dataset.pattern;
 
-      if(!NAMES[key]) return;
+      if (!NAMES[key]) return;
 
-      /*
-       Los detectores todavía no implementados
-       permanecen deshabilitados.
-      */
-      const available = ![
-        "diagonal"
-      ].includes(key);
+      const available =
+        key !== "diagonal";
 
-      button.disabled = !available;
+      button.disabled =
+        !available;
 
-      if(!available) return;
+      if (!available) return;
 
       button.classList.toggle(
         "active",
@@ -960,34 +1868,51 @@
         String(enabled.has(key))
       );
 
-      if(button.dataset.patternReady === "1") return;
+      if (
+        button.dataset.patternReady === "1"
+      ) {
+        return;
+      }
 
       button.dataset.patternReady = "1";
 
-      button.addEventListener("click", () => {
-        if(enabled.has(key)) enabled.delete(key);
-        else enabled.add(key);
+      button.addEventListener(
+        "click",
+        () => {
+          if (enabled.has(key)) {
+            enabled.delete(key);
+          } else {
+            enabled.add(key);
+          }
 
-        save();
-        setupButtons();
-        analyze();
-      });
+          save();
+          setupButtons();
+          analyze();
+        }
+      );
     });
   }
 
   function buildUI() {
-    if(initialized) return;
+    if (initialized) return;
 
-    const area = $("priceChartArea");
+    const area =
+      $("priceChartArea");
 
-    if(!area) return;
+    if (!area) return;
 
     initialized = true;
 
-    area.style.position = "relative";
+    area.style.position =
+      "relative";
 
-    canvas = document.createElement("canvas");
-    canvas.id = "patternsCanvas";
+    canvas =
+      document.createElement(
+        "canvas"
+      );
+
+    canvas.id =
+      "patternsCanvas";
 
     canvas.style.cssText = [
       "position:absolute",
@@ -1002,50 +1927,82 @@
 
     setupButtons();
 
-    if(window.ResizeObserver) {
-      new ResizeObserver(redraw).observe(area);
+    if (window.ResizeObserver) {
+      new ResizeObserver(
+        redraw
+      ).observe(area);
     }
 
-    window.addEventListener("resize", redraw);
+    window.addEventListener(
+      "resize",
+      redraw
+    );
 
-    for(const id of [
+    for (const id of [
       "symbol",
       "interval",
       "exchange",
       "market"
     ]) {
-      $(id)?.addEventListener("change", () => {
-        findings = [];
-        redraw();
-        updateStatus(
-          "Cambiando mercado. Esperando velas..."
-        );
-      });
+      $(id)?.addEventListener(
+        "change",
+        () => {
+          findings = [];
+          redraw();
+
+          updateStatus(
+            "Cambiando mercado. " +
+            "Esperando velas..."
+          );
+
+          renderPanel();
+        }
+      );
     }
 
     updateStatus(
-      "Motor preparado. Esperando conexión con las velas."
+      "Motor preparado. " +
+      "Esperando conexión con las velas."
     );
   }
 
-  function attach(newChart, newCandle, options = {}) {
-    if(!newChart || !newCandle) return;
+  function attach(
+    newChart,
+    newCandle,
+    options = {}
+  ) {
+    if (
+      !newChart ||
+      !newCandle
+    ) {
+      return;
+    }
 
     chart = newChart;
     candle = newCandle;
 
-    if(typeof options.getRows === "function") {
-      getRows = options.getRows;
+    if (
+      typeof options.getRows ===
+      "function"
+    ) {
+      getRows =
+        options.getRows;
     }
 
-    if(typeof options.getSelection === "function") {
-      getSelection = options.getSelection;
+    if (
+      typeof options.getSelection ===
+      "function"
+    ) {
+      getSelection =
+        options.getSelection;
     }
 
     buildUI();
 
     chart.timeScale()
-      .subscribeVisibleLogicalRangeChange(redraw);
+      .subscribeVisibleLogicalRangeChange(
+        redraw
+      );
 
     analyze();
   }
@@ -1053,21 +2010,29 @@
   load();
 
   window.CryptolexuzPatterns = {
-    version: "1",
+    version: "2",
     attach,
     analyze,
     redraw,
-    getFindings: () => findings.map(f => ({
-      key: f.key,
-      label: f.label,
-      direction: f.direction,
-      confirmed: f.confirmed,
-      points: f.points.map(p => ({...p}))
-    })),
-    getEnabled: () => [...enabled]
+
+    getFindings: () =>
+      findings.map(f => ({
+        key: f.key,
+        label: f.label,
+        direction: f.direction,
+        confirmed: f.confirmed,
+        points:
+          f.points.map(p => ({
+            ...p
+          }))
+      })),
+
+    getEnabled: () =>
+      [...enabled]
   };
 
   console.info(
-    "CRYPTOLEXUZ PRO — Patterns V1 cargado"
+    "CRYPTOLEXUZ PRO — " +
+    "Patterns V2 cargado"
   );
 })();
