@@ -286,24 +286,28 @@
     }
   </style>
 
-  <!-- Librería de gráficas -->
+  <!-- LIBRERÍA DE GRÁFICAS -->
   <script
     defer
     src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"
   ></script>
 
-  <!-- Fibonacci -->
+  <!-- FIBONACCI -->
   <script defer src="fibonacci.js?v=7"></script>
 
-  <!-- Motor de patrones -->
+  <!-- MOTOR DE PATRONES -->
   <script defer src="patterns.js?v=1"></script>
 
-  <!-- Motor principal -->
+  <!-- CONEXIÓN DE PATRONES CON LAS VELAS -->
+  <script defer src="patterns-bridge.js?v=1"></script>
+
+  <!-- MOTOR PRINCIPAL -->
   <script defer src="app.js?v=15"></script>
 
-  <!-- Módulos complementarios -->
+  <!-- MÓDULOS COMPLEMENTARIOS -->
   <script defer src="liquidity.js?v=11"></script>
   <script defer src="trade-plans.js?v=1"></script>
+
 </head>
 
 <body>
@@ -389,7 +393,7 @@
 
       </nav>
 
-      <!-- INDICADORES EXISTENTES -->
+      <!-- INDICADORES -->
 
       <h3>Indicadores</h3>
 
@@ -607,8 +611,8 @@
         class="cl-pattern-status"
         role="status"
       >
-        Los patrones se activarán al instalar
-        el módulo de reconocimiento.
+        Cargando motor de reconocimiento
+        automático de patrones...
       </div>
 
       <h3>Herramientas de dibujo</h3>
