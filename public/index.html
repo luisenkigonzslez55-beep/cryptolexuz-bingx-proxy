@@ -3,14 +3,17 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
+
   <meta
     name="viewport"
     content="width=device-width,initial-scale=1,viewport-fit=cover"
   >
+
   <meta name="theme-color" content="#060815">
+
   <meta
     name="description"
-    content="CRYPTOLEXUZ PRO: escáner multitemporal, gráficas, señales, Fibonacci y liquidez."
+    content="CRYPTOLEXUZ PRO: escáner multitemporal, gráficas, señales LONG y SHORT, Fibonacci, patrones técnicos y liquidez."
   >
 
   <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
@@ -246,6 +249,29 @@
       outline-offset: 2px;
     }
 
+    .cl-pattern-heading {
+      margin: 18px 0 9px;
+      color: #bb52ff;
+      font-size: 14px;
+    }
+
+    .cl-pattern-note {
+      margin: 9px 0;
+      color: #a5b0cf;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .cl-pattern-status {
+      margin: 10px 0;
+      padding: 9px;
+      border: 1px solid #35416e;
+      border-radius: 8px;
+      background: #101a32;
+      color: #aebcdd;
+      font-size: 11px;
+    }
+
     @media(min-width:900px) {
       .cl-bottom-nav {
         max-width: 560px;
@@ -260,24 +286,32 @@
     }
   </style>
 
-  <!-- Lightweight Charts 4.2.2 -->
+  <!-- Librería de gráficas -->
   <script
     defer
     src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"
   ></script>
 
-  <!-- Fibonacci V7 antes del motor principal -->
+  <!-- Fibonacci actual -->
   <script defer src="fibonacci.js?v=7"></script>
 
-  <!-- Motor principal V15 -->
+  <!-- Motor principal -->
   <script defer src="app.js?v=15"></script>
 
   <!-- Módulos complementarios -->
   <script defer src="liquidity.js?v=11"></script>
   <script defer src="trade-plans.js?v=1"></script>
+
+  <!--
+    El módulo patterns.js se conectará en el
+    siguiente paso, cuando esté instalado.
+    Así evitamos solicitar un archivo inexistente.
+  -->
 </head>
 
 <body>
+
+  <!-- ENCABEZADO -->
 
   <header class="app-header">
 
@@ -308,6 +342,8 @@
 
   <div class="app-shell">
 
+    <!-- MENÚ LATERAL -->
+
     <aside
       id="sidebar"
       class="sidebar"
@@ -316,6 +352,7 @@
 
       <div class="sidebar-head">
         <strong>Herramientas</strong>
+
         <button
           id="menuClose"
           type="button"
@@ -324,18 +361,45 @@
       </div>
 
       <nav class="side-nav" aria-label="Secciones">
-        <a href="#clScanner">📡 Escáner de señales</a>
-        <a href="#chartSection">📈 Gráfica y Fibonacci</a>
-        <a href="#liquiditySection">🌡️ Mapa de liquidez</a>
-        <a href="#orderbookSection">📚 Libro de órdenes</a>
-        <a href="#signalsSection">🎯 Señales</a>
-        <a href="#historySection">🕒 Historial</a>
-        <a href="#settingsSection">⚙️ Ajustes</a>
+
+        <a href="#clScanner">
+          📡 Escáner de señales
+        </a>
+
+        <a href="#chartSection">
+          📈 Gráfica y Fibonacci
+        </a>
+
+        <a href="#liquiditySection">
+          🌡️ Mapa de liquidez
+        </a>
+
+        <a href="#orderbookSection">
+          📚 Libro de órdenes
+        </a>
+
+        <a href="#signalsSection">
+          🎯 Señales
+        </a>
+
+        <a href="#historySection">
+          🕒 Historial
+        </a>
+
+        <a href="#settingsSection">
+          ⚙️ Ajustes
+        </a>
+
       </nav>
+
+      <!-- INDICADORES EXISTENTES -->
 
       <h3>Indicadores</h3>
 
-      <div id="indicatorButtons" class="indicator-buttons">
+      <div
+        id="indicatorButtons"
+        class="indicator-buttons"
+      >
 
         <button
           type="button"
@@ -409,27 +473,160 @@
           aria-pressed="false"
         >Resistencias</button>
 
-        <button type="button" disabled>
-          Divergencias · pendiente
-        </button>
+      </div>
 
-        <button type="button" disabled>
-          Squeeze · pendiente
-        </button>
+      <!-- PATRONES AUTOMÁTICOS -->
 
-        <button type="button" disabled>
-          Order Blocks · pendiente
-        </button>
+      <h3 class="cl-pattern-heading">
+        Patrones automáticos
+      </h3>
 
-        <button type="button" disabled>
-          Cuña descendente · pendiente
-        </button>
+      <p class="cl-pattern-note">
+        Activa los patrones que deseas identificar
+        automáticamente sobre las velas.
+      </p>
+
+      <div
+        id="patternButtons"
+        class="indicator-buttons"
+      >
+
+        <button
+          type="button"
+          data-pattern="divergences"
+          aria-pressed="false"
+          disabled
+        >Divergencias RSI</button>
+
+        <button
+          type="button"
+          data-pattern="squeeze"
+          aria-pressed="false"
+          disabled
+        >Squeeze Momentum</button>
+
+        <button
+          type="button"
+          data-pattern="orderblocks"
+          aria-pressed="false"
+          disabled
+        >Order Blocks</button>
+
+        <button
+          type="button"
+          data-pattern="fallingwedge"
+          aria-pressed="false"
+          disabled
+        >Cuña descendente</button>
+
+        <button
+          type="button"
+          data-pattern="impulses"
+          aria-pressed="false"
+          disabled
+        >Ondas 1 · 2 · 3</button>
+
+        <button
+          type="button"
+          data-pattern="abc"
+          aria-pressed="false"
+          disabled
+        >Corrección A · B · C</button>
+
+        <button
+          type="button"
+          data-pattern="abcde"
+          aria-pressed="false"
+          disabled
+        >Triángulo A · B · C · D · E</button>
+
+        <button
+          type="button"
+          data-pattern="zigzag"
+          aria-pressed="false"
+          disabled
+        >Zig-Zag</button>
+
+        <button
+          type="button"
+          data-pattern="flat"
+          aria-pressed="false"
+          disabled
+        >Plana / Flat</button>
+
+        <button
+          type="button"
+          data-pattern="diagonal"
+          aria-pressed="false"
+          disabled
+        >Diagonal</button>
+
+        <button
+          type="button"
+          data-pattern="doubletop"
+          aria-pressed="false"
+          disabled
+        >Doble techo</button>
+
+        <button
+          type="button"
+          data-pattern="doublebottom"
+          aria-pressed="false"
+          disabled
+        >Doble suelo</button>
+
+        <button
+          type="button"
+          data-pattern="headshoulders"
+          aria-pressed="false"
+          disabled
+        >Hombro-cabeza-hombro</button>
+
+        <button
+          type="button"
+          data-pattern="inversehs"
+          aria-pressed="false"
+          disabled
+        >HCH invertido</button>
+
+        <button
+          type="button"
+          data-pattern="risingwedge"
+          aria-pressed="false"
+          disabled
+        >Cuña ascendente</button>
+
+        <button
+          type="button"
+          data-pattern="triple"
+          aria-pressed="false"
+          disabled
+        >Triple techo / suelo</button>
 
       </div>
+
+      <div
+        id="patternStatus"
+        class="cl-pattern-status"
+        role="status"
+      >
+        Los patrones se activarán al instalar
+        el módulo de reconocimiento.
+      </div>
+
+      <h3>Herramientas de dibujo</h3>
+
+      <p class="cl-pattern-note">
+        Fibonacci y cajas de rango se configuran
+        desde la sección Gráficas.
+      </p>
+
+      <!-- MAPA DE LIQUIDEZ -->
 
       <h3>Mapa de liquidez</h3>
 
       <label class="switch-row">
+
         <span>Mostrar mapa</span>
 
         <input
@@ -441,6 +638,7 @@
         <span class="muted">
           Preparando conexión...
         </span>
+
       </label>
 
     </aside>
@@ -453,23 +651,35 @@
       hidden
     ></button>
 
+    <!-- CONTENIDO PRINCIPAL -->
+
     <main class="app-container">
 
-      <!-- ESCÁNER -->
+      <!-- INTRODUCCIÓN DEL ESCÁNER -->
+      <!--
+        No utilizamos clScanner aquí.
+        app.js V15 crea ese identificador
+        para la tabla dinámica.
+      -->
 
       <section
-        id="clScanner"
+        id="clScannerIntro"
         class="cl-scanner-intro"
       >
-        <h2>📡 CRYPTOLEXUZ PRO · Escáner</h2>
+
+        <h2>
+          📡 CRYPTOLEXUZ PRO · Escáner
+        </h2>
 
         <p>
           Monitor de oportunidades LONG y SHORT,
           confirmaciones multitemporales y análisis
-          técnico de ocho activos. Las señales
-          aparecerán en el monitor inferior cuando
-          el motor encuentre condiciones válidas.
+          técnico de ocho activos.
+
+          Las señales aparecerán cuando el motor
+          encuentre condiciones técnicas válidas.
         </p>
+
       </section>
 
       <!-- MERCADO -->
@@ -481,9 +691,11 @@
           <div class="selectors-row">
 
             <label class="compact-field">
+
               <span>Activo</span>
 
               <select id="symbol">
+
                 <option value="BTC-USDT">
                   BTC/USDT
                 </option>
@@ -515,33 +727,61 @@
                 <option value="NCCO1OILWTI2USD-USDT">
                   OIL WTI · BingX
                 </option>
+
               </select>
+
             </label>
 
             <label class="compact-field">
+
               <span>Temporalidad</span>
 
               <select id="interval">
-                <option value="1m">1 minuto</option>
-                <option value="5m">5 minutos</option>
+
+                <option value="1m">
+                  1 minuto
+                </option>
+
+                <option value="5m">
+                  5 minutos
+                </option>
 
                 <option value="15m" selected>
                   15 minutos
                 </option>
 
-                <option value="30m">30 minutos</option>
-                <option value="1h">1 hora</option>
-                <option value="4h">4 horas</option>
-                <option value="1d">1 día</option>
-                <option value="1w">1 semana</option>
+                <option value="30m">
+                  30 minutos
+                </option>
+
+                <option value="1h">
+                  1 hora
+                </option>
+
+                <option value="4h">
+                  4 horas
+                </option>
+
+                <option value="1d">
+                  1 día
+                </option>
+
+                <option value="1w">
+                  1 semana
+                </option>
+
               </select>
+
             </label>
 
           </div>
 
           <div class="market-price">
+
             <strong id="price">—</strong>
+
             <span id="change">—</span>
+
           </div>
 
         </div>
@@ -582,13 +822,16 @@
         <div class="chart-heading">
 
           <div>
+
             <h2 id="chartTitle">
               BTC-USDT · 15m
             </h2>
 
             <small>
-              GRÁFICA DE VELAS · FIBONACCI V7
+              GRÁFICA DE VELAS · FIBONACCI
+              · PATRONES
             </small>
+
           </div>
 
           <button
@@ -609,20 +852,23 @@
             id="chartTouchStatus"
             class="chart-control-note"
           >
-            Arrastra las velas con un dedo para
-            recorrer el historial. Usa dos dedos
-            para ampliar o reducir.
+            Arrastra las velas con un dedo.
+            Usa dos dedos para ampliar o reducir.
           </span>
 
         </div>
+
+        <!-- FIBONACCI -->
 
         <div
           id="fibFallback"
           class="cl-fib-loading"
           role="status"
         >
-          Cargando herramientas de Fibonacci V7...
+          Cargando herramientas de Fibonacci...
         </div>
+
+        <!-- ÁREA DE VELAS -->
 
         <div
           id="priceChartArea"
@@ -636,6 +882,11 @@
             aria-hidden="true"
           ></canvas>
 
+          <!--
+            Fibonacci y patrones crearán
+            sus propias capas de dibujo.
+          -->
+
         </div>
 
         <!-- VOLUMEN -->
@@ -643,8 +894,11 @@
         <div class="volume-section">
 
           <div class="volume-heading">
+
             <strong>Volumen</strong>
+
             <span id="volumeLabel">BTC</span>
+
           </div>
 
           <div id="volumeChart"></div>
@@ -666,8 +920,11 @@
         >
 
           <div class="oscillator-heading">
+
             <strong>RSI 14</strong>
+
             <span id="rsiChartValue">—</span>
+
           </div>
 
           <div
@@ -701,8 +958,11 @@
         >
 
           <div class="oscillator-heading">
+
             <strong>ADX 14 / +DI / −DI</strong>
+
             <span id="adxChartValue">—</span>
+
           </div>
 
           <div
@@ -719,7 +979,7 @@
 
         </div>
 
-        <!-- SQUEEZE -->
+        <!-- SQUEEZE MOMENTUM -->
 
         <div
           id="squeezeSection"
@@ -728,8 +988,13 @@
         >
 
           <div class="oscillator-heading">
+
             <strong>Squeeze Momentum</strong>
-            <span>Pendiente</span>
+
+            <span id="squeezeValue">
+              Pendiente
+            </span>
+
           </div>
 
           <div
@@ -749,7 +1014,7 @@
 
       </section>
 
-      <!-- LIQUIDEZ -->
+      <!-- MAPA DE LIQUIDEZ -->
 
       <section
         id="liquiditySection"
@@ -757,11 +1022,13 @@
       >
 
         <div class="section-heading">
+
           <h2>Mapa de liquidez</h2>
 
           <span class="muted">
             Profundidad de mercado
           </span>
+
         </div>
 
         <div
@@ -778,8 +1045,11 @@
       <section class="indicator-summary">
 
         <div class="section-heading">
+
           <h2>Indicadores técnicos</h2>
+
           <small>Última vela cerrada</small>
+
         </div>
 
         <div class="indicator-values">
@@ -823,12 +1093,16 @@
       >
 
         <div class="section-heading">
+
           <h2>Monitor de señales</h2>
 
           <span
             id="engineState"
             class="pill"
-          >INICIANDO</span>
+          >
+            INICIANDO
+          </span>
+
         </div>
 
         <div class="signal-grid">
@@ -845,6 +1119,7 @@
             </strong>
 
             <p id="detail5">—</p>
+
             <small id="metrics5">—</small>
 
           </article>
@@ -861,6 +1136,7 @@
             </strong>
 
             <p id="detail15">—</p>
+
             <small id="metrics15">—</small>
 
           </article>
@@ -877,8 +1153,11 @@
       >
 
         <div class="section-heading">
+
           <h2>Historial de señales</h2>
+
           <small>Últimas 30</small>
+
         </div>
 
         <div class="table-wrap">
@@ -925,11 +1204,13 @@
           <h2>Libro de precios</h2>
 
           <p>
-            Bid <strong id="bid">—</strong>
+            Bid
+            <strong id="bid">—</strong>
           </p>
 
           <p>
-            Ask <strong id="ask">—</strong>
+            Ask
+            <strong id="ask">—</strong>
           </p>
 
           <p class="muted">
@@ -965,10 +1246,15 @@
         <div class="cl-extra-select">
 
           <label>
+
             <span>Exchange</span>
 
             <select id="exchange">
-              <option value="bingx" selected>
+
+              <option
+                value="bingx"
+                selected
+              >
                 BingX
               </option>
 
@@ -983,13 +1269,17 @@
               <option value="okx">
                 OKX
               </option>
+
             </select>
+
           </label>
 
           <label>
+
             <span>Tipo de mercado</span>
 
             <select id="market">
+
               <option value="perpetual">
                 Perpetuos
               </option>
@@ -997,7 +1287,9 @@
               <option value="spot">
                 Spot
               </option>
+
             </select>
+
           </label>
 
         </div>
@@ -1005,15 +1297,21 @@
         <p class="muted">
           GOLD (XAU) y OIL WTI se consultan
           exclusivamente en BingX.
+
           El escáner analiza ocho activos
           desde la temporalidad diaria
           hasta un minuto.
         </p>
 
         <p class="muted">
-          Los niveles de entrada, stop loss,
-          TP1 y TP2 son propuestas técnicas
-          y no representan órdenes ejecutadas.
+          Las señales y patrones son propuestas
+          técnicas informativas.
+
+          No representan órdenes ejecutadas
+          ni garantizan resultados.
+        </p>
+
+        <p class="muted">
           Las notificaciones con la página
           completamente cerrada requieren
           un servicio push adicional.
@@ -1030,7 +1328,7 @@
 
   </div>
 
-  <!-- NAVEGACIÓN MÓVIL -->
+  <!-- NAVEGACIÓN INFERIOR -->
 
   <nav
     class="cl-bottom-nav"
@@ -1043,8 +1341,11 @@
       data-cl-tab="scanner"
       aria-pressed="true"
     >
+
       <span class="cl-nav-icon">📡</span>
+
       <span>Escáner</span>
+
     </button>
 
     <button
@@ -1053,8 +1354,11 @@
       data-cl-tab="charts"
       aria-pressed="false"
     >
+
       <span class="cl-nav-icon">📈</span>
+
       <span>Gráficas</span>
+
     </button>
 
     <button
@@ -1063,11 +1367,16 @@
       data-cl-tab="results"
       aria-pressed="false"
     >
+
       <span class="cl-nav-icon">📊</span>
+
       <span>Resultados</span>
+
     </button>
 
   </nav>
+
+  <!-- CONTROL DE MENÚ Y NAVEGACIÓN -->
 
   <script>
     (() => {
@@ -1082,7 +1391,7 @@
       const close = $("menuClose");
 
       function setOpen(open) {
-        if (
+        if(
           !sidebar ||
           !backdrop ||
           !toggle
@@ -1143,7 +1452,7 @@
       function activateTab(tab) {
         const id = targets[tab];
 
-        if (!id) return;
+        if(!id) return;
 
         document
           .querySelectorAll("[data-cl-tab]")
@@ -1166,7 +1475,7 @@
 
         const target = $(id);
 
-        if (target) {
+        if(target) {
           target.scrollIntoView({
             behavior: "smooth",
             block: "start"
@@ -1190,51 +1499,44 @@
       function checkFibonacci() {
         const fallback = $("fibFallback");
 
-        if (!fallback) return;
+        if(!fallback) return;
 
         const fib =
           window.CryptolexuzFibonacci;
 
         const toolbar = $("fibToolbar");
 
-        if (toolbar && fib) {
+        if(toolbar && fib) {
           fallback.hidden = true;
           return;
         }
 
         fallback.hidden = false;
 
-        if (toolbar && !fib) {
+        if(toolbar && !fib) {
           fallback.textContent =
             "La barra de Fibonacci apareció, " +
             "pero el módulo no terminó de inicializarse.";
-        } else if (fib && !toolbar) {
+        } else if(fib && !toolbar) {
           fallback.textContent =
-            "Fibonacci V7 cargado, " +
-            "pero todavía no se creó " +
-            "la barra de herramientas.";
+            "Fibonacci cargado, pero todavía " +
+            "no se creó la barra de herramientas.";
         } else {
           fallback.textContent =
-            "Fibonacci V7 no está inicializado. " +
-            "Comprueba public/fibonacci.js, " +
-            "app.js y la publicación en Render.";
+            "Fibonacci no está inicializado. " +
+            "Comprueba fibonacci.js, app.js " +
+            "y la publicación en Render.";
         }
       }
 
       window.addEventListener(
         "load",
         () => {
-          setTimeout(
-            checkFibonacci,
-            2500
-          );
-
-          setTimeout(
-            checkFibonacci,
-            6500
-          );
+          setTimeout(checkFibonacci,2500);
+          setTimeout(checkFibonacci,6500);
         }
       );
+
     })();
   </script>
 
