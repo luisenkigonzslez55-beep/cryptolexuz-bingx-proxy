@@ -1,43 +1,57 @@
 
 /*
- CRYPTOLEXUZ PRO
- VOLUME PROFILE AUTOMATICO V1
-
- Perfil aproximado por precio.
- Se calcula usando velas OHLCV.
- No representa volumen tick por tick.
+ CRYPTOLEXUZ PRO — VOLUME PROFILE V2
+ Compatible con app.js V15 y Lightweight Charts 4.2.2.
+ Perfil estimado con velas OHLCV de BingX.
+ No es un perfil tick-by-tick.
 */
+"use strict";
+
 (() => {
-  "use strict";
+  const KEY = "cryptolexuz.volumeProfile.v2";
 
-  const KEY = "cl-volume-profile-v1";
-
-  const defaults = {
+  const DEFAULTS = {
     enabled: true,
-    side: "left",
-    width: 66,
+    side: "right",
+    width: 116,
+    bins: 110,
     poc: true
   };
 
-  let settings = { ...defaults };
-  let chart = null;
-  let candleSeries = null;
-  let allCandles = [];
-  let canvas = null;
-  let host = null;
-  let status = null;
-  let scheduled = false;
+  const settings = { ...DEFAULTS };
 
   try {
-    const saved = JSON.parse(
-      localStorage.getItem(KEY) || "{}"
+    Object.assign(
+      settings,
+      JSON.parse(localStorage.getItem(KEY) || "{}")
     );
-
-    settings = {
-      ...defaults,
-      ...saved
-    };
   } catch (_) {}
+
+  settings.width = Math.max(
+    70,
+    Math.min(220, Number(settings.width) || 116)
+  );
+
+  settings.bins = Math.max(
+    40,
+    Math.min(200, Number(settings.bins) || 110)
+  );
+
+  settings.side =
+    settings.side === "left" ? "left" : "right";
+
+  let chart = null;
+  let candle = null;
+  let data = [];
+  let host = null;
+  let canvas = null;
+  let controls = null;
+  let raf = 0;
+  let lastChartWidth = 0;
+  let patchedSeries = null;
+  let initialized = false;
+
+  const $ = id => document.getElementById(id);
 
   function save() {
     try {
@@ -45,242 +59,305 @@
         KEY,
         JSON.stringify(settings)
       );
+
+      window.CryptolexuzPreferences
+        ?.saveTool?.(
+          "volumeProfile",
+          { ...settings }
+        );
     } catch (_) {}
+  }
 
-    if (window.CryptolexuzPreferences) {
-      window.CryptolexuzPreferences.saveTool(
-        "volumeProfile",
-        settings
+  function normalize(items) {
+    if (!Array.isArray(items)) return [];
+
+    return items
+      .map(x => ({
+        time: x.time,
+        open: Number(x.open),
+        high: Number(x.high),
+        low: Number(x.low),
+        close: Number(x.close),
+        volume: Number(x.volume ?? 0)
+      }))
+      .filter(x =>
+        x.time != null &&
+        [
+          x.open,
+          x.high,
+          x.low,
+          x.close,
+          x.volume
+        ].every(Number.isFinite) &&
+        x.high >= x.low &&
+        x.volume >= 0
       );
-    }
   }
 
-  function createUI() {
-    if (document.getElementById("clVpControls")) {
-      return;
-    }
-
-    const chartSection =
-      document.getElementById("chartSection");
-
-    const chartArea =
-      document.getElementById("priceChartArea");
-
-    if (!chartSection || !chartArea) return;
-
-    const panel = document.createElement("details");
-    panel.id = "clVpControls";
-    panel.open = false;
-
-    panel.style.cssText = [
-      "margin:10px 0",
-      "border:1px solid #39466d",
-      "border-radius:10px",
-      "background:#10182f",
-      "padding:10px"
-    ].join(";");
-
-    panel.innerHTML = `
-      <summary style="
-        color:#d7c5ff;
-        font-weight:700;
-        cursor:pointer;
-      ">
-        📊 Volume Profile automático
-      </summary>
-
-      <div style="
-        display:grid;
-        gap:12px;
-        padding-top:14px;
-        font-size:13px;
-      ">
-
-        <label style="
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-        ">
-          <span>Mostrar perfil</span>
-          <input
-            id="clVpEnabled"
-            type="checkbox"
-          >
-        </label>
-
-        <label>
-          Posición
-          <select id="clVpSide" style="
-            display:block;
-            width:100%;
-            margin-top:6px;
-            padding:10px;
-            color:#fff;
-            background:#182341;
-            border:1px solid #52618b;
-            border-radius:8px;
-          ">
-            <option value="left">
-              Izquierda →
-            </option>
-            <option value="right">
-              ← Derecha
-            </option>
-          </select>
-        </label>
-
-        <label>
-          Ancho del perfil
-          <input
-            id="clVpWidth"
-            type="range"
-            min="38"
-            max="110"
-            step="2"
-            style="display:block;width:100%"
-          >
-        </label>
-
-        <label style="
-          display:flex;
-          justify-content:space-between;
-          align-items:center;
-        ">
-          <span>Mostrar POC</span>
-          <input
-            id="clVpPoc"
-            type="checkbox"
-          >
-        </label>
-
-        <small id="clVpStatus" style="
-          color:#aebcdd;
-          line-height:1.5;
-        ">
-          Esperando datos del gráfico...
-        </small>
-
-      </div>
-    `;
-
-    chartArea.parentNode.insertBefore(
-      panel,
-      chartArea
+  function emit() {
+    window.dispatchEvent(
+      new CustomEvent(
+        "cryptolexuz:volume-profile-update",
+        {
+          detail: {
+            settings: { ...settings },
+            count: data.length
+          }
+        }
+      )
     );
-
-    status = document.getElementById(
-      "clVpStatus"
-    );
-
-    const enabled = document.getElementById(
-      "clVpEnabled"
-    );
-
-    const side = document.getElementById(
-      "clVpSide"
-    );
-
-    const width = document.getElementById(
-      "clVpWidth"
-    );
-
-    const poc = document.getElementById(
-      "clVpPoc"
-    );
-
-    enabled.checked = settings.enabled;
-    side.value = settings.side;
-    width.value = settings.width;
-    poc.checked = settings.poc;
-
-    enabled.addEventListener("change", () => {
-      settings.enabled = enabled.checked;
-      save();
-      applyLayout();
-    });
-
-    side.addEventListener("change", () => {
-      settings.side = side.value;
-      save();
-      applyLayout();
-    });
-
-    width.addEventListener("input", () => {
-      settings.width = Number(width.value);
-      save();
-      applyLayout();
-    });
-
-    poc.addEventListener("change", () => {
-      settings.poc = poc.checked;
-      save();
-      scheduleDraw();
-    });
-
-    host = document.createElement("div");
-    host.id = "clVpHost";
-
-    host.style.cssText = [
-      "position:absolute",
-      "top:0",
-      "bottom:0",
-      "width:66px",
-      "pointer-events:none",
-      "z-index:4",
-      "background:rgba(13,22,42,.96)",
-      "overflow:hidden"
-    ].join(";");
-
-    canvas = document.createElement("canvas");
-    canvas.id = "clVpCanvas";
-
-    canvas.style.cssText = [
-      "display:block",
-      "width:100%",
-      "height:100%"
-    ].join(";");
-
-    host.appendChild(canvas);
-    chartArea.appendChild(host);
-
-    applyLayout();
   }
 
-  function applyLayout() {
-    const area = document.getElementById(
-      "priceChartArea"
-    );
+  function ensureUI() {
+    const area = $("priceChartArea");
 
-    const chartElement =
-      document.getElementById("chart");
+    if (!area) return false;
 
-    if (!area || !chartElement || !host) {
-      return;
+    if (!controls) {
+      controls = document.createElement("details");
+
+      controls.id = "clVpControls";
+      controls.className = "cl-tool-panel";
+
+      controls.innerHTML = `
+        <summary>
+          📊 Volume Profile · BingX
+        </summary>
+
+        <div
+          class="cl-tool-content"
+          style="
+            display:flex;
+            flex-wrap:wrap;
+            gap:10px;
+            align-items:end;
+            padding:12px;
+          "
+        >
+          <label style="display:flex;gap:6px;align-items:center">
+            <input id="clVpEnabled" type="checkbox">
+            Mostrar perfil
+          </label>
+
+          <label style="display:grid;gap:5px">
+            Posición
+            <select id="clVpSide">
+              <option value="right">Derecha</option>
+              <option value="left">Izquierda</option>
+            </select>
+          </label>
+
+          <label style="display:grid;gap:5px">
+            Anchura
+            <select id="clVpWidth">
+              <option value="85">Estrecho</option>
+              <option value="116">Normal</option>
+              <option value="160">Ancho</option>
+              <option value="200">Muy ancho</option>
+            </select>
+          </label>
+
+          <label style="display:grid;gap:5px">
+            Detalle
+            <select id="clVpBins">
+              <option value="60">60 niveles</option>
+              <option value="90">90 niveles</option>
+              <option value="110">110 niveles</option>
+              <option value="150">150 niveles</option>
+              <option value="200">200 niveles</option>
+            </select>
+          </label>
+
+          <label style="display:flex;gap:6px;align-items:center">
+            <input id="clVpPoc" type="checkbox">
+            Mostrar POC
+          </label>
+
+          <small
+            id="clVpStatus"
+            style="width:100%;color:#a5b0cf"
+          >
+            Perfil aproximado de volumen
+            de velas OHLCV de BingX.
+          </small>
+        </div>
+      `;
+
+      area.parentNode.insertBefore(
+        controls,
+        area
+      );
+
+      const width = $("clVpWidth");
+
+      if (
+        ![...width.options].some(
+          x => Number(x.value) === settings.width
+        )
+      ) {
+        const option =
+          document.createElement("option");
+
+        option.value = String(settings.width);
+        option.textContent =
+          settings.width + " px";
+
+        width.add(option);
+      }
+
+      const bins = $("clVpBins");
+
+      if (
+        ![...bins.options].some(
+          x => Number(x.value) === settings.bins
+        )
+      ) {
+        const option =
+          document.createElement("option");
+
+        option.value = String(settings.bins);
+        option.textContent =
+          settings.bins + " niveles";
+
+        bins.add(option);
+      }
+
+      $("clVpEnabled").checked =
+        !!settings.enabled;
+
+      $("clVpSide").value = settings.side;
+
+      width.value = String(settings.width);
+      bins.value = String(settings.bins);
+
+      $("clVpPoc").checked =
+        !!settings.poc;
+
+      const fields = [
+        [
+          "clVpEnabled",
+          "enabled",
+          x => x.checked
+        ],
+        [
+          "clVpSide",
+          "side",
+          x => x.value
+        ],
+        [
+          "clVpWidth",
+          "width",
+          x => Number(x.value)
+        ],
+        [
+          "clVpBins",
+          "bins",
+          x => Number(x.value)
+        ],
+        [
+          "clVpPoc",
+          "poc",
+          x => x.checked
+        ]
+      ];
+
+      for (const [id, key, transform] of fields) {
+        $(id).addEventListener(
+          "change",
+          event => {
+            settings[key] =
+              transform(event.target);
+
+            save();
+            layout();
+            emit();
+          }
+        );
+      }
     }
 
-    const gap = settings.enabled
-      ? settings.width + 5
+    if (!host) {
+      host = document.createElement("div");
+
+      host.id = "clVpHost";
+
+      host.style.cssText = [
+        "position:absolute",
+        "top:0",
+        "bottom:0",
+        "z-index:3",
+        "pointer-events:none",
+        "background:#0b1429",
+        "overflow:hidden"
+      ].join(";");
+
+      canvas = document.createElement("canvas");
+
+      canvas.style.cssText = [
+        "display:block",
+        "width:100%",
+        "height:100%"
+      ].join(";");
+
+      host.appendChild(canvas);
+      area.appendChild(host);
+    }
+
+    if (!initialized) {
+      initialized = true;
+
+      window.addEventListener(
+        "resize",
+        schedule
+      );
+
+      window.addEventListener(
+        "cryptolexuz:screen-change",
+        () => {
+          setTimeout(() => {
+            layout();
+            schedule();
+          }, 120);
+        }
+      );
+
+      if (window.ResizeObserver) {
+        new ResizeObserver(
+          schedule
+        ).observe(area);
+      }
+    }
+
+    return true;
+  }
+
+  function layout() {
+    if (!ensureUI()) return;
+
+    const area = $("priceChartArea");
+
+    const w = settings.enabled
+      ? settings.width
       : 0;
 
-    area.style.position = "relative";
+    area.style.boxSizing = "border-box";
 
     area.style.paddingLeft =
+      settings.enabled &&
       settings.side === "left"
-        ? gap + "px"
+        ? w + "px"
         : "0px";
 
     area.style.paddingRight =
+      settings.enabled &&
       settings.side === "right"
-        ? gap + "px"
+        ? w + "px"
         : "0px";
-
-    chartElement.style.width = "100%";
 
     host.style.display =
       settings.enabled ? "block" : "none";
 
-    host.style.width =
-      settings.width + "px";
+    host.style.width = w + "px";
 
     host.style.left =
       settings.side === "left"
@@ -292,240 +369,139 @@
         ? "0"
         : "auto";
 
-    requestAnimationFrame(() => {
-      resizeChart();
-      scheduleDraw();
-    });
-  }
+    const el = $("chart");
 
-  function resizeChart() {
-    if (!chart) return;
+    if (
+      chart &&
+      el &&
+      el.clientWidth > 0 &&
+      el.clientHeight > 0
+    ) {
+      const newWidth = el.clientWidth;
 
-    const element = document.getElementById(
-      "chart"
-    );
+      if (newWidth !== lastChartWidth) {
+        lastChartWidth = newWidth;
 
-    if (!element) return;
-
-    const width = element.clientWidth;
-    const height = element.clientHeight;
-
-    if (width < 30 || height < 30) return;
-
-    try {
-      chart.resize(width, height);
-    } catch (_) {}
-
-    window.dispatchEvent(
-      new Event("resize")
-    );
-  }
-
-  function normalizeCandles(data) {
-    if (!Array.isArray(data)) return [];
-
-    return data.filter(item =>
-      item &&
-      Number.isFinite(Number(item.high)) &&
-      Number.isFinite(Number(item.low)) &&
-      Number.isFinite(Number(item.volume))
-    ).map(item => ({
-      time: item.time,
-      open: Number(item.open),
-      high: Number(item.high),
-      low: Number(item.low),
-      close: Number(item.close),
-      volume: Math.max(0, Number(item.volume))
-    }));
-  }
-
-  function captureSeries(series) {
-    if (!series || series.__clVpWrapped) {
-      return;
+        chart.resize(
+          newWidth,
+          el.clientHeight
+        );
+      }
     }
 
-    series.__clVpWrapped = true;
+    schedule();
+  }
 
-    const originalSetData =
-      series.setData.bind(series);
+  function attach(c, s) {
+    if (!c || !s) return;
 
-    const originalUpdate =
-      series.update.bind(series);
+    chart = c;
+    candle = s;
 
-    series.setData = function(data) {
-      const result = originalSetData(data);
+    if (patchedSeries !== s) {
+      patchedSeries = s;
 
-      allCandles = normalizeCandles(data);
-      scheduleDraw();
+      const originalSet =
+        s.setData.bind(s);
 
-      return result;
-    };
+      const originalUpdate =
+        s.update.bind(s);
 
-    series.update = function(bar) {
-      const result = originalUpdate(bar);
+      s.setData = function(items) {
+        const result = originalSet(items);
 
-      const item = normalizeCandles([bar])[0];
+        data = normalize(items);
+        schedule();
 
-      if (item) {
-        const last = allCandles.length - 1;
+        return result;
+      };
 
-        if (
-          last >= 0 &&
-          allCandles[last].time === item.time
-        ) {
-          allCandles[last] = item;
-        } else {
-          allCandles.push(item);
+      s.update = function(item) {
+        const result = originalUpdate(item);
+
+        const x = normalize([item])[0];
+
+        if (x) {
+          const last = data.at(-1);
+
+          if (
+            last &&
+            last.time === x.time
+          ) {
+            data[data.length - 1] = x;
+          } else if (
+            !last ||
+            x.time > last.time
+          ) {
+            data.push(x);
+          }
+
+          if (data.length > 1000) {
+            data = data.slice(-1000);
+          }
         }
 
-        scheduleDraw();
-      }
+        schedule();
 
-      return result;
-    };
+        return result;
+      };
+    }
+
+    ensureUI();
 
     try {
-      if (typeof series.data === "function") {
-        allCandles = normalizeCandles(
-          series.data()
+      chart.timeScale()
+        .subscribeVisibleLogicalRangeChange(
+          schedule
         );
-      }
-    } catch (_) {}
-
-    scheduleDraw();
-  }
-
-  function getVisibleCandles() {
-    if (!chart || !allCandles.length) {
-      return [];
+    } catch (error) {
+      console.warn(
+        "Volume Profile: rango",
+        error
+      );
     }
 
-    try {
-      const range = chart
-        .timeScale()
-        .getVisibleLogicalRange();
-
-      if (range) {
-        const start = Math.max(
-          0,
-          Math.floor(range.from)
-        );
-
-        const end = Math.min(
-          allCandles.length,
-          Math.ceil(range.to) + 1
-        );
-
-        if (end > start) {
-          return allCandles.slice(start, end);
-        }
-      }
-    } catch (_) {}
-
-    return allCandles.slice(-100);
+    layout();
   }
 
-  function calculateProfile(candles, count = 90) {
-    if (!candles.length) return null;
+  function schedule() {
+    if (raf) return;
 
-    const min = Math.min(
-      ...candles.map(c => c.low)
-    );
-
-    const max = Math.max(
-      ...candles.map(c => c.high)
-    );
-
-    const span = max - min;
-
-    if (!(span > 0)) return null;
-
-    const bins = new Float64Array(count);
-    const step = span / count;
-
-    /*
-      Aproximacion:
-      se distribuye el volumen de cada vela
-      uniformemente entre su minimo y maximo.
-    */
-
-    for (const candle of candles) {
-      if (!(candle.volume > 0)) continue;
-
-      const first = Math.max(
-        0,
-        Math.floor((candle.low - min) / step)
-      );
-
-      const last = Math.min(
-        count - 1,
-        Math.floor(
-          (candle.high - min) / step
-        )
-      );
-
-      const slots = Math.max(
-        1,
-        last - first + 1
-      );
-
-      const contribution =
-        candle.volume / slots;
-
-      for (let i = first; i <= last; i++) {
-        bins[i] += contribution;
-      }
-    }
-
-    let pocIndex = 0;
-
-    for (let i = 1; i < count; i++) {
-      if (bins[i] > bins[pocIndex]) {
-        pocIndex = i;
-      }
-    }
-
-    return {
-      min,
-      max,
-      bins,
-      step,
-      pocPrice:
-        min + (pocIndex + 0.5) * step,
-      maxVolume: Math.max(...bins)
-    };
-  }
-
-  function scheduleDraw() {
-    if (scheduled) return;
-
-    scheduled = true;
-
-    requestAnimationFrame(() => {
-      scheduled = false;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
       draw();
     });
   }
 
   function draw() {
     if (
-      !canvas ||
+      !settings.enabled ||
       !host ||
-      !settings.enabled
+      !canvas ||
+      !chart ||
+      !candle
     ) return;
 
     const width = host.clientWidth;
     const height = host.clientHeight;
 
-    if (width < 5 || height < 5) return;
+    if (width < 10 || height < 10) return;
 
     const dpr = Math.min(
-      window.devicePixelRatio || 1,
-      3
+      devicePixelRatio || 1,
+      2
     );
 
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
+    const pxw = Math.round(width * dpr);
+    const pxh = Math.round(height * dpr);
+
+    if (canvas.width !== pxw) {
+      canvas.width = pxw;
+    }
+
+    if (canvas.height !== pxh) {
+      canvas.height = pxh;
+    }
 
     const ctx = canvas.getContext("2d");
 
@@ -535,192 +511,258 @@
       dpr, 0, 0, dpr, 0, 0
     );
 
-    ctx.clearRect(0, 0, width, height);
-
-    const visible = getVisibleCandles();
-
-    const profile = calculateProfile(
-      visible
+    ctx.clearRect(
+      0, 0, width, height
     );
 
-    if (!profile) {
-      if (status) {
-        status.textContent =
-          "Esperando velas con volumen...";
-      }
+    const range = chart.timeScale()
+      .getVisibleLogicalRange();
+
+    if (!range || !data.length) {
+      status(
+        "Esperando velas de BingX con volumen..."
+      );
       return;
     }
 
-    const {
-      min,
-      max,
-      bins,
-      step,
-      pocPrice,
-      maxVolume
-    } = profile;
-
-    if (!(maxVolume > 0)) return;
-
-    const priceToY = price => {
-      if (
-        candleSeries &&
-        typeof candleSeries.priceToCoordinate
-          === "function"
-      ) {
-        try {
-          const y =
-            candleSeries.priceToCoordinate(price);
-
-          if (Number.isFinite(y)) {
-            return y;
-          }
-        } catch (_) {}
-      }
-
-      return (
-        height -
-        ((price - min) / (max - min)) * height
-      );
-    };
-
-    const right = settings.side === "right";
-
-    const usableWidth = Math.max(
-      5,
-      width - 4
+    const start = Math.max(
+      0,
+      Math.floor(range.from)
     );
 
-    for (let i = 0; i < bins.length; i++) {
-      const price = min + (i + 0.5) * step;
+    const end = Math.min(
+      data.length - 1,
+      Math.ceil(range.to)
+    );
 
-      const y = priceToY(price);
-      const yNext = priceToY(price + step);
+    const visible = data
+      .slice(start, end + 1)
+      .filter(x => x.volume > 0);
 
-      if (!Number.isFinite(y)) continue;
+    if (!visible.length) {
+      status(
+        "Sin volumen en el rango visible. Esperando datos REST..."
+      );
+      return;
+    }
 
-      const barHeight = Math.max(
-        1,
+    const lo = Math.min(
+      ...visible.map(x => x.low)
+    );
+
+    const hi = Math.max(
+      ...visible.map(x => x.high)
+    );
+
+    const spread = hi - lo;
+
+    if (!(spread > 0)) return;
+
+    const bins = settings.bins;
+    const step = spread / bins;
+
+    const totals =
+      new Float64Array(bins);
+
+    for (const x of visible) {
+      /*
+       Estimación:
+       distribuye uniformemente el volumen
+       de cada vela entre sus niveles
+       mínimo y máximo.
+      */
+
+      const bottom = Math.max(
+        0,
         Math.min(
-          3,
-          Math.abs(yNext - y) * 0.8
+          bins - 1,
+          Math.floor((x.low - lo) / step)
         )
       );
 
-      const barWidth = Math.max(
-        0.5,
-        bins[i] / maxVolume * usableWidth
+      const top = Math.max(
+        0,
+        Math.min(
+          bins - 1,
+          Math.floor((x.high - lo) / step)
+        )
       );
 
-      const x = right
-        ? width - barWidth - 2
-        : 2;
+      const count = top - bottom + 1;
+      const portion = x.volume / count;
 
-      ctx.fillStyle = "#4c9bd4";
-      ctx.globalAlpha = 0.87;
+      for (let i = bottom; i <= top; i++) {
+        totals[i] += portion;
+      }
+    }
+
+    let max = 0;
+    let pocIndex = 0;
+
+    for (let i = 0; i < bins; i++) {
+      if (totals[i] > max) {
+        max = totals[i];
+        pocIndex = i;
+      }
+    }
+
+    if (!max) return;
+
+    ctx.fillStyle = "#0b1429";
+
+    ctx.fillRect(
+      0, 0, width, height
+    );
+
+    const margin = 7;
+
+    const barWidth =
+      width - margin * 2;
+
+    const left =
+      settings.side === "left";
+
+    for (let i = 0; i < bins; i++) {
+      if (!totals[i]) continue;
+
+      const p0 = lo + i * step;
+      const p1 = p0 + step;
+
+      const y0 =
+        candle.priceToCoordinate(p0);
+
+      const y1 =
+        candle.priceToCoordinate(p1);
+
+      if (
+        !Number.isFinite(y0) ||
+        !Number.isFinite(y1)
+      ) continue;
+
+      const y = Math.min(y0, y1);
+
+      const h = Math.max(
+        1,
+        Math.abs(y1 - y0) - 0.4
+      );
+
+      if (
+        y > height ||
+        y + h < 0
+      ) continue;
+
+      const length = Math.max(
+        1,
+        (totals[i] / max) * barWidth
+      );
+
+      const x = left
+        ? width - margin - length
+        : margin;
+
+      ctx.fillStyle =
+        i === pocIndex
+          ? "rgba(73,206,255,.98)"
+          : "rgba(49,133,255,.78)";
 
       ctx.fillRect(
         x,
-        y - barHeight / 2,
-        barWidth,
-        barHeight
+        y,
+        length,
+        h
       );
     }
 
-    ctx.globalAlpha = 1;
-
     if (settings.poc) {
-      const pocY = priceToY(pocPrice);
+      const price =
+        lo + (pocIndex + 0.5) * step;
 
-      if (Number.isFinite(pocY)) {
-        ctx.strokeStyle = "#ff687a";
-        ctx.lineWidth = 1.4;
+      const y =
+        candle.priceToCoordinate(price);
+
+      if (
+        Number.isFinite(y) &&
+        y >= 0 &&
+        y <= height
+      ) {
+        ctx.strokeStyle = "#ff5375";
+        ctx.lineWidth = 1.5;
 
         ctx.beginPath();
-        ctx.moveTo(0, pocY);
-        ctx.lineTo(width, pocY);
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
         ctx.stroke();
+
+        ctx.fillStyle = "#ff8ba3";
+        ctx.font = "bold 10px system-ui";
+
+        ctx.textAlign = left
+          ? "right"
+          : "left";
+
+        ctx.fillText(
+          "POC",
+          left ? width - 5 : 5,
+          Math.max(11, y - 4)
+        );
       }
     }
 
-    if (status) {
-      status.textContent =
-        "Perfil aproximado de " +
-        visible.length +
-        " velas visibles · POC: " +
-        pocPrice.toFixed(
-          pocPrice < 10 ? 4 : 2
-        );
+    status(
+      visible.length +
+      " velas visibles · " +
+      bins +
+      " niveles · POC estimado"
+    );
+  }
+
+  function status(text) {
+    const el = $("clVpStatus");
+
+    if (
+      el &&
+      el.textContent !== text
+    ) {
+      el.textContent = text;
     }
   }
 
-  function connect(event) {
-    const detail = event?.detail || {};
+  window.CryptolexuzVolumeProfile = {
+    attach,
+    redraw: schedule,
+    layout,
 
-    const nextChart = detail.chart;
-    const nextSeries = detail.candle;
+    getSettings: () => ({
+      ...settings
+    }),
 
-    if (!nextChart || !nextSeries) return;
+    getData: () =>
+      data.slice(),
 
-    chart = nextChart;
-    candleSeries = nextSeries;
-
-    createUI();
-    captureSeries(nextSeries);
-
-    try {
-      chart.timeScale()
-        .subscribeVisibleLogicalRangeChange(
-          scheduleDraw
-        );
-    } catch (error) {
-      console.warn(
-        "Volume Profile: rango visible",
-        error
-      );
+    setData: items => {
+      data = normalize(items);
+      schedule();
     }
-
-    setTimeout(() => {
-      applyLayout();
-      scheduleDraw();
-    }, 500);
-  }
+  };
 
   window.addEventListener(
     "cryptolexuz:chart-ready",
-    connect
-  );
-
-  window.addEventListener(
-    "cryptolexuz:screen-change",
     event => {
-      if (event.detail?.screen === "charts") {
-        setTimeout(() => {
-          applyLayout();
-          scheduleDraw();
-        }, 150);
-      }
+      attach(
+        event.detail?.chart,
+        event.detail?.candle
+      );
     }
   );
 
-  window.addEventListener(
-    "resize",
-    scheduleDraw
-  );
-
-  window.CryptolexuzVolumeProfile = {
-    redraw: scheduleDraw,
-    getSettings: () => ({ ...settings }),
-    getProfile: () =>
-      calculateProfile(getVisibleCandles())
-  };
-
-  if (document.readyState === "loading") {
+  if (
+    document.readyState === "loading"
+  ) {
     document.addEventListener(
       "DOMContentLoaded",
-      createUI
+      ensureUI
     );
   } else {
-    createUI();
+    ensureUI();
   }
 })();
