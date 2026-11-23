@@ -1,13 +1,26 @@
 
 /*
- CRYPTOLEXUZ PRO — VOLUME PROFILE V2
- Compatible con app.js V15 y Lightweight Charts 4.2.2.
- Perfil estimado con velas OHLCV de BingX.
- No es un perfil tick-by-tick.
+ CRYPTOLEXUZ PRO — VOLUME PROFILE V3
+ Compatible con Lightweight Charts 4.2.2.
+ Perfil estimado a partir de velas OHLCV.
+ No utiliza transacciones tick-by-tick.
+
+ Cambios:
+ - No crea columnas ni padding junto a la gráfica.
+ - Dibuja el perfil sobre el área de velas.
+ - Mantiene libre la escala derecha de precios.
+ - Corrige el tamaño al abrir Gráficas.
+ - Conserva controles, POC y preferencias.
+ - Reordena el menú inferior cuando lo encuentra.
+ - No elimina el mapa de liquidez ni otros módulos.
 */
 "use strict";
 
 (() => {
+  if (window.CryptolexuzVolumeProfile?.version === 3) {
+    return;
+  }
+
   const KEY = "cryptolexuz.volumeProfile.v2";
 
   const DEFAULTS = {
@@ -27,6 +40,11 @@
     );
   } catch (_) {}
 
+  settings.enabled = settings.enabled !== false;
+  settings.poc = settings.poc !== false;
+  settings.side =
+    settings.side === "left" ? "left" : "right";
+
   settings.width = Math.max(
     70,
     Math.min(220, Number(settings.width) || 116)
@@ -37,21 +55,24 @@
     Math.min(200, Number(settings.bins) || 110)
   );
 
-  settings.side =
-    settings.side === "left" ? "left" : "right";
+  const $ = id => document.getElementById(id);
 
   let chart = null;
   let candle = null;
   let data = [];
-  let host = null;
+
+  let area = null;
+  let chartElement = null;
   let canvas = null;
   let controls = null;
-  let raf = 0;
-  let lastChartWidth = 0;
-  let patchedSeries = null;
-  let initialized = false;
 
-  const $ = id => document.getElementById(id);
+  let patchedSeries = null;
+  let subscribedChart = null;
+  let resizeObserver = null;
+
+  let raf = 0;
+  let initialized = false;
+  let resizing = false;
 
   function save() {
     try {
@@ -71,27 +92,33 @@
   function normalize(items) {
     if (!Array.isArray(items)) return [];
 
-    return items
-      .map(x => ({
-        time: x.time,
-        open: Number(x.open),
-        high: Number(x.high),
-        low: Number(x.low),
-        close: Number(x.close),
-        volume: Number(x.volume ?? 0)
-      }))
-      .filter(x =>
-        x.time != null &&
-        [
-          x.open,
-          x.high,
-          x.low,
-          x.close,
-          x.volume
-        ].every(Number.isFinite) &&
-        x.high >= x.low &&
-        x.volume >= 0
-      );
+    return items.map(item => ({
+      time: item.time,
+      open: Number(item.open),
+      high: Number(item.high),
+      low: Number(item.low),
+      close: Number(item.close),
+      volume: Number(item.volume ?? 0)
+    })).filter(item =>
+      item.time != null &&
+      [
+        item.open,
+        item.high,
+        item.low,
+        item.close,
+        item.volume
+      ].every(Number.isFinite) &&
+      item.high >= item.low &&
+      item.volume >= 0
+    );
+  }
+
+  function status(message) {
+    const el = $("clVpStatus");
+
+    if (el && el.textContent !== message) {
+      el.textContent = message;
+    }
   }
 
   function emit() {
@@ -109,9 +136,36 @@
   }
 
   function ensureUI() {
-    const area = $("priceChartArea");
+    area = $("priceChartArea");
+    chartElement = $("chart");
 
-    if (!area) return false;
+    if (!area || !chartElement) {
+      return false;
+    }
+
+    /*
+      Quitar el espacio reservado por V2.
+      El perfil ya no modifica el ancho
+      disponible para las velas.
+    */
+    area.style.paddingLeft = "0px";
+    area.style.paddingRight = "0px";
+    area.style.boxSizing = "border-box";
+    area.style.position = "relative";
+
+    /*
+      Recuperar un contenedor anterior
+      si existe, para no duplicarlo.
+    */
+    const oldHost = $("clVpHost");
+
+    if (oldHost) {
+      oldHost.remove();
+    }
+
+    if (!controls) {
+      controls = $("clVpControls");
+    }
 
     if (!controls) {
       controls = document.createElement("details");
@@ -120,12 +174,9 @@
       controls.className = "cl-tool-panel";
 
       controls.innerHTML = `
-        <summary>
-          📊 Volume Profile · BingX
-        </summary>
+        <summary>📊 Volume Profile · BingX</summary>
 
-        <div
-          class="cl-tool-content"
+        <div class="cl-tool-content"
           style="
             display:flex;
             flex-wrap:wrap;
@@ -134,51 +185,93 @@
             padding:12px;
           "
         >
-          <label style="display:flex;gap:6px;align-items:center">
-            <input id="clVpEnabled" type="checkbox">
+          <label style="
+            display:flex;
+            gap:6px;
+            align-items:center;
+          ">
+            <input id="clVpEnabled"
+              type="checkbox">
             Mostrar perfil
           </label>
 
-          <label style="display:grid;gap:5px">
+          <label style="
+            display:grid;
+            gap:5px;
+          ">
             Posición
             <select id="clVpSide">
-              <option value="right">Derecha</option>
-              <option value="left">Izquierda</option>
+              <option value="right">
+                Derecha
+              </option>
+              <option value="left">
+                Izquierda
+              </option>
             </select>
           </label>
 
-          <label style="display:grid;gap:5px">
+          <label style="
+            display:grid;
+            gap:5px;
+          ">
             Anchura
             <select id="clVpWidth">
-              <option value="85">Estrecho</option>
-              <option value="116">Normal</option>
-              <option value="160">Ancho</option>
-              <option value="200">Muy ancho</option>
+              <option value="85">
+                Estrecho
+              </option>
+              <option value="116">
+                Normal
+              </option>
+              <option value="160">
+                Ancho
+              </option>
+              <option value="200">
+                Muy ancho
+              </option>
             </select>
           </label>
 
-          <label style="display:grid;gap:5px">
+          <label style="
+            display:grid;
+            gap:5px;
+          ">
             Detalle
             <select id="clVpBins">
-              <option value="60">60 niveles</option>
-              <option value="90">90 niveles</option>
-              <option value="110">110 niveles</option>
-              <option value="150">150 niveles</option>
-              <option value="200">200 niveles</option>
+              <option value="60">
+                60 niveles
+              </option>
+              <option value="90">
+                90 niveles
+              </option>
+              <option value="110">
+                110 niveles
+              </option>
+              <option value="150">
+                150 niveles
+              </option>
+              <option value="200">
+                200 niveles
+              </option>
             </select>
           </label>
 
-          <label style="display:flex;gap:6px;align-items:center">
-            <input id="clVpPoc" type="checkbox">
+          <label style="
+            display:flex;
+            gap:6px;
+            align-items:center;
+          ">
+            <input id="clVpPoc"
+              type="checkbox">
             Mostrar POC
           </label>
 
-          <small
-            id="clVpStatus"
-            style="width:100%;color:#a5b0cf"
+          <small id="clVpStatus"
+            style="
+              width:100%;
+              color:#a5b0cf;
+            "
           >
-            Perfil aproximado de volumen
-            de velas OHLCV de BingX.
+            Esperando datos de volumen...
           </small>
         </div>
       `;
@@ -187,228 +280,193 @@
         controls,
         area
       );
+    }
 
-      const width = $("clVpWidth");
+    if (!canvas) {
+      canvas = document.createElement("canvas");
+
+      canvas.id = "clVpCanvas";
+
+      canvas.style.cssText = [
+        "position:absolute",
+        "top:0",
+        "left:0",
+        "width:100%",
+        "height:100%",
+        "pointer-events:none",
+        "z-index:3",
+        "background:transparent",
+        "display:block"
+      ].join(";");
+
+      area.appendChild(canvas);
+    }
+
+    const widthField = $("clVpWidth");
+    const binsField = $("clVpBins");
+
+    function addOptionIfMissing(select, value, label) {
+      if (!select) return;
 
       if (
-        ![...width.options].some(
-          x => Number(x.value) === settings.width
+        !Array.from(select.options).some(
+          option => Number(option.value) === value
         )
       ) {
-        const option =
-          document.createElement("option");
+        const option = document.createElement("option");
 
-        option.value = String(settings.width);
-        option.textContent =
-          settings.width + " px";
-
-        width.add(option);
-      }
-
-      const bins = $("clVpBins");
-
-      if (
-        ![...bins.options].some(
-          x => Number(x.value) === settings.bins
-        )
-      ) {
-        const option =
-          document.createElement("option");
-
-        option.value = String(settings.bins);
-        option.textContent =
-          settings.bins + " niveles";
-
-        bins.add(option);
-      }
-
-      $("clVpEnabled").checked =
-        !!settings.enabled;
-
-      $("clVpSide").value = settings.side;
-
-      width.value = String(settings.width);
-      bins.value = String(settings.bins);
-
-      $("clVpPoc").checked =
-        !!settings.poc;
-
-      const fields = [
-        [
-          "clVpEnabled",
-          "enabled",
-          x => x.checked
-        ],
-        [
-          "clVpSide",
-          "side",
-          x => x.value
-        ],
-        [
-          "clVpWidth",
-          "width",
-          x => Number(x.value)
-        ],
-        [
-          "clVpBins",
-          "bins",
-          x => Number(x.value)
-        ],
-        [
-          "clVpPoc",
-          "poc",
-          x => x.checked
-        ]
-      ];
-
-      for (const [id, key, transform] of fields) {
-        $(id).addEventListener(
-          "change",
-          event => {
-            settings[key] =
-              transform(event.target);
-
-            save();
-            layout();
-            emit();
-          }
-        );
+        option.value = String(value);
+        option.textContent = label;
+        select.add(option);
       }
     }
 
-    if (!host) {
-      host = document.createElement("div");
+    addOptionIfMissing(
+      widthField,
+      settings.width,
+      settings.width + " px"
+    );
 
-      host.id = "clVpHost";
+    addOptionIfMissing(
+      binsField,
+      settings.bins,
+      settings.bins + " niveles"
+    );
 
-      host.style.cssText = [
-        "position:absolute",
-        "top:0",
-        "bottom:0",
-        "z-index:3",
-        "pointer-events:none",
-        "background:#0b1429",
-        "overflow:hidden"
-      ].join(";");
+    if ($("clVpEnabled")) {
+      $("clVpEnabled").checked = settings.enabled;
+    }
 
-      canvas = document.createElement("canvas");
+    if ($("clVpSide")) {
+      $("clVpSide").value = settings.side;
+    }
 
-      canvas.style.cssText = [
-        "display:block",
-        "width:100%",
-        "height:100%"
-      ].join(";");
+    if (widthField) {
+      widthField.value = String(settings.width);
+    }
 
-      host.appendChild(canvas);
-      area.appendChild(host);
+    if (binsField) {
+      binsField.value = String(settings.bins);
+    }
+
+    if ($("clVpPoc")) {
+      $("clVpPoc").checked = settings.poc;
     }
 
     if (!initialized) {
       initialized = true;
 
+      const fields = [
+        ["clVpEnabled", "enabled", x => x.checked],
+        ["clVpSide", "side", x => x.value],
+        ["clVpWidth", "width", x => Number(x.value)],
+        ["clVpBins", "bins", x => Number(x.value)],
+        ["clVpPoc", "poc", x => x.checked]
+      ];
+
+      for (const [id, key, transform] of fields) {
+        const field = $(id);
+
+        if (!field) continue;
+
+        field.addEventListener("change", event => {
+          settings[key] = transform(event.target);
+          save();
+          schedule();
+          emit();
+        });
+      }
+
       window.addEventListener(
         "resize",
-        schedule
+        () => {
+          resizeChart();
+          schedule();
+        }
       );
 
       window.addEventListener(
         "cryptolexuz:screen-change",
         () => {
-          setTimeout(() => {
-            layout();
+          requestAnimationFrame(() => {
+            resizeChart();
             schedule();
-          }, 120);
+
+            setTimeout(() => {
+              resizeChart();
+              schedule();
+            }, 250);
+          });
         }
       );
 
       if (window.ResizeObserver) {
-        new ResizeObserver(
-          schedule
-        ).observe(area);
+        resizeObserver = new ResizeObserver(() => {
+          resizeChart();
+          schedule();
+        });
+
+        resizeObserver.observe(area);
+        resizeObserver.observe(chartElement);
       }
     }
 
     return true;
   }
 
-  function layout() {
-    if (!ensureUI()) return;
-
-    const area = $("priceChartArea");
-
-    const w = settings.enabled
-      ? settings.width
-      : 0;
-
-    area.style.boxSizing = "border-box";
-
-    area.style.paddingLeft =
-      settings.enabled &&
-      settings.side === "left"
-        ? w + "px"
-        : "0px";
-
-    area.style.paddingRight =
-      settings.enabled &&
-      settings.side === "right"
-        ? w + "px"
-        : "0px";
-
-    host.style.display =
-      settings.enabled ? "block" : "none";
-
-    host.style.width = w + "px";
-
-    host.style.left =
-      settings.side === "left"
-        ? "0"
-        : "auto";
-
-    host.style.right =
-      settings.side === "right"
-        ? "0"
-        : "auto";
-
-    const el = $("chart");
-
+  function resizeChart() {
     if (
-      chart &&
-      el &&
-      el.clientWidth > 0 &&
-      el.clientHeight > 0
-    ) {
-      const newWidth = el.clientWidth;
+      !chart ||
+      !chartElement ||
+      resizing
+    ) return;
 
-      if (newWidth !== lastChartWidth) {
-        lastChartWidth = newWidth;
+    const width = chartElement.clientWidth;
+    const height = chartElement.clientHeight;
 
-        chart.resize(
-          newWidth,
-          el.clientHeight
-        );
-      }
+    if (width <= 0 || height <= 0) {
+      return;
     }
 
-    schedule();
+    try {
+      resizing = true;
+
+      /*
+        La gráfica ocupa su contenedor completo.
+        No se resta la anchura del perfil.
+      */
+      chart.resize(width, height);
+    } catch (error) {
+      console.warn(
+        "Volume Profile: resize",
+        error
+      );
+    } finally {
+      resizing = false;
+    }
   }
 
-  function attach(c, s) {
-    if (!c || !s) return;
+  function attach(nextChart, nextCandle) {
+    if (!nextChart || !nextCandle) {
+      return;
+    }
 
-    chart = c;
-    candle = s;
+    chart = nextChart;
+    candle = nextCandle;
 
-    if (patchedSeries !== s) {
-      patchedSeries = s;
+    ensureUI();
 
-      const originalSet =
-        s.setData.bind(s);
+    if (patchedSeries !== nextCandle) {
+      patchedSeries = nextCandle;
+
+      const originalSetData =
+        nextCandle.setData.bind(nextCandle);
 
       const originalUpdate =
-        s.update.bind(s);
+        nextCandle.update.bind(nextCandle);
 
-      s.setData = function(items) {
-        const result = originalSet(items);
+      nextCandle.setData = function(items) {
+        const result = originalSetData(items);
 
         data = normalize(items);
         schedule();
@@ -416,52 +474,50 @@
         return result;
       };
 
-      s.update = function(item) {
+      nextCandle.update = function(item) {
         const result = originalUpdate(item);
+        const next = normalize([item])[0];
 
-        const x = normalize([item])[0];
+        if (next) {
+          const last = data[data.length - 1];
 
-        if (x) {
-          const last = data.at(-1);
-
-          if (
-            last &&
-            last.time === x.time
-          ) {
-            data[data.length - 1] = x;
+          if (last && last.time === next.time) {
+            data[data.length - 1] = next;
           } else if (
             !last ||
-            x.time > last.time
+            next.time > last.time
           ) {
-            data.push(x);
+            data.push(next);
           }
 
-          if (data.length > 1000) {
-            data = data.slice(-1000);
+          if (data.length > 1500) {
+            data = data.slice(-1500);
           }
         }
 
         schedule();
-
         return result;
       };
     }
 
-    ensureUI();
+    if (subscribedChart !== nextChart) {
+      subscribedChart = nextChart;
 
-    try {
-      chart.timeScale()
-        .subscribeVisibleLogicalRangeChange(
-          schedule
+      try {
+        nextChart.timeScale()
+          .subscribeVisibleLogicalRangeChange(
+            schedule
+          );
+      } catch (error) {
+        console.warn(
+          "Volume Profile: visible range",
+          error
         );
-    } catch (error) {
-      console.warn(
-        "Volume Profile: rango",
-        error
-      );
+      }
     }
 
-    layout();
+    resizeChart();
+    schedule();
   }
 
   function schedule() {
@@ -474,33 +530,31 @@
   }
 
   function draw() {
-    if (
-      !settings.enabled ||
-      !host ||
-      !canvas ||
-      !chart ||
-      !candle
-    ) return;
+    if (!ensureUI() || !canvas) {
+      return;
+    }
 
-    const width = host.clientWidth;
-    const height = host.clientHeight;
+    const width = area.clientWidth;
+    const height = area.clientHeight;
 
-    if (width < 10 || height < 10) return;
+    if (width < 10 || height < 10) {
+      return;
+    }
 
     const dpr = Math.min(
-      devicePixelRatio || 1,
+      window.devicePixelRatio || 1,
       2
     );
 
-    const pxw = Math.round(width * dpr);
-    const pxh = Math.round(height * dpr);
+    const pixelWidth = Math.round(width * dpr);
+    const pixelHeight = Math.round(height * dpr);
 
-    if (canvas.width !== pxw) {
-      canvas.width = pxw;
+    if (canvas.width !== pixelWidth) {
+      canvas.width = pixelWidth;
     }
 
-    if (canvas.height !== pxh) {
-      canvas.height = pxh;
+    if (canvas.height !== pixelHeight) {
+      canvas.height = pixelHeight;
     }
 
     const ctx = canvas.getContext("2d");
@@ -511,17 +565,35 @@
       dpr, 0, 0, dpr, 0, 0
     );
 
-    ctx.clearRect(
-      0, 0, width, height
-    );
+    ctx.clearRect(0, 0, width, height);
 
-    const range = chart.timeScale()
-      .getVisibleLogicalRange();
+    if (!settings.enabled) {
+      status("Perfil desactivado");
+      return;
+    }
 
-    if (!range || !data.length) {
+    if (!chart || !candle) {
+      status("Esperando conexión con la gráfica...");
+      return;
+    }
+
+    if (!data.length) {
       status(
-        "Esperando velas de BingX con volumen..."
+        "Esperando velas OHLCV de BingX..."
       );
+      return;
+    }
+
+    let range;
+
+    try {
+      range = chart.timeScale()
+        .getVisibleLogicalRange();
+    } catch (_) {
+      return;
+    }
+
+    if (!range) {
       return;
     }
 
@@ -535,178 +607,241 @@
       Math.ceil(range.to)
     );
 
+    if (end < start) {
+      return;
+    }
+
     const visible = data
       .slice(start, end + 1)
-      .filter(x => x.volume > 0);
+      .filter(item => item.volume > 0);
 
     if (!visible.length) {
       status(
-        "Sin volumen en el rango visible. Esperando datos REST..."
+        "No hay volumen disponible en las velas visibles."
       );
       return;
     }
 
-    const lo = Math.min(
-      ...visible.map(x => x.low)
+    const low = Math.min(
+      ...visible.map(item => item.low)
     );
 
-    const hi = Math.max(
-      ...visible.map(x => x.high)
+    const high = Math.max(
+      ...visible.map(item => item.high)
     );
 
-    const spread = hi - lo;
+    const spread = high - low;
 
-    if (!(spread > 0)) return;
+    if (!(spread > 0)) {
+      return;
+    }
 
     const bins = settings.bins;
     const step = spread / bins;
 
-    const totals =
-      new Float64Array(bins);
+    const totals = new Float64Array(bins);
 
-    for (const x of visible) {
-      /*
-       Estimación:
-       distribuye uniformemente el volumen
-       de cada vela entre sus niveles
-       mínimo y máximo.
-      */
-
-      const bottom = Math.max(
+    for (const item of visible) {
+      const first = Math.max(
         0,
         Math.min(
           bins - 1,
-          Math.floor((x.low - lo) / step)
+          Math.floor((item.low - low) / step)
         )
       );
 
-      const top = Math.max(
+      const last = Math.max(
         0,
         Math.min(
           bins - 1,
-          Math.floor((x.high - lo) / step)
+          Math.floor((item.high - low) / step)
         )
       );
 
-      const count = top - bottom + 1;
-      const portion = x.volume / count;
+      const portion =
+        item.volume / (last - first + 1);
 
-      for (let i = bottom; i <= top; i++) {
+      for (let i = first; i <= last; i++) {
         totals[i] += portion;
       }
     }
 
-    let max = 0;
+    let maxVolume = 0;
     let pocIndex = 0;
 
     for (let i = 0; i < bins; i++) {
-      if (totals[i] > max) {
-        max = totals[i];
+      if (totals[i] > maxVolume) {
+        maxVolume = totals[i];
         pocIndex = i;
       }
     }
 
-    if (!max) return;
+    if (maxVolume <= 0) {
+      return;
+    }
 
-    ctx.fillStyle = "#0b1429";
+    /*
+      Ancho real del área de velas.
+      timeScale().width() excluye la escala
+      de precios derecha.
+    */
+    let plotWidth = width;
 
-    ctx.fillRect(
-      0, 0, width, height
+    try {
+      const timeWidth = chart.timeScale().width();
+
+      if (
+        Number.isFinite(timeWidth) &&
+        timeWidth > 0
+      ) {
+        plotWidth = Math.min(
+          width,
+          timeWidth
+        );
+      }
+    } catch (_) {}
+
+    /*
+      Convertir coordenadas de la gráfica
+      a coordenadas del canvas superpuesto.
+    */
+    const chartRect =
+      chartElement.getBoundingClientRect();
+
+    const areaRect =
+      area.getBoundingClientRect();
+
+    const offsetX =
+      chartRect.left - areaRect.left;
+
+    const offsetY =
+      chartRect.top - areaRect.top;
+
+    const plotLeft = Math.max(0, offsetX);
+    const plotRight = Math.min(
+      width,
+      offsetX + plotWidth
     );
 
-    const margin = 7;
+    const usableWidth =
+      plotRight - plotLeft;
 
-    const barWidth =
-      width - margin * 2;
+    if (usableWidth <= 20) {
+      return;
+    }
 
-    const left =
-      settings.side === "left";
+    const barMaxWidth = Math.min(
+      settings.width,
+      usableWidth * 0.38
+    );
+
+    const rightSide =
+      settings.side === "right";
+
+    ctx.save();
+
+    /*
+      Recorte: nada puede dibujarse
+      encima de los números de precios.
+    */
+    ctx.beginPath();
+
+    ctx.rect(
+      plotLeft,
+      Math.max(0, offsetY),
+      usableWidth,
+      Math.min(
+        height,
+        chartElement.clientHeight
+      )
+    );
+
+    ctx.clip();
 
     for (let i = 0; i < bins; i++) {
-      if (!totals[i]) continue;
+      if (totals[i] <= 0) continue;
 
-      const p0 = lo + i * step;
-      const p1 = p0 + step;
+      const price0 = low + i * step;
+      const price1 = price0 + step;
 
-      const y0 =
-        candle.priceToCoordinate(p0);
+      const coord0 =
+        candle.priceToCoordinate(price0);
 
-      const y1 =
-        candle.priceToCoordinate(p1);
+      const coord1 =
+        candle.priceToCoordinate(price1);
 
       if (
-        !Number.isFinite(y0) ||
-        !Number.isFinite(y1)
-      ) continue;
+        !Number.isFinite(coord0) ||
+        !Number.isFinite(coord1)
+      ) {
+        continue;
+      }
 
-      const y = Math.min(y0, y1);
+      const y =
+        Math.min(coord0, coord1) + offsetY;
 
-      const h = Math.max(
+      const barHeight = Math.max(
         1,
-        Math.abs(y1 - y0) - 0.4
+        Math.abs(coord1 - coord0) - 0.3
       );
-
-      if (
-        y > height ||
-        y + h < 0
-      ) continue;
 
       const length = Math.max(
         1,
-        (totals[i] / max) * barWidth
+        (totals[i] / maxVolume) *
+        barMaxWidth
       );
 
-      const x = left
-        ? width - margin - length
-        : margin;
+      const x = rightSide
+        ? plotRight - length
+        : plotLeft;
 
       ctx.fillStyle =
         i === pocIndex
-          ? "rgba(73,206,255,.98)"
-          : "rgba(49,133,255,.78)";
+          ? "rgba(79,205,255,0.70)"
+          : "rgba(49,133,255,0.34)";
 
       ctx.fillRect(
         x,
         y,
         length,
-        h
+        barHeight
       );
     }
 
     if (settings.poc) {
-      const price =
-        lo + (pocIndex + 0.5) * step;
+      const pocPrice =
+        low + (pocIndex + 0.5) * step;
 
-      const y =
-        candle.priceToCoordinate(price);
+      const pocCoord =
+        candle.priceToCoordinate(pocPrice);
 
-      if (
-        Number.isFinite(y) &&
-        y >= 0 &&
-        y <= height
-      ) {
+      if (Number.isFinite(pocCoord)) {
+        const y = pocCoord + offsetY;
+
         ctx.strokeStyle = "#ff5375";
         ctx.lineWidth = 1.5;
 
         ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
+        ctx.moveTo(plotLeft, y);
+        ctx.lineTo(plotRight, y);
         ctx.stroke();
 
         ctx.fillStyle = "#ff8ba3";
         ctx.font = "bold 10px system-ui";
-
-        ctx.textAlign = left
-          ? "right"
-          : "left";
+        ctx.textAlign =
+          rightSide ? "right" : "left";
 
         ctx.fillText(
           "POC",
-          left ? width - 5 : 5,
-          Math.max(11, y - 4)
+          rightSide
+            ? plotRight - 5
+            : plotLeft + 5,
+          y - 5
         );
       }
     }
+
+    ctx.restore();
 
     status(
       visible.length +
@@ -716,30 +851,71 @@
     );
   }
 
-  function status(text) {
-    const el = $("clVpStatus");
+  /*
+    Reordenar los botones existentes.
+    No se crean botones nuevos ni se
+    modifican sus eventos originales.
+  */
+  function reorderBottomNavigation() {
+    const buttons = Array.from(
+      document.querySelectorAll(
+        "button, a, [role='tab']"
+      )
+    );
+
+    const findButton = word =>
+      buttons.find(element => {
+        const label = (
+          element.textContent || ""
+        ).trim().toLowerCase();
+
+        return label === word ||
+          label.startsWith(word + " ");
+      });
+
+    const graphs = findButton("gráficas");
+    const scanner = findButton("escáner");
+    const results = findButton("resultados");
 
     if (
-      el &&
-      el.textContent !== text
+      !graphs ||
+      !scanner ||
+      !results
+    ) return;
+
+    const parent = graphs.parentElement;
+
+    if (
+      parent &&
+      scanner.parentElement === parent &&
+      results.parentElement === parent
     ) {
-      el.textContent = text;
+      parent.appendChild(graphs);
+      parent.appendChild(scanner);
+      parent.appendChild(results);
     }
   }
 
   window.CryptolexuzVolumeProfile = {
+    version: 3,
     attach,
     redraw: schedule,
-    layout,
 
-    getSettings: () => ({
-      ...settings
-    }),
+    layout() {
+      ensureUI();
+      resizeChart();
+      schedule();
+    },
 
-    getData: () =>
-      data.slice(),
+    getSettings() {
+      return { ...settings };
+    },
 
-    setData: items => {
+    getData() {
+      return data.slice();
+    },
+
+    setData(items) {
       data = normalize(items);
       schedule();
     }
@@ -755,14 +931,18 @@
     }
   );
 
-  if (
-    document.readyState === "loading"
-  ) {
+  function boot() {
+    ensureUI();
+    reorderBottomNavigation();
+    schedule();
+  }
+
+  if (document.readyState === "loading") {
     document.addEventListener(
       "DOMContentLoaded",
-      ensureUI
+      boot
     );
   } else {
-    ensureUI();
+    boot();
   }
 })();
