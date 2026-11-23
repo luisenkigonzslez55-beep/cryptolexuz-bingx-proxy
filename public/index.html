@@ -292,8 +292,11 @@
     src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"
   ></script>
 
-  <!-- Fibonacci actual -->
+  <!-- Fibonacci -->
   <script defer src="fibonacci.js?v=7"></script>
+
+  <!-- Motor de patrones -->
+  <script defer src="patterns.js?v=1"></script>
 
   <!-- Motor principal -->
   <script defer src="app.js?v=15"></script>
@@ -301,12 +304,6 @@
   <!-- Módulos complementarios -->
   <script defer src="liquidity.js?v=11"></script>
   <script defer src="trade-plans.js?v=1"></script>
-
-  <!--
-    El módulo patterns.js se conectará en el
-    siguiente paso, cuando esté instalado.
-    Así evitamos solicitar un archivo inexistente.
-  -->
 </head>
 
 <body>
@@ -656,11 +653,6 @@
     <main class="app-container">
 
       <!-- INTRODUCCIÓN DEL ESCÁNER -->
-      <!--
-        No utilizamos clScanner aquí.
-        app.js V15 crea ese identificador
-        para la tabla dinámica.
-      -->
 
       <section
         id="clScannerIntro"
@@ -881,11 +873,6 @@
             id="zonesCanvas"
             aria-hidden="true"
           ></canvas>
-
-          <!--
-            Fibonacci y patrones crearán
-            sus propias capas de dibujo.
-          -->
 
         </div>
 
