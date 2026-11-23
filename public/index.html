@@ -84,7 +84,9 @@ button{cursor:pointer}
   border-radius:10px;padding:13px;
   color:var(--cl-muted);font-size:12px;
 }
-.cl-extra-select{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0}
+.cl-extra-select{
+  display:flex;flex-wrap:wrap;gap:12px;margin:12px 0;
+}
 .cl-extra-select label{
   display:flex;flex-direction:column;gap:6px;
   min-width:135px;flex:1;
@@ -107,7 +109,9 @@ button{cursor:pointer}
 .cl-trade-card h3{margin:0 0 9px;font-size:16px}
 .cl-trade-card.long h3{color:var(--cl-green)}
 .cl-trade-card.short h3{color:var(--cl-red)}
-.cl-trade-card p{margin:7px 0;font-size:12px;overflow-wrap:anywhere}
+.cl-trade-card p{
+  margin:7px 0;font-size:12px;overflow-wrap:anywhere;
+}
 .cl-trade-card strong{color:#fff}
 
 /* MERCADO */
@@ -119,21 +123,28 @@ button{cursor:pointer}
 }
 .market-top{display:flex;flex-direction:column;gap:12px}
 .selectors-row{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
 }
-.compact-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.compact-field{
+  display:flex;flex-direction:column;gap:6px;min-width:0;
+}
 .compact-field span{font-size:11px;color:#b7c4e7}
 .compact-field select{
   width:100%;min-width:0;min-height:43px;padding:9px;
   border-radius:9px;border:1px solid #50568a;
   background:#111b34;color:#fff;
 }
-.market-price{display:flex;align-items:baseline;flex-wrap:wrap;gap:10px}
+.market-price{
+  display:flex;align-items:baseline;flex-wrap:wrap;gap:10px;
+}
 .market-price strong{
   font-size:clamp(26px,7vw,39px);
   line-height:1.2;color:#fff;font-variant-numeric:tabular-nums;
 }
-.market-price span{font-size:15px;font-weight:700;color:var(--cl-green)}
+.market-price span{
+  font-size:15px;font-weight:700;color:var(--cl-green);
+}
 .market-price span.negative{color:var(--cl-red)}
 .market-bottom{
   display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
@@ -144,7 +155,8 @@ button{cursor:pointer}
   border:1px solid #343d65;border-radius:9px;
 }
 .market-bottom span{
-  display:block;font-size:11px;color:var(--cl-muted);margin-bottom:5px;
+  display:block;font-size:11px;color:var(--cl-muted);
+  margin-bottom:5px;
 }
 .market-bottom strong{
   display:block;font-size:clamp(13px,3.7vw,17px);
@@ -160,14 +172,17 @@ button{cursor:pointer}
 .chart-heading h2{margin:0 0 5px}
 .chart-heading small{font-size:10px;color:var(--cl-muted)}
 .chart-controls{
-  display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:10px 0;
+  display:flex;flex-wrap:wrap;align-items:center;
+  gap:10px;margin:10px 0;
 }
 .chart-control-note{font-size:11px;color:var(--cl-muted)}
 #priceChartArea{
   position:relative;width:100%;min-width:0;
   padding:0!important;overflow:hidden;background:#080e20;
 }
-#chart{width:100%;height:360px;min-width:0;touch-action:pan-y}
+#chart{
+  width:100%;height:360px;min-width:0;touch-action:pan-y;
+}
 #volumeChart{height:115px}
 #rsiChart,#adxChart{height:145px}
 #chart,#volumeChart,#rsiChart,#adxChart,#squeezeChart{
@@ -180,7 +195,10 @@ button{cursor:pointer}
 #zonesCanvas{z-index:2}
 #clVpCanvas{z-index:3}
 #fibonacciCanvas{z-index:50}
-#fibToolbar{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:10px 0}
+#fibToolbar{
+  display:flex;flex-wrap:wrap;align-items:center;
+  gap:7px;margin:10px 0;
+}
 #fibToolbar button,#fibPanel button{min-height:40px}
 #fibPanel input{
   background:#111b32;color:#e3ebff;
@@ -202,7 +220,9 @@ button{cursor:pointer}
   padding:13px;font-weight:700;color:#d9c3ff;cursor:pointer;
 }
 .cl-tool-content{padding:0 12px 12px}
-.cl-pattern-heading{margin:18px 0 9px;color:var(--cl-purple);font-size:14px}
+.cl-pattern-heading{
+  margin:18px 0 9px;color:var(--cl-purple);font-size:14px;
+}
 .cl-pattern-note{
   margin:9px 0;color:#a5b0cf;font-size:11px;line-height:1.5;
 }
@@ -210,6 +230,19 @@ button{cursor:pointer}
   margin:10px 0;padding:9px;border:1px solid var(--cl-border);
   border-radius:8px;background:#101a32;
   color:var(--cl-muted);font-size:11px;
+}
+
+/* MERCADO PRO */
+#clMercadoProHost{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+#clMercadoProHost>.clmp-panel{
+  margin:0;
+}
+#clMercadoProStatus[hidden]{
+  display:none!important;
 }
 
 /* NAVEGACIÓN */
@@ -225,7 +258,8 @@ button{cursor:pointer}
   min-width:0;min-height:58px;border:1px solid #394875;
   border-radius:12px;background:#151c38;color:#c4cde7;
   display:flex;flex-direction:column;align-items:center;
-  justify-content:center;gap:3px;font:600 12px system-ui,sans-serif;
+  justify-content:center;gap:3px;
+  font:600 12px system-ui,sans-serif;
 }
 .cl-nav-icon{font-size:21px;line-height:1}
 .cl-nav-button.active{
@@ -236,22 +270,27 @@ button{cursor:pointer}
   outline:2px solid var(--cl-purple);outline-offset:2px;
 }
 .cl-stats{
-  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
 }
 .cl-stat{
   background:#151d39;border:1px solid var(--cl-border);
   border-radius:11px;padding:13px;
 }
 .cl-stat span{
-  display:block;color:var(--cl-muted);font-size:11px;margin-bottom:8px;
+  display:block;color:var(--cl-muted);
+  font-size:11px;margin-bottom:8px;
 }
 .cl-stat strong{font-size:20px;color:#fff}
 .cl-notice{
-  color:var(--cl-muted);font-size:12px;line-height:1.6;margin:12px 0;
+  color:var(--cl-muted);font-size:12px;
+  line-height:1.6;margin:12px 0;
 }
-.cl-screen .table-wrap{max-width:100%;overflow-x:auto}
+.cl-screen .table-wrap{
+  max-width:100%;overflow-x:auto;
+}
 .cl-screen table{width:100%}
-.cl-screen footer{
+.app-container>footer{
   padding:18px 5px;text-align:center;
   color:var(--cl-muted);font-size:11px;
 }
@@ -265,14 +304,20 @@ button{cursor:pointer}
 }
 @media(min-width:900px){
   .app-header .logo-3d{width:310px;height:75px}
-  .market-bottom{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .market-bottom{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+  }
   .cl-bottom-nav{
-    max-width:560px;left:50%;right:auto;width:calc(100% - 24px);
+    max-width:560px;left:50%;right:auto;
+    width:calc(100% - 24px);
     transform:translateX(-50%);
-    border:1px solid var(--cl-border);border-bottom:0;
+    border:1px solid var(--cl-border);
+    border-bottom:0;
     border-radius:16px 16px 0 0;
   }
-  .cl-stats{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .cl-stats{
+    grid-template-columns:repeat(4,minmax(0,1fr));
+  }
 }
 </style>
 
@@ -286,7 +331,7 @@ button{cursor:pointer}
 <script defer src="scalping-rapido.js?v=2"></script>
 <script defer src="range-boxes.js?v=1"></script>
 <script defer src="volume-profile.js?v=3"></script>
-<script defer src="mercado-pro.js?v=2"></script>
+<script defer src="mercado-pro.js?v=3"></script>
 </head>
 
 <body>
@@ -315,9 +360,10 @@ button{cursor:pointer}
   <nav class="side-nav" aria-label="Secciones">
     <a href="#chartSection" data-screen="charts">📈 Gráfica y Fibonacci</a>
     <a href="#clRangeBoxesHost" data-screen="charts">🟩 Cajas de rangos</a>
+    <a href="#clMercadoProHost" data-screen="charts">📊 Mercado PRO</a>
     <a href="#liquiditySection" data-screen="charts">🌡️ Mapa de liquidez</a>
     <a href="#orderbookSection" data-screen="charts">📚 Libro de órdenes</a>
-    <a href="#clScanner" data-screen="scanner">📡 Escáner de señales</a>
+    <a href="#clScannerHost" data-screen="scanner">📡 Escáner de señales</a>
     <a href="#clQuickScalp" data-screen="scanner">⚡ Scalping rápido</a>
     <a href="#signalsSection" data-screen="scanner">🎯 Señales</a>
     <a href="#historySection" data-screen="results">🕒 Historial</a>
@@ -500,7 +546,9 @@ button{cursor:pointer}
         <span id="rsiChartValue">—</span>
       </div>
       <div id="rsiChart" class="oscillator-chart"></div>
-      <p id="rsiInterpretation" class="interpretation">Esperando RSI...</p>
+      <p id="rsiInterpretation" class="interpretation">
+        Esperando RSI...
+      </p>
       <button id="rsiSpeak" type="button" disabled>
         🔊 Escuchar interpretación RSI
       </button>
@@ -512,7 +560,9 @@ button{cursor:pointer}
         <span id="adxChartValue">—</span>
       </div>
       <div id="adxChart" class="oscillator-chart"></div>
-      <p id="adxInterpretation" class="interpretation">Esperando ADX...</p>
+      <p id="adxInterpretation" class="interpretation">
+        Esperando ADX...
+      </p>
     </div>
 
     <div id="squeezeSection" class="oscillator-section" hidden>
@@ -531,15 +581,17 @@ button{cursor:pointer}
   <section id="clPatternsPanel" class="cl-module">
     <h2>🧩 Patrones detectados</h2>
     <div id="clPatternsReadout">
-      <p>El motor mostrará las estructuras detectadas y su confirmación.</p>
+      <p>
+        El motor mostrará las estructuras detectadas y su confirmación.
+      </p>
     </div>
   </section>
 
-  <!-- MERCADO PRO: MÓDULO INDEPENDIENTE -->
+  <!-- MERCADO PRO -->
   <section id="clMercadoProHost" class="cl-module">
     <h2>📊 Indicador de tendencia y mercado PRO</h2>
     <div id="clMercadoProStatus" class="cl-module-placeholder">
-      Cargando indicador de tendencia, Volume Profile y mapa de profundidad...
+      Cargando indicador de tendencia, Volume Profile y profundidad...
     </div>
   </section>
 
@@ -582,7 +634,9 @@ button{cursor:pointer}
     <article>
       <h2>Estado del servidor</h2>
       <p id="status">Comprobando conexión...</p>
-      <small>Actualizado: <strong id="updated">—</strong></small>
+      <small>
+        Actualizado: <strong id="updated">—</strong>
+      </small>
     </article>
   </section>
 
@@ -614,6 +668,7 @@ button{cursor:pointer}
 
 <!-- ESCÁNER -->
 <div id="clScreenScanner" class="cl-screen" data-cl-screen="scanner">
+
   <div class="cl-screen-title">
     <h1>📡 Escáner de mercado</h1>
     <p>
@@ -672,13 +727,17 @@ button{cursor:pointer}
     <div class="signal-grid">
       <article class="signal-card">
         <h3>BTC-USDT / 5 minutos</h3>
-        <strong id="state5" class="state">Esperando datos</strong>
+        <strong id="state5" class="state">
+          Esperando datos
+        </strong>
         <p id="detail5">—</p>
         <small id="metrics5">—</small>
       </article>
       <article class="signal-card">
         <h3>BTC-USDT / 15 minutos</h3>
-        <strong id="state15" class="state">Esperando datos</strong>
+        <strong id="state15" class="state">
+          Esperando datos
+        </strong>
         <p id="detail15">—</p>
         <small id="metrics15">—</small>
       </article>
@@ -688,6 +747,7 @@ button{cursor:pointer}
 
 <!-- RESULTADOS -->
 <div id="clScreenResults" class="cl-screen" data-cl-screen="results">
+
   <div class="cl-screen-title">
     <h1>📊 Resultados y efectividad</h1>
     <p>
@@ -745,23 +805,28 @@ button{cursor:pointer}
         <tbody id="clScalpingResultsBody">
           <tr>
             <td>Bitcoin</td>
-            <td colspan="6">Esperando seguimiento verificable...</td>
+            <td colspan="6">
+              Esperando seguimiento verificable...
+            </td>
           </tr>
           <tr>
             <td>Oro</td>
-            <td colspan="6">Esperando seguimiento verificable...</td>
+            <td colspan="6">
+              Esperando seguimiento verificable...
+            </td>
           </tr>
           <tr>
             <td>Petróleo WTI</td>
-            <td colspan="6">Esperando seguimiento verificable...</td>
+            <td colspan="6">
+              Esperando seguimiento verificable...
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
+
     <p class="cl-notice">
       Los objetivos de 50%, 100% y 200% se registran por separado.
-      El objetivo de 200% no equivale necesariamente a una relación
-      beneficio/riesgo de uno a dos: depende de la distancia del stop.
       Las estadísticas permanecen pendientes hasta contar con
       resultados comprobados.
     </p>
@@ -787,7 +852,9 @@ button{cursor:pointer}
         </thead>
         <tbody id="signalLog">
           <tr>
-            <td colspan="7">Todavía no hay señales registradas.</td>
+            <td colspan="7">
+              Todavía no hay señales registradas.
+            </td>
           </tr>
         </tbody>
       </table>
@@ -798,7 +865,8 @@ button{cursor:pointer}
     <h2>Seguimiento de operaciones</h2>
     <p>
       El registro distinguirá señal pendiente, entrada activada,
-      objetivo alcanzado, stop alcanzado, cancelada y resultado no verificable.
+      objetivo alcanzado, stop alcanzado, cancelada y resultado
+      no verificable.
     </p>
     <p>
       Las estadísticas no contarán operaciones pendientes
@@ -817,21 +885,25 @@ button{cursor:pointer}
 
 <!-- TRES BOTONES INFERIORES -->
 <nav class="cl-bottom-nav" aria-label="Navegación principal">
+
   <button class="cl-nav-button active" type="button"
     data-cl-tab="charts" aria-pressed="true">
     <span class="cl-nav-icon">📈</span>
     <span>Gráficas</span>
   </button>
+
   <button class="cl-nav-button" type="button"
     data-cl-tab="scanner" aria-pressed="false">
     <span class="cl-nav-icon">📡</span>
     <span>Escáner</span>
   </button>
+
   <button class="cl-nav-button" type="button"
     data-cl-tab="results" aria-pressed="false">
     <span class="cl-nav-icon">📊</span>
     <span>Resultados</span>
   </button>
+
 </nav>
 
 <script>
@@ -839,6 +911,7 @@ button{cursor:pointer}
   "use strict";
 
   const $ = id => document.getElementById(id);
+
   const sidebar = $("sidebar");
   const backdrop = $("menuBackdrop");
   const toggle = $("menuToggle");
@@ -848,9 +921,11 @@ button{cursor:pointer}
 
   function setOpen(open) {
     if (!sidebar || !backdrop || !toggle) return;
+
     sidebar.classList.toggle("is-open", open);
     toggle.setAttribute("aria-expanded", String(open));
     backdrop.hidden = !open;
+
     document.body.classList.toggle("menu-open", open);
   }
 
@@ -886,12 +961,14 @@ button{cursor:pointer}
 
     document.querySelectorAll("[data-cl-screen]").forEach(screen => {
       const active = screen.dataset.clScreen === tab;
+
       screen.classList.toggle("cl-active", active);
       screen.hidden = !active;
     });
 
     document.querySelectorAll("[data-cl-tab]").forEach(button => {
       const active = button.dataset.clTab === tab;
+
       button.classList.toggle("active", active);
       button.setAttribute("aria-pressed", String(active));
     });
@@ -905,7 +982,10 @@ button{cursor:pointer}
           block: "start"
         });
       } else {
-        window.scrollTo({top: 0, behavior: "smooth"});
+        window.scrollTo({
+          top: 0,
+          behavior: "smooth"
+        });
       }
 
       if (tab === "charts") refreshCharts();
@@ -913,7 +993,7 @@ button{cursor:pointer}
 
     window.dispatchEvent(new CustomEvent(
       "cryptolexuz:screen-change",
-      {detail: {screen: tab}}
+      { detail: { screen: tab } }
     ));
   }
 
@@ -927,6 +1007,7 @@ button{cursor:pointer}
   });
 
   close?.addEventListener("click", () => setOpen(false));
+
   backdrop?.addEventListener("click", () => setOpen(false));
 
   document.querySelectorAll("[data-cl-tab]").forEach(button => {
@@ -951,18 +1032,30 @@ button{cursor:pointer}
     const scanner = $("clScanner");
     const host = $("clScannerHost");
 
-    if (scanner && host && scanner.parentElement !== host) {
+    if (
+      scanner &&
+      host &&
+      scanner.parentElement !== host
+    ) {
       host.appendChild(scanner);
     }
   }
 
   function moveFibonacci() {
     const host = $("clFibonacciHost");
+
     if (!host) return;
 
-    for (const id of ["fibToolbar", "fibPanel"]) {
+    for (const id of [
+      "fibToolbar",
+      "fibPanel"
+    ]) {
       const element = $(id);
-      if (element && element.parentElement !== host) {
+
+      if (
+        element &&
+        element.parentElement !== host
+      ) {
         host.appendChild(element);
       }
     }
@@ -970,6 +1063,7 @@ button{cursor:pointer}
 
   function moveQuickScalp() {
     const host = $("clQuickScalpHost");
+
     if (!host) return;
 
     const candidates = [
@@ -997,6 +1091,7 @@ button{cursor:pointer}
 
   function moveRangeBoxes() {
     const host = $("clRangeBoxesControls");
+
     if (!host) return;
 
     for (const id of [
@@ -1018,8 +1113,33 @@ button{cursor:pointer}
     }
   }
 
+  function organizeMarketPro() {
+    const host = $("clMercadoProHost");
+
+    if (!host) return;
+
+    const panels = [
+      $("clMarketTrend"),
+      $("clMarketVolumeProfile"),
+      $("clMarketDepth")
+    ].filter(Boolean);
+
+    if (!panels.length) return;
+
+    for (const panel of panels) {
+      if (panel.parentElement !== host) {
+        host.appendChild(panel);
+      }
+    }
+
+    const status = $("clMercadoProStatus");
+
+    if (status) status.hidden = true;
+  }
+
   function checkFibonacci() {
     const fallback = $("fibFallback");
+
     if (!fallback) return;
 
     const fib = window.CryptolexuzFibonacci;
@@ -1029,6 +1149,7 @@ button{cursor:pointer}
       fallback.hidden = true;
     } else {
       fallback.hidden = false;
+
       fallback.textContent = fib
         ? "Fibonacci cargado. Esperando barra de herramientas."
         : "Fibonacci no está inicializado. Comprueba fibonacci.js y app.js.";
@@ -1037,6 +1158,7 @@ button{cursor:pointer}
 
   function updatePatternsReadout(event) {
     const host = $("clPatternsReadout");
+
     if (!host) return;
 
     const findings =
@@ -1048,13 +1170,16 @@ button{cursor:pointer}
 
     if (!findings.length) {
       const p = document.createElement("p");
+
       p.textContent =
         "No hay patrones activos detectados con los filtros actuales.";
+
       host.appendChild(p);
       return;
     }
 
     const list = document.createElement("div");
+
     list.style.display = "grid";
     list.style.gap = "8px";
 
@@ -1098,6 +1223,7 @@ button{cursor:pointer}
     moveFibonacci();
     moveQuickScalp();
     moveRangeBoxes();
+    organizeMarketPro();
   }
 
   function initNavigation() {
@@ -1126,7 +1252,10 @@ button{cursor:pointer}
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initNavigation);
+    document.addEventListener(
+      "DOMContentLoaded",
+      initNavigation
+    );
   } else {
     initNavigation();
   }
@@ -1134,5 +1263,6 @@ button{cursor:pointer}
 </script>
 
 <script src="guardar-configuracion.js?v=1"></script>
+
 </body>
 </html>
