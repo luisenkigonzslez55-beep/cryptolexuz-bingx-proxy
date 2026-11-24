@@ -23,20 +23,37 @@
   --cl-red:#ff476c;
   --cl-yellow:#ffe15a;
 }
-*,*::before,*::after{box-sizing:border-box}
+
+*,*::before,*::after{
+  box-sizing:border-box;
+}
+
 html{
   scroll-behavior:smooth;
   scroll-padding-top:95px;
 }
+
 body{
   margin:0;
   background:var(--cl-bg);
   color:var(--cl-text);
-  padding-bottom:calc(95px + env(safe-area-inset-bottom));
+  padding-bottom:calc(
+    95px + env(safe-area-inset-bottom)
+  );
 }
-[hidden]{display:none!important}
-button,select,input{font:inherit}
-button{cursor:pointer}
+
+[hidden]{
+  display:none!important;
+}
+
+button,select,input{
+  font:inherit;
+}
+
+button{
+  cursor:pointer;
+}
+
 .app-header{
   display:flex;
   align-items:center;
@@ -48,6 +65,7 @@ button{cursor:pointer}
   position:relative;
   z-index:100;
 }
+
 .app-header .brand{
   display:flex;
   align-items:center;
@@ -55,6 +73,7 @@ button{cursor:pointer}
   min-width:0;
   overflow:hidden;
 }
+
 .app-header .logo-3d{
   width:clamp(155px,38vw,310px);
   height:66px;
@@ -62,42 +81,62 @@ button{cursor:pointer}
   object-fit:contain;
   object-position:left center;
 }
+
 .app-header .connection{
   flex:0 0 auto;
   max-width:125px;
   font-size:11px;
   overflow-wrap:anywhere;
 }
-.app-shell,.app-container,.cl-screen{
+
+.app-shell,
+.app-container,
+.cl-screen{
   width:100%;
   min-width:0;
 }
+
 .app-container{
   max-width:1440px;
   margin:auto;
   padding:12px;
 }
-.cl-screen{display:none}
-.cl-screen.cl-active{display:block}
+
+.cl-screen{
+  display:none;
+}
+
+.cl-screen.cl-active{
+  display:block;
+}
+
 .cl-screen>section,
-.cl-screen>div{margin-bottom:15px}
+.cl-screen>div{
+  margin-bottom:15px;
+}
+
 .cl-screen-title{
   padding:14px;
   margin-bottom:14px;
   border:1px solid var(--cl-border);
   border-radius:13px;
-  background:linear-gradient(135deg,#24133f,#111b34);
+  background:linear-gradient(
+    135deg,#24133f,#111b34
+  );
 }
+
 .cl-screen-title h1{
   margin:0 0 7px;
   font-size:20px;
 }
+
 .cl-screen-title p{
   margin:0;
   color:var(--cl-muted);
   font-size:12px;
   line-height:1.6;
 }
+
 .cl-module{
   background:var(--cl-panel);
   border:1px solid var(--cl-border);
@@ -106,15 +145,18 @@ button{cursor:pointer}
   margin-bottom:14px;
   min-width:0;
 }
+
 .cl-module h2{
   margin:0 0 10px;
   font-size:17px;
 }
+
 .cl-module p{
   font-size:12px;
   line-height:1.6;
   color:var(--cl-muted);
 }
+
 .cl-module-placeholder{
   border:1px dashed #43517a;
   border-radius:10px;
@@ -122,12 +164,14 @@ button{cursor:pointer}
   color:var(--cl-muted);
   font-size:12px;
 }
+
 .cl-extra-select{
   display:flex;
   flex-wrap:wrap;
   gap:12px;
   margin:12px 0;
 }
+
 .cl-extra-select label{
   display:flex;
   flex-direction:column;
@@ -135,6 +179,7 @@ button{cursor:pointer}
   min-width:135px;
   flex:1;
 }
+
 .cl-extra-select select{
   width:100%;
   min-height:40px;
@@ -144,12 +189,15 @@ button{cursor:pointer}
   border-radius:9px;
   padding:7px 10px;
 }
+
 .cl-trade-pair{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
   gap:10px;
   margin:12px 0;
 }
+
 .cl-trade-card{
   min-width:0;
   border:1px solid var(--cl-border);
@@ -157,22 +205,40 @@ button{cursor:pointer}
   background:#111a32;
   padding:12px;
 }
-.cl-trade-card.long{border-color:#167b62}
-.cl-trade-card.short{border-color:#a63b59}
+
+.cl-trade-card.long{
+  border-color:#167b62;
+}
+
+.cl-trade-card.short{
+  border-color:#a63b59;
+}
+
 .cl-trade-card h3{
   margin:0 0 9px;
   font-size:16px;
 }
-.cl-trade-card.long h3{color:var(--cl-green)}
-.cl-trade-card.short h3{color:var(--cl-red)}
+
+.cl-trade-card.long h3{
+  color:var(--cl-green);
+}
+
+.cl-trade-card.short h3{
+  color:var(--cl-red);
+}
+
 .cl-trade-card p{
   margin:7px 0;
   font-size:12px;
   overflow-wrap:anywhere;
 }
-.cl-trade-card strong{color:#fff}
+
+.cl-trade-card strong{
+  color:#fff;
+}
 
 /* MERCADO */
+
 .market-card{
   width:100%;
   min-width:0;
@@ -180,29 +246,38 @@ button{cursor:pointer}
   margin:0 0 12px;
   border:1px solid #4d397f;
   border-radius:15px;
-  background:linear-gradient(145deg,#231442,#111b34 72%);
-  box-shadow:0 8px 24px rgba(0,0,0,.16);
+  background:linear-gradient(
+    145deg,#231442,#111b34 72%
+  );
+  box-shadow:
+    0 8px 24px rgba(0,0,0,.16);
 }
+
 .market-top{
   display:flex;
   flex-direction:column;
   gap:12px;
 }
+
 .selectors-row{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
   gap:10px;
 }
+
 .compact-field{
   display:flex;
   flex-direction:column;
   gap:6px;
   min-width:0;
 }
+
 .compact-field span{
   font-size:11px;
   color:#b7c4e7;
 }
+
 .compact-field select{
   width:100%;
   min-width:0;
@@ -213,31 +288,40 @@ button{cursor:pointer}
   background:#111b34;
   color:#fff;
 }
+
 .market-price{
   display:flex;
   align-items:baseline;
   flex-wrap:wrap;
   gap:10px;
 }
+
 .market-price strong{
   font-size:clamp(26px,7vw,39px);
   line-height:1.2;
   color:#fff;
   font-variant-numeric:tabular-nums;
 }
+
 .market-price span{
   font-size:15px;
   font-weight:700;
   color:var(--cl-green);
 }
-.market-price span.negative{color:var(--cl-red)}
+
+.market-price span.negative{
+  color:var(--cl-red);
+}
+
 .market-bottom{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
   gap:10px;
   padding-top:12px;
   border-top:1px solid #3c426d;
 }
+
 .market-bottom>div{
   min-width:0;
   padding:10px;
@@ -245,12 +329,14 @@ button{cursor:pointer}
   border:1px solid #343d65;
   border-radius:9px;
 }
+
 .market-bottom span{
   display:block;
   font-size:11px;
   color:var(--cl-muted);
   margin-bottom:5px;
 }
+
 .market-bottom strong{
   display:block;
   font-size:clamp(13px,3.7vw,17px);
@@ -259,10 +345,12 @@ button{cursor:pointer}
 }
 
 /* GRÁFICAS */
+
 .chart-card{
   min-width:0;
   overflow:hidden;
 }
+
 .chart-heading{
   display:flex;
   align-items:center;
@@ -270,11 +358,16 @@ button{cursor:pointer}
   flex-wrap:wrap;
   gap:10px;
 }
-.chart-heading h2{margin:0 0 5px}
+
+.chart-heading h2{
+  margin:0 0 5px;
+}
+
 .chart-heading small{
   font-size:10px;
   color:var(--cl-muted);
 }
+
 .chart-controls{
   display:flex;
   flex-wrap:wrap;
@@ -282,10 +375,12 @@ button{cursor:pointer}
   gap:10px;
   margin:10px 0;
 }
+
 .chart-control-note{
   font-size:11px;
   color:var(--cl-muted);
 }
+
 #priceChartArea{
   position:relative;
   width:100%;
@@ -294,28 +389,82 @@ button{cursor:pointer}
   overflow:hidden;
   background:#080e20;
 }
+
+/*
+ MOVILIDAD:
+ Permitir que Lightweight Charts
+ gestione los gestos horizontales,
+ verticales y el zoom táctil.
+*/
+
 #chart{
   width:100%;
   height:360px;
   min-width:0;
-  touch-action:pan-y;
+  position:relative;
+  touch-action:none!important;
+  overscroll-behavior:contain;
 }
-#volumeChart{height:115px}
-#rsiChart,#adxChart{height:145px}
-#chart,#volumeChart,#rsiChart,#adxChart,#squeezeChart{
+
+#chart canvas{
+  touch-action:none!important;
+}
+
+#volumeChart{
+  height:115px;
+}
+
+#rsiChart,
+#adxChart{
+  height:145px;
+}
+
+#chart,
+#volumeChart,
+#rsiChart,
+#adxChart,
+#squeezeChart{
   width:100%;
   min-width:0;
 }
-#zonesCanvas,#fibonacciCanvas{
+
+#zonesCanvas,
+#fibonacciCanvas{
   position:absolute;
   inset:0;
   width:100%;
   height:100%;
   pointer-events:none;
 }
-#zonesCanvas{z-index:2}
-#clVpCanvas{z-index:3}
-#fibonacciCanvas{z-index:50}
+
+#zonesCanvas{
+  z-index:2;
+}
+
+#clVpCanvas{
+  z-index:3;
+  pointer-events:none;
+}
+
+#fibonacciCanvas{
+  z-index:50;
+}
+
+#clRangeOverlay{
+  z-index:7;
+}
+
+/*
+ Las capas de dibujo no deben
+ bloquear el arrastre de las velas.
+*/
+
+#zonesCanvas,
+#clVpCanvas,
+#fibonacciCanvas{
+  pointer-events:none;
+}
+
 #fibToolbar{
   display:flex;
   flex-wrap:wrap;
@@ -323,8 +472,12 @@ button{cursor:pointer}
   gap:7px;
   margin:10px 0;
 }
+
 #fibToolbar button,
-#fibPanel button{min-height:40px}
+#fibPanel button{
+  min-height:40px;
+}
+
 #fibPanel input{
   background:#111b32;
   color:#e3ebff;
@@ -332,19 +485,23 @@ button{cursor:pointer}
   border-radius:6px;
   padding:5px;
 }
+
 #fibPanel input[type=checkbox]{
   width:18px;
   height:18px;
 }
+
 #fibPanel input[type=color]{
   width:38px;
   height:32px;
 }
+
 #fibLevels{
   margin:12px 0;
   max-height:340px;
   overflow-y:auto;
 }
+
 .cl-fib-loading{
   padding:12px;
   margin:10px 0;
@@ -354,6 +511,7 @@ button{cursor:pointer}
   background:#101a32;
   font-size:12px;
 }
+
 .cl-tool-panel{
   border:1px solid #3d4770;
   border-radius:11px;
@@ -361,24 +519,31 @@ button{cursor:pointer}
   background:#10172c;
   overflow:hidden;
 }
+
 .cl-tool-panel summary{
   padding:13px;
   font-weight:700;
   color:#d9c3ff;
   cursor:pointer;
 }
-.cl-tool-content{padding:0 12px 12px}
+
+.cl-tool-content{
+  padding:0 12px 12px;
+}
+
 .cl-pattern-heading{
   margin:18px 0 9px;
   color:var(--cl-purple);
   font-size:14px;
 }
+
 .cl-pattern-note{
   margin:9px 0;
   color:#a5b0cf;
   font-size:11px;
   line-height:1.5;
 }
+
 .cl-pattern-status{
   margin:10px 0;
   padding:9px;
@@ -390,33 +555,43 @@ button{cursor:pointer}
 }
 
 /* MAPA DE LIQUIDEZ */
+
 #liquiditySection{
   min-width:0;
   overflow:hidden;
 }
+
 #liquidityMap{
   width:100%;
   min-width:0;
 }
+
 #clHeatmap{
   max-width:100%;
 }
+
 #clMapStatus{
   overflow-wrap:anywhere;
 }
 
 /* MERCADO PRO */
+
 #clMercadoProHost{
   display:flex;
   flex-direction:column;
   gap:12px;
 }
-#clMercadoProHost>.clmp-panel{margin:0}
+
+#clMercadoProHost>.clmp-panel{
+  margin:0;
+}
+
 #clMercadoProStatus[hidden]{
   display:none!important;
 }
 
 /* NAVEGACIÓN */
+
 .cl-bottom-nav{
   position:fixed;
   left:0;
@@ -424,13 +599,18 @@ button{cursor:pointer}
   bottom:0;
   z-index:9990;
   display:grid;
-  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-columns:
+    repeat(3,minmax(0,1fr));
   gap:7px;
-  padding:9px 10px calc(9px + env(safe-area-inset-bottom));
+  padding:
+    9px 10px
+    calc(9px + env(safe-area-inset-bottom));
   background:rgba(7,10,27,.97);
   border-top:1px solid var(--cl-border);
-  box-shadow:0 -8px 30px rgba(0,0,0,.4);
+  box-shadow:
+    0 -8px 30px rgba(0,0,0,.4);
 }
+
 .cl-nav-button{
   min-width:0;
   min-height:58px;
@@ -445,79 +625,113 @@ button{cursor:pointer}
   gap:3px;
   font:600 12px system-ui,sans-serif;
 }
+
 .cl-nav-icon{
   font-size:21px;
   line-height:1;
 }
+
 .cl-nav-button.active{
   color:#fff;
   border-color:#a45dff;
-  background:linear-gradient(135deg,#412064,#242456);
+  background:linear-gradient(
+    135deg,#412064,#242456
+  );
 }
+
 .cl-nav-button:focus-visible{
   outline:2px solid var(--cl-purple);
   outline-offset:2px;
 }
+
 .cl-stats{
   display:grid;
-  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-columns:
+    repeat(2,minmax(0,1fr));
   gap:10px;
 }
+
 .cl-stat{
   background:#151d39;
   border:1px solid var(--cl-border);
   border-radius:11px;
   padding:13px;
 }
+
 .cl-stat span{
   display:block;
   color:var(--cl-muted);
   font-size:11px;
   margin-bottom:8px;
 }
+
 .cl-stat strong{
   font-size:20px;
   color:#fff;
 }
+
 .cl-notice{
   color:var(--cl-muted);
   font-size:12px;
   line-height:1.6;
   margin:12px 0;
 }
+
 .cl-screen .table-wrap{
   max-width:100%;
   overflow-x:auto;
 }
-.cl-screen table{width:100%}
+
+.cl-screen table{
+  width:100%;
+}
+
 .app-container>footer{
   padding:18px 5px;
   text-align:center;
   color:var(--cl-muted);
   font-size:11px;
 }
+
 @media(max-width:390px){
   .app-header{
     gap:6px;
     padding:8px;
   }
+
   .app-header .logo-3d{
     width:150px;
     height:58px;
   }
-  .app-header .connection{font-size:10px}
-  .app-container{padding:9px}
-  .cl-trade-pair{gap:7px}
-  .cl-trade-card{padding:9px}
+
+  .app-header .connection{
+    font-size:10px;
+  }
+
+  .app-container{
+    padding:9px;
+  }
+
+  .cl-trade-pair{
+    gap:7px;
+  }
+
+  .cl-trade-card{
+    padding:9px;
+  }
 }
+
 @media(min-width:900px){
   .app-header .logo-3d{
     width:310px;
     height:75px;
   }
+
   .market-bottom{
-    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-columns:
+      repeat(4,minmax(0,1fr));
   }
+
   .cl-bottom-nav{
     max-width:560px;
     left:50%;
@@ -528,226 +742,811 @@ button{cursor:pointer}
     border-bottom:0;
     border-radius:16px 16px 0 0;
   }
+
   .cl-stats{
-    grid-template-columns:repeat(4,minmax(0,1fr));
+    grid-template-columns:
+      repeat(4,minmax(0,1fr));
   }
 }
 </style>
 
+<!--
+ CONFIGURACIÓN:
+ Se restaura antes de que app.js
+ inicialice sus gráficos.
+-->
+<script>
+(() => {
+  "use strict";
+
+  const STORE =
+    "cryptolexuz-preferencias-v2";
+
+  const DEFAULT_INDICATORS = [
+    "ema21",
+    "ma55",
+    "rsi",
+    "fvg"
+  ];
+
+  const SELECT_IDS = [
+    "symbol",
+    "interval",
+    "exchange",
+    "market"
+  ];
+
+  const defaults = {
+    symbol:"BTC-USDT",
+    interval:"15m",
+    exchange:"bingx",
+    market:"perpetual",
+    indicators:DEFAULT_INDICATORS,
+    screen:"charts"
+  };
+
+  function read(){
+    try{
+      const saved=JSON.parse(
+        localStorage.getItem(STORE)||"null"
+      );
+
+      if(saved && typeof saved==="object"){
+        return {
+          ...defaults,
+          ...saved,
+          indicators:Array.isArray(
+            saved.indicators
+          )
+            ?saved.indicators
+            :[...DEFAULT_INDICATORS]
+        };
+      }
+    }catch(e){
+      console.warn(
+        "Configuración guardada:",e
+      );
+    }
+
+    return {
+      ...defaults,
+      indicators:[...DEFAULT_INDICATORS]
+    };
+  }
+
+  let prefs=read();
+
+  function save(){
+    try{
+      localStorage.setItem(
+        STORE,
+        JSON.stringify(prefs)
+      );
+    }catch(e){
+      console.warn(
+        "Guardar preferencias:",e
+      );
+    }
+  }
+
+  function restoreSelect(id){
+    const el=document.getElementById(id);
+
+    if(!el)return;
+
+    const value=prefs[id];
+
+    if(
+      [...el.options].some(
+        option=>option.value===value
+      )
+    ){
+      el.value=value;
+    }
+  }
+
+  function restoreIndicators(){
+    const enabled=new Set(
+      prefs.indicators
+    );
+
+    document.querySelectorAll(
+      "[data-indicator]"
+    ).forEach(button=>{
+      const active=enabled.has(
+        button.dataset.indicator
+      );
+
+      button.classList.toggle(
+        "active",active
+      );
+
+      button.setAttribute(
+        "aria-pressed",
+        String(active)
+      );
+    });
+  }
+
+  function restore(){
+    SELECT_IDS.forEach(restoreSelect);
+
+    const symbol=document.getElementById(
+      "symbol"
+    )?.value;
+
+    if([
+      "NCCOGOLD2USD-USDT",
+      "NCCO1OILWTI2USD-USDT"
+    ].includes(symbol)){
+      const exchange=document.getElementById(
+        "exchange"
+      );
+
+      const market=document.getElementById(
+        "market"
+      );
+
+      if(exchange){
+        exchange.value="bingx";
+      }
+
+      if(market){
+        market.value="perpetual";
+      }
+    }
+
+    restoreIndicators();
+  }
+
+  function capture(){
+    for(const id of SELECT_IDS){
+      const el=document.getElementById(id);
+
+      if(el){
+        prefs[id]=el.value;
+      }
+    }
+
+    prefs.indicators=[
+      ...document.querySelectorAll(
+        "[data-indicator].active"
+      )
+    ].map(
+      button=>button.dataset.indicator
+    );
+
+    save();
+  }
+
+  function init(){
+    restore();
+
+    for(const id of SELECT_IDS){
+      document.getElementById(id)
+        ?.addEventListener(
+          "change",
+          capture
+        );
+    }
+
+    /*
+     app.js puede actualizar el estado
+     visual de los indicadores.
+     Se guarda después de cada clic.
+    */
+    document.querySelectorAll(
+      "[data-indicator]"
+    ).forEach(button=>{
+      button.addEventListener(
+        "click",
+        ()=>{
+          queueMicrotask(capture);
+        }
+      );
+    });
+
+    window.addEventListener(
+      "pagehide",capture
+    );
+  }
+
+  window.CryptolexuzPreferences={
+    read:()=>read(),
+    save,
+    capture,
+    restore,
+    getIndicators:()=>[
+      ...prefs.indicators
+    ],
+    getScreen:()=>prefs.screen,
+    setScreen(screen){
+      prefs.screen=screen;
+      save();
+    }
+  };
+
+  /*
+   Este listener se registra antes
+   de cargar app.js.
+  */
+  if(document.readyState==="loading"){
+    document.addEventListener(
+      "DOMContentLoaded",
+      init,
+      {once:true}
+    );
+  }else{
+    init();
+  }
+})();
+</script>
+
+<!-- LIBRERÍA Y MÓDULOS -->
 <script defer src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+
 <script defer src="fibonacci.js?v=7"></script>
 <script defer src="patterns.js?v=2"></script>
 <script defer src="patterns-bridge.js?v=1"></script>
-<script defer src="app.js?v=16"></script>
+
+<script defer src="app.js?v=17"></script>
 <script defer src="liquidity.js?v=12"></script>
 <script defer src="trade-plans.js?v=1"></script>
 <script defer src="scalping-rapido.js?v=2"></script>
-<script defer src="range-boxes.js?v=1"></script>
+<script defer src="range-boxes.js?v=4"></script>
 <script defer src="volume-profile.js?v=3"></script>
 <script defer src="mercado-pro.js?v=3"></script>
+
 </head>
 
 <body>
+
 <header class="app-header">
-  <button id="menuToggle" class="menu-toggle"
+  <button
+    id="menuToggle"
+    class="menu-toggle"
     type="button"
     aria-label="Abrir menú"
     aria-expanded="false"
-    aria-controls="sidebar">☰</button>
+    aria-controls="sidebar"
+  >☰</button>
 
   <div class="brand">
-    <img class="logo-3d"
+    <img
+      class="logo-3d"
       src="file_00000000600881fb8ee48d81ba77b640.png"
-      alt="CRYPTOLEXUZ PRO">
+      alt="CRYPTOLEXUZ PRO"
+    >
   </div>
 
-  <span id="connection" class="connection" role="status">
+  <span
+    id="connection"
+    class="connection"
+    role="status"
+  >
     ● Conectando...
   </span>
 </header>
 
 <div class="app-shell">
 
-<aside id="sidebar" class="sidebar" aria-label="Herramientas">
+<aside
+  id="sidebar"
+  class="sidebar"
+  aria-label="Herramientas"
+>
   <div class="sidebar-head">
     <strong>Herramientas</strong>
-    <button id="menuClose" type="button"
-      aria-label="Cerrar menú">✕</button>
+
+    <button
+      id="menuClose"
+      type="button"
+      aria-label="Cerrar menú"
+    >✕</button>
   </div>
 
-  <nav class="side-nav" aria-label="Secciones">
-    <a href="#chartSection" data-screen="charts">📈 Gráfica y Fibonacci</a>
-    <a href="#clRangeBoxesHost" data-screen="charts">🟩 Cajas de rangos</a>
-    <a href="#clMercadoProHost" data-screen="charts">📊 Mercado PRO</a>
-    <a href="#liquiditySection" data-screen="charts">🌡️ Mapa de liquidez</a>
-    <a href="#orderbookSection" data-screen="charts">📚 Libro de órdenes</a>
-    <a href="#clScannerHost" data-screen="scanner">📡 Escáner de señales</a>
-    <a href="#clQuickScalp" data-screen="scanner">⚡ Scalping rápido</a>
-    <a href="#signalsSection" data-screen="scanner">🎯 Señales</a>
-    <a href="#historySection" data-screen="results">🕒 Historial</a>
-    <a href="#settingsSection" data-screen="charts">⚙️ Ajustes</a>
+  <nav
+    class="side-nav"
+    aria-label="Secciones"
+  >
+    <a href="#chartSection"
+       data-screen="charts">
+      📈 Gráfica y Fibonacci
+    </a>
+
+    <a href="#clRangeBoxesHost"
+       data-screen="charts">
+      🟩 Cajas de rangos
+    </a>
+
+    <a href="#clMercadoProHost"
+       data-screen="charts">
+      📊 Mercado PRO
+    </a>
+
+    <a href="#liquiditySection"
+       data-screen="charts">
+      🌡️ Mapa de liquidez
+    </a>
+
+    <a href="#orderbookSection"
+       data-screen="charts">
+      📚 Libro de órdenes
+    </a>
+
+    <a href="#clScannerHost"
+       data-screen="scanner">
+      📡 Escáner de señales
+    </a>
+
+    <a href="#clQuickScalp"
+       data-screen="scanner">
+      ⚡ Scalping rápido
+    </a>
+
+    <a href="#signalsSection"
+       data-screen="scanner">
+      🎯 Señales
+    </a>
+
+    <a href="#historySection"
+       data-screen="results">
+      🕒 Historial
+    </a>
+
+    <a href="#settingsSection"
+       data-screen="charts">
+      ⚙️ Ajustes
+    </a>
   </nav>
 
   <h3>Indicadores</h3>
 
-  <div id="indicatorButtons" class="indicator-buttons">
-    <button type="button" data-indicator="ema21" aria-pressed="true">EMA 21</button>
-    <button type="button" data-indicator="ma55" aria-pressed="true">MA 55</button>
-    <button type="button" data-indicator="ma100" aria-pressed="false">MA 100</button>
-    <button type="button" data-indicator="ma200" aria-pressed="false">MA 200</button>
-    <button type="button" data-indicator="rsi" aria-pressed="true">RSI</button>
-    <button type="button" data-indicator="adx" aria-pressed="false">ADX</button>
-    <button type="button" data-indicator="fvg" aria-pressed="true">FVG</button>
-    <button type="button" data-indicator="ifvg" aria-pressed="false">IFVG</button>
-    <button type="button" data-indicator="liquidity" aria-pressed="false">Zonas de liquidez</button>
-    <button type="button" data-indicator="sweeps" aria-pressed="false">Barridos</button>
-    <button type="button" data-indicator="support" aria-pressed="false">Soportes</button>
-    <button type="button" data-indicator="resistance" aria-pressed="false">Resistencias</button>
+  <div
+    id="indicatorButtons"
+    class="indicator-buttons"
+  >
+    <button type="button"
+      data-indicator="ema21">
+      EMA 21
+    </button>
+
+    <button type="button"
+      data-indicator="ma55">
+      MA 55
+    </button>
+
+    <button type="button"
+      data-indicator="ma100">
+      MA 100
+    </button>
+
+    <button type="button"
+      data-indicator="ma200">
+      MA 200
+    </button>
+
+    <button type="button"
+      data-indicator="rsi">
+      RSI
+    </button>
+
+    <button type="button"
+      data-indicator="adx">
+      ADX
+    </button>
+
+    <button type="button"
+      data-indicator="fvg">
+      FVG
+    </button>
+
+    <button type="button"
+      data-indicator="ifvg">
+      IFVG
+    </button>
+
+    <button type="button"
+      data-indicator="liquidity">
+      Zonas de liquidez
+    </button>
+
+    <button type="button"
+      data-indicator="sweeps">
+      Barridos
+    </button>
+
+    <button type="button"
+      data-indicator="support">
+      Soportes
+    </button>
+
+    <button type="button"
+      data-indicator="resistance">
+      Resistencias
+    </button>
   </div>
 
-  <h3 class="cl-pattern-heading">Patrones automáticos</h3>
+  <h3 class="cl-pattern-heading">
+    Patrones automáticos
+  </h3>
+
   <p class="cl-pattern-note">
-    Activa los patrones que deseas identificar sobre las velas.
+    Activa los patrones que deseas
+    identificar sobre las velas.
   </p>
 
-  <div id="patternButtons" class="indicator-buttons">
-    <button type="button" data-pattern="divergences" aria-pressed="false" disabled>Divergencias RSI</button>
-    <button type="button" data-pattern="squeeze" aria-pressed="false" disabled>Squeeze Momentum</button>
-    <button type="button" data-pattern="orderblocks" aria-pressed="false" disabled>Order Blocks</button>
-    <button type="button" data-pattern="fallingwedge" aria-pressed="false" disabled>Cuña descendente</button>
-    <button type="button" data-pattern="impulses" aria-pressed="false" disabled>Ondas 1 · 2 · 3</button>
-    <button type="button" data-pattern="abc" aria-pressed="false" disabled>Corrección A · B · C</button>
-    <button type="button" data-pattern="abcde" aria-pressed="false" disabled>Triángulo A · B · C · D · E</button>
-    <button type="button" data-pattern="zigzag" aria-pressed="false" disabled>Zig-Zag</button>
-    <button type="button" data-pattern="flat" aria-pressed="false" disabled>Plana / Flat</button>
-    <button type="button" data-pattern="diagonal" aria-pressed="false" disabled>Diagonal</button>
-    <button type="button" data-pattern="doubletop" aria-pressed="false" disabled>Doble techo</button>
-    <button type="button" data-pattern="doublebottom" aria-pressed="false" disabled>Doble suelo</button>
-    <button type="button" data-pattern="headshoulders" aria-pressed="false" disabled>Hombro-cabeza-hombro</button>
-    <button type="button" data-pattern="inversehs" aria-pressed="false" disabled>HCH invertido</button>
-    <button type="button" data-pattern="risingwedge" aria-pressed="false" disabled>Cuña ascendente</button>
-    <button type="button" data-pattern="triple" aria-pressed="false" disabled>Triple techo / suelo</button>
+  <div
+    id="patternButtons"
+    class="indicator-buttons"
+  >
+    <button type="button"
+      data-pattern="divergences"
+      disabled>
+      Divergencias RSI
+    </button>
+
+    <button type="button"
+      data-pattern="squeeze"
+      disabled>
+      Squeeze Momentum
+    </button>
+
+    <button type="button"
+      data-pattern="orderblocks"
+      disabled>
+      Order Blocks
+    </button>
+
+    <button type="button"
+      data-pattern="fallingwedge"
+      disabled>
+      Cuña descendente
+    </button>
+
+    <button type="button"
+      data-pattern="impulses"
+      disabled>
+      Ondas 1 · 2 · 3
+    </button>
+
+    <button type="button"
+      data-pattern="abc"
+      disabled>
+      Corrección A · B · C
+    </button>
+
+    <button type="button"
+      data-pattern="abcde"
+      disabled>
+      Triángulo A · B · C · D · E
+    </button>
+
+    <button type="button"
+      data-pattern="zigzag"
+      disabled>
+      Zig-Zag
+    </button>
+
+    <button type="button"
+      data-pattern="flat"
+      disabled>
+      Plana / Flat
+    </button>
+
+    <button type="button"
+      data-pattern="diagonal"
+      disabled>
+      Diagonal
+    </button>
+
+    <button type="button"
+      data-pattern="doubletop"
+      disabled>
+      Doble techo
+    </button>
+
+    <button type="button"
+      data-pattern="doublebottom"
+      disabled>
+      Doble suelo
+    </button>
+
+    <button type="button"
+      data-pattern="headshoulders"
+      disabled>
+      Hombro-cabeza-hombro
+    </button>
+
+    <button type="button"
+      data-pattern="inversehs"
+      disabled>
+      HCH invertido
+    </button>
+
+    <button type="button"
+      data-pattern="risingwedge"
+      disabled>
+      Cuña ascendente
+    </button>
+
+    <button type="button"
+      data-pattern="triple"
+      disabled>
+      Triple techo / suelo
+    </button>
   </div>
 
-  <div id="patternStatus" class="cl-pattern-status" role="status">
+  <div
+    id="patternStatus"
+    class="cl-pattern-status"
+    role="status"
+  >
     Cargando motor de patrones...
   </div>
 
   <h3>Herramientas de dibujo</h3>
+
   <p class="cl-pattern-note">
-    Fibonacci y cajas de rango se encuentran en Gráficas.
+    Fibonacci y cajas de rango se
+    encuentran en Gráficas.
   </p>
 
   <h3>Mapa de liquidez</h3>
+
   <label class="switch-row">
     <span>Mostrar mapa</span>
-    <input id="liquidityMapToggle" type="checkbox" checked disabled>
-    <span class="muted">Preparando conexión...</span>
+
+    <input
+      id="liquidityMapToggle"
+      type="checkbox"
+      checked
+      disabled
+    >
+
+    <span class="muted">
+      Preparando conexión...
+    </span>
   </label>
 </aside>
 
-<button id="menuBackdrop" class="menu-backdrop"
-  type="button" aria-label="Cerrar menú" hidden></button>
+<button
+  id="menuBackdrop"
+  class="menu-backdrop"
+  type="button"
+  aria-label="Cerrar menú"
+  hidden
+></button>
 
 <main class="app-container">
 
 <!-- GRÁFICAS -->
-<div id="clScreenCharts" class="cl-screen cl-active"
-  data-cl-screen="charts">
 
+<div
+  id="clScreenCharts"
+  class="cl-screen cl-active"
+  data-cl-screen="charts"
+>
   <div class="cl-screen-title">
     <h1>📈 Gráficas e indicadores</h1>
+
     <p>
-      Mercado en tiempo real · Fibonacci · Patrones · Volume Profile · Liquidez
+      Mercado en tiempo real ·
+      Fibonacci · Patrones ·
+      Volume Profile · Liquidez
     </p>
   </div>
 
   <section class="market-card">
     <div class="market-top">
-      <div class="selectors-row">
 
+      <div class="selectors-row">
         <label class="compact-field">
           <span>Activo</span>
+
           <select id="symbol">
-            <option value="BTC-USDT">BTC/USDT</option>
-            <option value="ETH-USDT">ETH/USDT</option>
-            <option value="BNB-USDT">BNB/USDT</option>
-            <option value="SOL-USDT">SOL/USDT</option>
-            <option value="XRP-USDT">XRP/USDT</option>
-            <option value="DOGE-USDT">DOGE/USDT</option>
-            <option value="NCCOGOLD2USD-USDT">GOLD (XAU) · BingX</option>
-            <option value="NCCO1OILWTI2USD-USDT">OIL WTI · BingX</option>
+            <option value="BTC-USDT">
+              BTC/USDT
+            </option>
+
+            <option value="ETH-USDT">
+              ETH/USDT
+            </option>
+
+            <option value="BNB-USDT">
+              BNB/USDT
+            </option>
+
+            <option value="SOL-USDT">
+              SOL/USDT
+            </option>
+
+            <option value="XRP-USDT">
+              XRP/USDT
+            </option>
+
+            <option value="DOGE-USDT">
+              DOGE/USDT
+            </option>
+
+            <option value="NCCOGOLD2USD-USDT">
+              GOLD (XAU) · BingX
+            </option>
+
+            <option value="NCCO1OILWTI2USD-USDT">
+              OIL WTI · BingX
+            </option>
           </select>
         </label>
 
         <label class="compact-field">
           <span>Temporalidad</span>
+
           <select id="interval">
-            <option value="1m">1 minuto</option>
-            <option value="5m">5 minutos</option>
-            <option value="15m" selected>15 minutos</option>
-            <option value="30m">30 minutos</option>
-            <option value="1h">1 hora</option>
-            <option value="4h">4 horas</option>
-            <option value="1d">1 día</option>
-            <option value="1w">1 semana</option>
+            <option value="1m">
+              1 minuto
+            </option>
+
+            <option value="5m">
+              5 minutos
+            </option>
+
+            <option value="15m" selected>
+              15 minutos
+            </option>
+
+            <option value="30m">
+              30 minutos
+            </option>
+
+            <option value="1h">
+              1 hora
+            </option>
+
+            <option value="4h">
+              4 horas
+            </option>
+
+            <option value="1d">
+              1 día
+            </option>
+
+            <option value="1w">
+              1 semana
+            </option>
           </select>
         </label>
-
       </div>
 
       <div class="market-price">
         <strong id="price">—</strong>
         <span id="change">—</span>
       </div>
+
     </div>
 
     <div class="market-bottom">
-      <div><span>Máximo 24h</span><strong id="high">—</strong></div>
-      <div><span>Mínimo 24h</span><strong id="low">—</strong></div>
-      <div><span>Apertura</span><strong id="open">—</strong></div>
-      <div><span>Volumen 24h</span><strong id="volume">—</strong></div>
+      <div>
+        <span>Máximo 24h</span>
+        <strong id="high">—</strong>
+      </div>
+
+      <div>
+        <span>Mínimo 24h</span>
+        <strong id="low">—</strong>
+      </div>
+
+      <div>
+        <span>Apertura</span>
+        <strong id="open">—</strong>
+      </div>
+
+      <div>
+        <span>Volumen 24h</span>
+        <strong id="volume">—</strong>
+      </div>
     </div>
   </section>
 
-  <section id="chartSection" class="chart-card">
+  <section
+    id="chartSection"
+    class="chart-card"
+  >
     <div class="chart-heading">
       <div>
-        <h2 id="chartTitle">BTC-USDT · 15m</h2>
-        <small>VELAS · FIBONACCI · PATRONES · VOLUME PROFILE</small>
+        <h2 id="chartTitle">
+          BTC-USDT · 15m
+        </h2>
+
+        <small>
+          VELAS · FIBONACCI · PATRONES ·
+          VOLUME PROFILE
+        </small>
       </div>
-      <button id="refresh" type="button">↻ Actualizar</button>
+
+      <button
+        id="refresh"
+        type="button"
+      >
+        ↻ Actualizar
+      </button>
     </div>
 
     <div class="chart-controls">
-      <button id="chartReset" type="button">⟲ Restablecer</button>
-      <span id="chartTouchStatus" class="chart-control-note">
-        Desliza con un dedo. Amplía con dos dedos.
+      <button
+        id="chartReset"
+        type="button"
+      >
+        ⟲ Restablecer
+      </button>
+
+      <span
+        id="chartTouchStatus"
+        class="chart-control-note"
+      >
+        Desliza con un dedo.
+        Amplía con dos dedos.
       </span>
     </div>
 
-    <div id="priceChartArea" class="chart-area">
+    <div
+      id="priceChartArea"
+      class="chart-area"
+    >
       <div id="chart"></div>
-      <canvas id="zonesCanvas" aria-hidden="true"></canvas>
+
+      <canvas
+        id="zonesCanvas"
+        aria-hidden="true"
+      ></canvas>
     </div>
 
-    <details id="clFibonacciTools" class="cl-tool-panel">
-      <summary>📐 Herramientas Fibonacci</summary>
-      <div id="clFibonacciHost" class="cl-tool-content">
-        <div id="fibFallback" class="cl-fib-loading" role="status">
-          Cargando herramientas de Fibonacci...
+    <details
+      id="clFibonacciTools"
+      class="cl-tool-panel"
+    >
+      <summary>
+        📐 Herramientas Fibonacci
+      </summary>
+
+      <div
+        id="clFibonacciHost"
+        class="cl-tool-content"
+      >
+        <div
+          id="fibFallback"
+          class="cl-fib-loading"
+          role="status"
+        >
+          Cargando herramientas
+          de Fibonacci...
         </div>
       </div>
     </details>
 
-    <details id="clRangeBoxesTools" class="cl-tool-panel" open>
-      <summary>🟩 Cajas de rangos</summary>
-      <div id="clRangeBoxesHost" class="cl-tool-content">
+    <details
+      id="clRangeBoxesTools"
+      class="cl-tool-panel"
+      open
+    >
+      <summary>
+        🟩 Cajas de rangos
+      </summary>
+
+      <div
+        id="clRangeBoxesHost"
+        class="cl-tool-content"
+      >
         <p class="cl-notice">
-          Caja verde de rango de velas, caja morada de lateralización
-          y caja de penúltima vela, con línea central del cincuenta por ciento.
+          Caja verde de rango de velas,
+          caja morada de lateralización
+          y caja de penúltima vela,
+          con línea central del
+          cincuenta por ciento.
         </p>
-        <div id="clRangeBoxesControls"></div>
+
+        <div id="clRangeBoxesControls">
+        </div>
       </div>
     </details>
 
@@ -756,228 +1555,447 @@ button{cursor:pointer}
         <strong>Volumen</strong>
         <span id="volumeLabel">BTC</span>
       </div>
+
       <div id="volumeChart"></div>
-      <p id="volumeInterpretation" class="interpretation">
+
+      <p
+        id="volumeInterpretation"
+        class="interpretation"
+      >
         Esperando análisis de volumen...
       </p>
     </div>
 
-    <div id="rsiSection" class="oscillator-section">
+    <div
+      id="rsiSection"
+      class="oscillator-section"
+    >
       <div class="oscillator-heading">
         <strong>RSI 14</strong>
         <span id="rsiChartValue">—</span>
       </div>
-      <div id="rsiChart" class="oscillator-chart"></div>
-      <p id="rsiInterpretation" class="interpretation">
+
+      <div
+        id="rsiChart"
+        class="oscillator-chart"
+      ></div>
+
+      <p
+        id="rsiInterpretation"
+        class="interpretation"
+      >
         Esperando RSI...
       </p>
-      <button id="rsiSpeak" type="button" disabled>
+
+      <button
+        id="rsiSpeak"
+        type="button"
+        disabled
+      >
         🔊 Escuchar interpretación RSI
       </button>
     </div>
 
-    <div id="adxSection" class="oscillator-section" hidden>
+    <div
+      id="adxSection"
+      class="oscillator-section"
+      hidden
+    >
       <div class="oscillator-heading">
-        <strong>ADX 14 / +DI / −DI</strong>
+        <strong>
+          ADX 14 / +DI / −DI
+        </strong>
+
         <span id="adxChartValue">—</span>
       </div>
-      <div id="adxChart" class="oscillator-chart"></div>
-      <p id="adxInterpretation" class="interpretation">
+
+      <div
+        id="adxChart"
+        class="oscillator-chart"
+      ></div>
+
+      <p
+        id="adxInterpretation"
+        class="interpretation"
+      >
         Esperando ADX...
       </p>
     </div>
 
-    <div id="squeezeSection" class="oscillator-section" hidden>
+    <div
+      id="squeezeSection"
+      class="oscillator-section"
+      hidden
+    >
       <div class="oscillator-heading">
-        <strong>Squeeze Momentum</strong>
-        <span id="squeezeValue">Pendiente</span>
+        <strong>
+          Squeeze Momentum
+        </strong>
+
+        <span id="squeezeValue">
+          Pendiente
+        </span>
       </div>
-      <div id="squeezeChart" class="oscillator-chart"></div>
+
+      <div
+        id="squeezeChart"
+        class="oscillator-chart"
+      ></div>
     </div>
 
-    <p id="message" class="chart-message" role="status">
+    <p
+      id="message"
+      class="chart-message"
+      role="status"
+    >
       Cargando datos...
     </p>
   </section>
 
-  <section id="clPatternsPanel" class="cl-module">
+  <section
+    id="clPatternsPanel"
+    class="cl-module"
+  >
     <h2>🧩 Patrones detectados</h2>
+
     <div id="clPatternsReadout">
       <p>
-        El motor mostrará las estructuras detectadas y su confirmación.
+        El motor mostrará las
+        estructuras detectadas
+        y su confirmación.
       </p>
     </div>
   </section>
 
-  <section id="clMercadoProHost" class="cl-module">
-    <h2>📊 Indicador de tendencia y mercado PRO</h2>
-    <div id="clMercadoProStatus" class="cl-module-placeholder">
-      Cargando indicador de tendencia, Volume Profile y profundidad...
+  <section
+    id="clMercadoProHost"
+    class="cl-module"
+  >
+    <h2>
+      📊 Indicador de tendencia
+      y mercado PRO
+    </h2>
+
+    <div
+      id="clMercadoProStatus"
+      class="cl-module-placeholder"
+    >
+      Cargando indicador de tendencia,
+      Volume Profile y profundidad...
     </div>
   </section>
 
-  <section id="liquiditySection" class="liquidity-card">
+  <section
+    id="liquiditySection"
+    class="liquidity-card"
+  >
     <div class="section-heading">
       <h2>🌡️ Mapa de liquidez</h2>
+
       <span class="muted">
-        Profundidad real · actualización automática
+        Profundidad real ·
+        actualización automática
       </span>
     </div>
 
-    <div id="liquidityMap" class="liquidity-placeholder">
-      Conectando con el libro de órdenes...
+    <div
+      id="liquidityMap"
+      class="liquidity-placeholder"
+    >
+      Conectando con el libro
+      de órdenes...
     </div>
 
     <p class="cl-notice">
-      La profundidad de órdenes no equivale a un mapa de liquidaciones reales.
+      La profundidad de órdenes
+      no equivale a un mapa de
+      liquidaciones reales.
     </p>
   </section>
 
   <section class="indicator-summary">
     <div class="section-heading">
       <h2>Indicadores técnicos</h2>
-      <small>Última vela cerrada</small>
+
+      <small>
+        Última vela cerrada
+      </small>
     </div>
 
     <div class="indicator-values">
-      <div><span>EMA 21</span><strong id="ema21Value">—</strong></div>
-      <div><span>MA 55</span><strong id="ma55Value">—</strong></div>
-      <div><span>RSI 14</span><strong id="rsiValue">—</strong></div>
-      <div><span>ADX 14</span><strong id="adxValue">—</strong></div>
+      <div>
+        <span>EMA 21</span>
+        <strong id="ema21Value">—</strong>
+      </div>
+
+      <div>
+        <span>MA 55</span>
+        <strong id="ma55Value">—</strong>
+      </div>
+
+      <div>
+        <span>RSI 14</span>
+        <strong id="rsiValue">—</strong>
+      </div>
+
+      <div>
+        <span>ADX 14</span>
+        <strong id="adxValue">—</strong>
+      </div>
     </div>
 
-    <p id="indicatorReadout" class="indicator-readout">
+    <p
+      id="indicatorReadout"
+      class="indicator-readout"
+    >
       Esperando cálculos...
     </p>
   </section>
 
-  <section id="orderbookSection" class="details">
+  <section
+    id="orderbookSection"
+    class="details"
+  >
     <article>
       <h2>Libro de precios</h2>
-      <p>Bid <strong id="bid">—</strong></p>
-      <p>Ask <strong id="ask">—</strong></p>
-      <p class="muted">Profundidad de diez niveles.</p>
+
+      <p>
+        Bid
+        <strong id="bid">—</strong>
+      </p>
+
+      <p>
+        Ask
+        <strong id="ask">—</strong>
+      </p>
+
+      <p class="muted">
+        Profundidad de diez niveles.
+      </p>
     </article>
 
     <article>
       <h2>Estado del servidor</h2>
-      <p id="status">Comprobando conexión...</p>
+
+      <p id="status">
+        Comprobando conexión...
+      </p>
+
       <small>
-        Actualizado: <strong id="updated">—</strong>
+        Actualizado:
+        <strong id="updated">—</strong>
       </small>
     </article>
   </section>
 
-  <section id="settingsSection" class="market-settings">
+  <section
+    id="settingsSection"
+    class="market-settings"
+  >
     <h2>⚙️ Ajustes de mercado</h2>
 
     <div class="cl-extra-select">
       <label>
         <span>Exchange</span>
+
         <select id="exchange">
-          <option value="bingx" selected>BingX</option>
-          <option value="binance">Binance</option>
-          <option value="bybit">Bybit</option>
-          <option value="okx">OKX</option>
+          <option value="bingx" selected>
+            BingX
+          </option>
+
+          <option value="binance">
+            Binance
+          </option>
+
+          <option value="bybit">
+            Bybit
+          </option>
+
+          <option value="okx">
+            OKX
+          </option>
         </select>
       </label>
 
       <label>
         <span>Tipo de mercado</span>
+
         <select id="market">
-          <option value="perpetual">Perpetuos</option>
-          <option value="spot">Spot</option>
+          <option value="perpetual">
+            Perpetuos
+          </option>
+
+          <option value="spot">
+            Spot
+          </option>
         </select>
       </label>
     </div>
 
     <p class="muted">
-      GOLD y OIL WTI se consultan exclusivamente en BingX.
+      GOLD y OIL WTI se consultan
+      exclusivamente en BingX.
+    </p>
+
+    <p class="cl-notice">
+      Las preferencias se guardan
+      automáticamente en este navegador.
     </p>
   </section>
 </div>
 
 <!-- ESCÁNER -->
-<div id="clScreenScanner" class="cl-screen"
-  data-cl-screen="scanner">
 
+<div
+  id="clScreenScanner"
+  class="cl-screen"
+  data-cl-screen="scanner"
+>
   <div class="cl-screen-title">
     <h1>📡 Escáner de mercado</h1>
+
     <p>
-      Oportunidades LONG y SHORT, confirmaciones multitemporales,
+      Oportunidades LONG y SHORT,
+      confirmaciones multitemporales,
       entradas rápidas y análisis técnico.
     </p>
   </div>
 
   <div id="clScannerHost"></div>
 
-  <section id="clTradePlansHost" class="cl-module">
+  <section
+    id="clTradePlansHost"
+    class="cl-module"
+  >
     <h2>🎯 Planes LONG y SHORT</h2>
 
     <div class="cl-trade-pair">
       <article class="cl-trade-card long">
         <h3>▲ LONG</h3>
-        <p>Entrada: <strong>Esperando análisis</strong></p>
-        <p>Stop: <strong>—</strong></p>
-        <p>Objetivo: <strong>—</strong></p>
+
+        <p>
+          Entrada:
+          <strong>
+            Esperando análisis
+          </strong>
+        </p>
+
+        <p>
+          Stop:
+          <strong>—</strong>
+        </p>
+
+        <p>
+          Objetivo:
+          <strong>—</strong>
+        </p>
       </article>
 
       <article class="cl-trade-card short">
         <h3>▼ SHORT</h3>
-        <p>Entrada: <strong>Esperando análisis</strong></p>
-        <p>Stop: <strong>—</strong></p>
-        <p>Objetivo: <strong>—</strong></p>
+
+        <p>
+          Entrada:
+          <strong>
+            Esperando análisis
+          </strong>
+        </p>
+
+        <p>
+          Stop:
+          <strong>—</strong>
+        </p>
+
+        <p>
+          Objetivo:
+          <strong>—</strong>
+        </p>
       </article>
     </div>
 
     <p class="cl-notice">
-      Los planes requieren confirmación técnica.
-      No representan órdenes reales.
+      Los planes requieren confirmación
+      técnica. No representan órdenes reales.
     </p>
   </section>
 
-  <section id="clQuickScalp" class="cl-module">
+  <section
+    id="clQuickScalp"
+    class="cl-module"
+  >
     <h2>⚡ Scalping rápido</h2>
-    <p>Monitor exclusivo para BTC, oro y petróleo WTI.</p>
 
     <p>
-      Bitcoin y oro: apalancamiento de referencia hasta 100x.
+      Monitor exclusivo para BTC,
+      oro y petróleo WTI.
+    </p>
+
+    <p>
+      Bitcoin y oro:
+      apalancamiento de referencia
+      hasta 100x.
       Petróleo: hasta 50x.
     </p>
 
     <div id="clQuickScalpHost">
       <div class="cl-module-placeholder">
-        Esperando módulo de scalping rápido...
+        Esperando módulo de
+        scalping rápido...
       </div>
     </div>
 
     <p class="cl-notice">
-      El apalancamiento multiplica ganancias y pérdidas.
-      Una variación adversa pequeña puede liquidar la posición.
+      El apalancamiento multiplica
+      ganancias y pérdidas.
+      Una variación adversa pequeña
+      puede liquidar la posición.
     </p>
   </section>
 
-  <section id="signalsSection" class="signals-section">
+  <section
+    id="signalsSection"
+    class="signals-section"
+  >
     <div class="section-heading">
       <h2>Monitor de señales</h2>
-      <span id="engineState" class="pill">INICIANDO</span>
+
+      <span
+        id="engineState"
+        class="pill"
+      >
+        INICIANDO
+      </span>
     </div>
 
     <div class="signal-grid">
       <article class="signal-card">
-        <h3>BTC-USDT / 5 minutos</h3>
-        <strong id="state5" class="state">
+        <h3>
+          BTC-USDT / 5 minutos
+        </h3>
+
+        <strong
+          id="state5"
+          class="state"
+        >
           Esperando datos
         </strong>
+
         <p id="detail5">—</p>
         <small id="metrics5">—</small>
       </article>
 
       <article class="signal-card">
-        <h3>BTC-USDT / 15 minutos</h3>
-        <strong id="state15" class="state">
+        <h3>
+          BTC-USDT / 15 minutos
+        </h3>
+
+        <strong
+          id="state15"
+          class="state"
+        >
           Esperando datos
         </strong>
+
         <p id="detail15">—</p>
         <small id="metrics15">—</small>
       </article>
@@ -986,53 +2004,92 @@ button{cursor:pointer}
 </div>
 
 <!-- RESULTADOS -->
-<div id="clScreenResults" class="cl-screen"
-  data-cl-screen="results">
 
+<div
+  id="clScreenResults"
+  class="cl-screen"
+  data-cl-screen="results"
+>
   <div class="cl-screen-title">
-    <h1>📊 Resultados y efectividad</h1>
+    <h1>
+      📊 Resultados y efectividad
+    </h1>
+
     <p>
-      Historial de señales y seguimiento de objetivos y stops.
-      La efectividad se calcula con resultados verificados.
+      Historial de señales y seguimiento
+      de objetivos y stops.
+      La efectividad se calcula con
+      resultados verificados.
     </p>
   </div>
 
-  <section id="clResultsStats" class="cl-module">
+  <section
+    id="clResultsStats"
+    class="cl-module"
+  >
     <h2>Resumen de efectividad</h2>
 
     <div class="cl-stats">
       <div class="cl-stat">
-        <span>Señales registradas</span>
-        <strong id="clTotalSignals">—</strong>
+        <span>
+          Señales registradas
+        </span>
+
+        <strong id="clTotalSignals">
+          —
+        </strong>
       </div>
 
       <div class="cl-stat">
-        <span>Objetivos alcanzados</span>
-        <strong id="clTargetsHit">—</strong>
+        <span>
+          Objetivos alcanzados
+        </span>
+
+        <strong id="clTargetsHit">
+          —
+        </strong>
       </div>
 
       <div class="cl-stat">
-        <span>Stops alcanzados</span>
-        <strong id="clStopsHit">—</strong>
+        <span>
+          Stops alcanzados
+        </span>
+
+        <strong id="clStopsHit">
+          —
+        </strong>
       </div>
 
       <div class="cl-stat">
-        <span>Efectividad comprobada</span>
-        <strong id="clWinRate">—</strong>
+        <span>
+          Efectividad comprobada
+        </span>
+
+        <strong id="clWinRate">
+          —
+        </strong>
       </div>
     </div>
 
     <p class="cl-notice">
-      Las operaciones pendientes y no activadas no se incluyen
+      Las operaciones pendientes
+      y no activadas no se incluyen
       en la efectividad.
     </p>
   </section>
 
-  <section id="clScalpingResults" class="cl-module">
-    <h2>⚡ Efectividad de scalping por activo</h2>
+  <section
+    id="clScalpingResults"
+    class="cl-module"
+  >
+    <h2>
+      ⚡ Efectividad de scalping
+      por activo
+    </h2>
 
     <p>
-      Seguimiento separado de Bitcoin, oro y petróleo WTI.
+      Seguimiento separado de Bitcoin,
+      oro y petróleo WTI.
       Objetivos de ROI bruto sobre margen.
     </p>
 
@@ -1053,30 +2110,47 @@ button{cursor:pointer}
         <tbody id="clScalpingResultsBody">
           <tr>
             <td>Bitcoin</td>
-            <td colspan="6">Esperando seguimiento verificable...</td>
+            <td colspan="6">
+              Esperando seguimiento
+              verificable...
+            </td>
           </tr>
+
           <tr>
             <td>Oro</td>
-            <td colspan="6">Esperando seguimiento verificable...</td>
+            <td colspan="6">
+              Esperando seguimiento
+              verificable...
+            </td>
           </tr>
+
           <tr>
             <td>Petróleo WTI</td>
-            <td colspan="6">Esperando seguimiento verificable...</td>
+            <td colspan="6">
+              Esperando seguimiento
+              verificable...
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
 
     <p class="cl-notice">
-      Los objetivos de 50%, 100% y 200% se registran por separado.
-      Las estadísticas permanecen pendientes hasta contar
-      con resultados comprobados.
+      Los objetivos de 50%, 100%
+      y 200% se registran por separado.
+      Las estadísticas permanecen
+      pendientes hasta contar con
+      resultados comprobados.
     </p>
   </section>
 
-  <section id="historySection" class="history-section">
+  <section
+    id="historySection"
+    class="history-section"
+  >
     <div class="section-heading">
       <h2>Historial de señales</h2>
+
       <small>Últimas 30</small>
     </div>
 
@@ -1097,7 +2171,8 @@ button{cursor:pointer}
         <tbody id="signalLog">
           <tr>
             <td colspan="7">
-              Todavía no hay señales registradas.
+              Todavía no hay señales
+              registradas.
             </td>
           </tr>
         </tbody>
@@ -1106,139 +2181,172 @@ button{cursor:pointer}
   </section>
 
   <section class="cl-module">
-    <h2>Seguimiento de operaciones</h2>
+    <h2>
+      Seguimiento de operaciones
+    </h2>
+
     <p>
-      El registro distinguirá señal pendiente, entrada activada,
-      objetivo alcanzado, stop alcanzado, cancelada
-      y resultado no verificable.
+      El registro distinguirá señal
+      pendiente, entrada activada,
+      objetivo alcanzado, stop alcanzado,
+      cancelada y resultado
+      no verificable.
     </p>
+
     <p>
-      Las estadísticas no contarán operaciones pendientes
-      ni señales que nunca se activaron.
+      Las estadísticas no contarán
+      operaciones pendientes ni señales
+      que nunca se activaron.
     </p>
   </section>
 </div>
 
 <footer>
-  CRYPTOLEXUZ PRO · Análisis técnico informativo.
-  No ejecuta órdenes ni garantiza resultados.
+  CRYPTOLEXUZ PRO ·
+  Análisis técnico informativo.
+  No ejecuta órdenes ni garantiza
+  resultados.
 </footer>
 
 </main>
 </div>
 
 <!-- NAVEGACIÓN INFERIOR -->
-<nav class="cl-bottom-nav" aria-label="Navegación principal">
 
-  <button class="cl-nav-button active"
-    type="button" data-cl-tab="charts"
-    aria-pressed="true">
+<nav
+  class="cl-bottom-nav"
+  aria-label="Navegación principal"
+>
+  <button
+    class="cl-nav-button active"
+    type="button"
+    data-cl-tab="charts"
+    aria-pressed="true"
+  >
     <span class="cl-nav-icon">📈</span>
     <span>Gráficas</span>
   </button>
 
-  <button class="cl-nav-button"
-    type="button" data-cl-tab="scanner"
-    aria-pressed="false">
+  <button
+    class="cl-nav-button"
+    type="button"
+    data-cl-tab="scanner"
+    aria-pressed="false"
+  >
     <span class="cl-nav-icon">📡</span>
     <span>Escáner</span>
   </button>
 
-  <button class="cl-nav-button"
-    type="button" data-cl-tab="results"
-    aria-pressed="false">
+  <button
+    class="cl-nav-button"
+    type="button"
+    data-cl-tab="results"
+    aria-pressed="false"
+  >
     <span class="cl-nav-icon">📊</span>
     <span>Resultados</span>
   </button>
-
 </nav>
 
 <script>
 (() => {
   "use strict";
 
-  const $ = id => document.getElementById(id);
+  const $=id=>
+    document.getElementById(id);
 
-  const sidebar = $("sidebar");
-  const backdrop = $("menuBackdrop");
-  const toggle = $("menuToggle");
-  const close = $("menuClose");
+  const sidebar=$("sidebar");
+  const backdrop=$("menuBackdrop");
+  const toggle=$("menuToggle");
+  const close=$("menuClose");
 
-  let activeScreen = "charts";
-  let organizing = false;
+  let activeScreen="charts";
+  let organizing=false;
 
-  function setOpen(open) {
-    if (!sidebar || !backdrop || !toggle) return;
+  function setOpen(open){
+    if(!sidebar||!backdrop||!toggle){
+      return;
+    }
 
-    sidebar.classList.toggle("is-open", open);
+    sidebar.classList.toggle(
+      "is-open",open
+    );
+
     toggle.setAttribute(
       "aria-expanded",
       String(open)
     );
 
-    backdrop.hidden = !open;
+    backdrop.hidden=!open;
 
     document.body.classList.toggle(
-      "menu-open",
-      open
+      "menu-open",open
     );
   }
 
-  function refreshCharts() {
-    window.dispatchEvent(new Event("resize"));
+  function refreshCharts(){
+    window.dispatchEvent(
+      new Event("resize")
+    );
 
-    requestAnimationFrame(() => {
-      window.dispatchEvent(new Event("resize"));
+    requestAnimationFrame(()=>{
+      window.dispatchEvent(
+        new Event("resize")
+      );
     });
 
-    setTimeout(() => {
-      window.dispatchEvent(new Event("resize"));
+    setTimeout(()=>{
+      window.dispatchEvent(
+        new Event("resize")
+      );
 
-      for (const name of [
+      for(const name of [
         "CryptolexuzPatterns",
         "CryptolexuzFibonacci",
         "CryptolexuzVolumeProfile"
-      ]) {
-        try {
+      ]){
+        try{
           window[name]?.layout?.();
           window[name]?.redraw?.();
-        } catch (error) {
-          console.warn(name, error);
+        }catch(error){
+          console.warn(name,error);
         }
       }
-    }, 250);
+    },250);
   }
 
-  function activateTab(tab, targetId) {
-    if (
-      !["charts", "scanner", "results"].includes(tab)
-    ) return;
+  function activateTab(tab,targetId){
+    if(![
+      "charts",
+      "scanner",
+      "results"
+    ].includes(tab)){
+      return;
+    }
 
-    activeScreen = tab;
+    activeScreen=tab;
 
     document.querySelectorAll(
       "[data-cl-screen]"
-    ).forEach(screen => {
-      const active =
-        screen.dataset.clScreen === tab;
+    ).forEach(screen=>{
+      const active=
+        screen.dataset.clScreen===tab;
 
       screen.classList.toggle(
-        "cl-active",
-        active
+        "cl-active",active
       );
 
-      screen.hidden = !active;
+      screen.hidden=!active;
     });
 
     document.querySelectorAll(
       "[data-cl-tab]"
-    ).forEach(button => {
-      const active =
-        button.dataset.clTab === tab;
+    ).forEach(button=>{
+      const active=
+        button.dataset.clTab===tab;
 
       button.classList.toggle(
-        "active",
-        active
+        "active",active
       );
 
       button.setAttribute(
@@ -1247,22 +2355,25 @@ button{cursor:pointer}
       );
     });
 
+    window.CryptolexuzPreferences
+      ?.setScreen?.(tab);
+
     setOpen(false);
 
-    requestAnimationFrame(() => {
-      if (targetId && $(targetId)) {
+    requestAnimationFrame(()=>{
+      if(targetId&&$(targetId)){
         $(targetId).scrollIntoView({
           behavior:"smooth",
           block:"start"
         });
-      } else {
+      }else{
         window.scrollTo({
           top:0,
           behavior:"smooth"
         });
       }
 
-      if (tab === "charts") {
+      if(tab==="charts"){
         refreshCharts();
       }
     });
@@ -1270,223 +2381,248 @@ button{cursor:pointer}
     window.dispatchEvent(
       new CustomEvent(
         "cryptolexuz:screen-change",
-        { detail:{ screen:tab } }
+        {
+          detail:{
+            screen:tab
+          }
+        }
       )
     );
   }
 
-  window.CryptolexuzNavigation = {
+  window.CryptolexuzNavigation={
     activateTab,
-    getScreen: () => activeScreen
+    getScreen:()=>activeScreen
   };
 
   toggle?.addEventListener(
     "click",
-    () => {
+    ()=>{
       setOpen(
-        !sidebar.classList.contains("is-open")
+        !sidebar.classList.contains(
+          "is-open"
+        )
       );
     }
   );
 
   close?.addEventListener(
     "click",
-    () => setOpen(false)
+    ()=>setOpen(false)
   );
 
   backdrop?.addEventListener(
     "click",
-    () => setOpen(false)
+    ()=>setOpen(false)
   );
 
   document.querySelectorAll(
     "[data-cl-tab]"
-  ).forEach(button => {
-    button.addEventListener("click", () => {
-      activateTab(button.dataset.clTab);
-    });
+  ).forEach(button=>{
+    button.addEventListener(
+      "click",
+      ()=>{
+        activateTab(
+          button.dataset.clTab
+        );
+      }
+    );
   });
 
   sidebar?.querySelectorAll(
     ".side-nav a"
-  ).forEach(link => {
-    link.addEventListener("click", event => {
-      const tab = link.dataset.screen;
-      const id = link.getAttribute("href")
-        ?.replace("#", "");
+  ).forEach(link=>{
+    link.addEventListener(
+      "click",
+      event=>{
+        const tab=link.dataset.screen;
 
-      if (tab) {
-        event.preventDefault();
-        activateTab(tab, id);
+        const id=link
+          .getAttribute("href")
+          ?.replace("#","");
+
+        if(tab){
+          event.preventDefault();
+
+          activateTab(tab,id);
+        }
       }
-    });
+    );
   });
 
-  function moveInto(element, host) {
-    if (
-      !element ||
-      !host ||
-      element === host ||
-      host.contains(element) ||
+  function moveInto(element,host){
+    if(
+      !element||
+      !host||
+      element===host||
+      host.contains(element)||
       element.contains(host)
-    ) return false;
+    ){
+      return false;
+    }
 
     host.appendChild(element);
     return true;
   }
 
-  function moveScanner() {
+  function moveScanner(){
     moveInto(
       $("clScanner"),
       $("clScannerHost")
     );
   }
 
-  function moveFibonacci() {
-    const host = $("clFibonacciHost");
-    if (!host) return;
+  function moveFibonacci(){
+    const host=$("clFibonacciHost");
 
-    for (const id of [
+    if(!host)return;
+
+    for(const id of [
       "fibToolbar",
       "fibPanel"
-    ]) {
-      moveInto($(id), host);
+    ]){
+      moveInto($(id),host);
     }
   }
 
-  function moveQuickScalp() {
-    const host = $("clQuickScalpHost");
-    if (!host) return;
+  function moveQuickScalp(){
+    const host=$("clQuickScalpHost");
 
-    const candidates = [
+    if(!host)return;
+
+    const candidates=[
       "clQuickScalpPanel",
       "clQuickScalpSection",
       "clScalpingRapido",
       "clQuickScalpDashboard"
     ];
 
-    for (const id of candidates) {
-      const element = $(id);
+    for(const id of candidates){
+      const element=$(id);
 
-      if (
-        element &&
-        element !== host &&
-        !host.contains(element) &&
+      if(
+        element&&
+        element!==host&&
+        !host.contains(element)&&
         !element.contains(host)
-      ) {
-        const placeholder =
-          host.querySelector(
-            ".cl-module-placeholder"
-          );
-
-        if (placeholder) {
-          placeholder.remove();
-        }
+      ){
+        host.querySelector(
+          ".cl-module-placeholder"
+        )?.remove();
 
         host.appendChild(element);
         return;
       }
     }
 
-    if (
-      host.children.length > 1 ||
+    if(
       host.querySelector(
         ":scope > :not(.cl-module-placeholder)"
       )
-    ) {
+    ){
       host.querySelector(
         ".cl-module-placeholder"
       )?.remove();
     }
   }
 
-  function moveRangeBoxes() {
-    const host = $("clRangeBoxesControls");
-    if (!host) return;
+  function moveRangeBoxes(){
+    /*
+     Range Boxes V3/V4 crea
+     clRangeControls.
+    */
+    const host=$("clRangeBoxesControls");
 
-    for (const id of [
+    if(!host)return;
+
+    for(const id of [
+      "clRangeControls",
       "rangeBoxesToolbar",
       "rangeBoxesPanel",
       "clRangeToolbar",
       "clRangePanel"
-    ]) {
-      moveInto($(id), host);
+    ]){
+      moveInto($(id),host);
     }
   }
 
-  function organizeMarketPro() {
-    const host = $("clMercadoProHost");
-    if (!host) return;
+  function organizeMarketPro(){
+    const host=$("clMercadoProHost");
 
-    const panels = [
+    if(!host)return;
+
+    const panels=[
       $("clMarketTrend"),
       $("clMarketVolumeProfile"),
       $("clMarketDepth")
     ].filter(Boolean);
 
-    if (!panels.length) return;
+    if(!panels.length)return;
 
-    for (const panel of panels) {
-      moveInto(panel, host);
+    for(const panel of panels){
+      moveInto(panel,host);
     }
 
-    const status = $("clMercadoProStatus");
-    if (status) status.hidden = true;
+    const status=$("clMercadoProStatus");
+
+    if(status){
+      status.hidden=true;
+    }
   }
 
-  function checkFibonacci() {
-    const fallback = $("fibFallback");
-    if (!fallback) return;
+  function checkFibonacci(){
+    const fallback=$("fibFallback");
 
-    const fib =
+    if(!fallback)return;
+
+    const fib=
       window.CryptolexuzFibonacci;
 
-    const toolbar = $("fibToolbar");
+    const toolbar=$("fibToolbar");
 
-    if (toolbar && fib) {
-      fallback.hidden = true;
-    } else {
-      fallback.hidden = false;
+    if(toolbar&&fib){
+      fallback.hidden=true;
+    }else{
+      fallback.hidden=false;
 
-      fallback.textContent = fib
-        ? "Fibonacci cargado. Esperando barra de herramientas."
-        : "Fibonacci no está inicializado. Comprueba fibonacci.js y app.js.";
+      fallback.textContent=fib
+        ?"Fibonacci cargado. Esperando barra de herramientas."
+        :"Fibonacci no está inicializado. Comprueba fibonacci.js y app.js.";
     }
   }
 
-  function updatePatternsReadout(event) {
-    const host = $("clPatternsReadout");
-    if (!host) return;
+  function updatePatternsReadout(event){
+    const host=$("clPatternsReadout");
 
-    const findings =
-      event?.detail?.findings ||
+    if(!host)return;
+
+    const findings=
+      event?.detail?.findings||
       window.CryptolexuzPatterns
-        ?.getFindings?.() ||
+        ?.getFindings?.()||
       [];
 
     host.replaceChildren();
 
-    if (!findings.length) {
-      const p = document.createElement("p");
+    if(!findings.length){
+      const p=document.createElement("p");
 
-      p.textContent =
+      p.textContent=
         "No hay patrones activos detectados con los filtros actuales.";
 
       host.appendChild(p);
       return;
     }
 
-    const list = document.createElement("div");
+    const list=document.createElement("div");
 
-    list.style.display = "grid";
-    list.style.gap = "8px";
+    list.style.display="grid";
+    list.style.gap="8px";
 
-    for (
-      const finding of findings.slice(0,12)
-    ) {
-      const item = document.createElement("div");
+    for(const finding of findings.slice(0,12)){
+      const item=document.createElement("div");
 
-      item.style.cssText = [
+      item.style.cssText=[
         "padding:10px",
         "border:1px solid #35416e",
         "border-radius:9px",
@@ -1494,21 +2630,21 @@ button{cursor:pointer}
         "font-size:12px"
       ].join(";");
 
-      const direction =
-        finding.direction === "bull"
-          ? "ALCISTA"
-          : finding.direction === "bear"
-            ? "BAJISTA"
-            : "NEUTRAL";
+      const direction=
+        finding.direction==="bull"
+          ?"ALCISTA"
+          :finding.direction==="bear"
+            ?"BAJISTA"
+            :"NEUTRAL";
 
-      const state = finding.confirmed
-        ? "Confirmación básica"
-        : "En observación";
+      const state=finding.confirmed
+        ?"Confirmación básica"
+        :"En observación";
 
-      item.textContent =
-        (finding.label || "Patrón") +
-        " · " + direction +
-        " · " + state;
+      item.textContent=
+        (finding.label||"Patrón")+
+        " · "+direction+
+        " · "+state;
 
       list.appendChild(item);
     }
@@ -1521,72 +2657,92 @@ button{cursor:pointer}
     updatePatternsReadout
   );
 
-  function organizeModules() {
-    if (organizing) return;
-    organizing = true;
+  function organizeModules(){
+    if(organizing)return;
 
-    try {
+    organizing=true;
+
+    try{
       moveScanner();
       moveFibonacci();
       moveQuickScalp();
       moveRangeBoxes();
       organizeMarketPro();
-    } finally {
-      organizing = false;
+    }finally{
+      organizing=false;
     }
   }
 
-  let organizeQueued = false;
+  let organizeQueued=false;
 
-  function scheduleOrganize() {
-    if (organizeQueued) return;
-    organizeQueued = true;
+  function scheduleOrganize(){
+    if(organizeQueued)return;
 
-    requestAnimationFrame(() => {
-      organizeQueued = false;
+    organizeQueued=true;
+
+    requestAnimationFrame(()=>{
+      organizeQueued=false;
       organizeModules();
     });
   }
 
-  function initNavigation() {
-    activateTab("charts");
+  function initNavigation(){
+    const savedScreen=
+      window.CryptolexuzPreferences
+        ?.getScreen?.();
+
+    activateTab(
+      ["charts","scanner","results"]
+        .includes(savedScreen)
+        ?savedScreen
+        :"charts"
+    );
+
     organizeModules();
 
-    const observer = new MutationObserver(
+    const observer=new MutationObserver(
       scheduleOrganize
     );
 
-    observer.observe(document.body, {
+    observer.observe(document.body,{
       childList:true,
       subtree:true
     });
 
-    window.addEventListener("load", () => {
-      setTimeout(() => {
-        organizeModules();
-        checkFibonacci();
-        refreshCharts();
-      }, 2500);
+    window.addEventListener(
+      "load",
+      ()=>{
+        setTimeout(()=>{
+          organizeModules();
+          checkFibonacci();
+          refreshCharts();
+        },2500);
 
-      setTimeout(() => {
-        organizeModules();
-        checkFibonacci();
-      }, 6500);
-    });
+        setTimeout(()=>{
+          organizeModules();
+          checkFibonacci();
+        },6500);
+      }
+    );
   }
 
-  if (document.readyState === "loading") {
+  if(document.readyState==="loading"){
     document.addEventListener(
       "DOMContentLoaded",
       initNavigation,
-      { once:true }
+      {once:true}
     );
-  } else {
+  }else{
     initNavigation();
   }
 })();
 </script>
 
+<!--
+ Mantener el módulo existente.
+ La configuración principal se
+ restaura antes de app.js.
+-->
 <script src="guardar-configuracion.js?v=1"></script>
 
 </body>
