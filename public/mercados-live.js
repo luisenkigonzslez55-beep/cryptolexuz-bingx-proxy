@@ -1,42 +1,124 @@
 
 /*
  CRYPTOLEXUZ PRO
- MERCADOS LIVE V1
- Precios reales, variación 24h y favoritos.
- No modifica el motor de gráficas.
+ MERCADOS LIVE V2
+
+ Precios reales desde el proxy de BingX.
+ Criptomonedas, GOLD y OIL WTI.
+ Favoritos y filtros compatibles con index.html V24.
+
+ No modifica gráficas, Fibonacci, escáner
+ ni otros módulos.
 */
+
 "use strict";
 
 (() => {
-  if (window.__CL_MARKETS_LIVE_V1__) return;
-  window.__CL_MARKETS_LIVE_V1__ = true;
+  if (window.__CL_MARKETS_LIVE_V2__) return;
+  window.__CL_MARKETS_LIVE_V2__ = true;
 
   const REFRESH_MS = 20000;
-  const TIMEOUT_MS = 9000;
+  const TIMEOUT_MS = 12000;
 
   const $ = id => document.getElementById(id);
 
   const assets = [
-    ["BTC-USDT", "BTC-USDT"],
-    ["ETH-USDT", "ETH-USDT"],
-    ["BNB-USDT", "BNB-USDT"],
-    ["SOL-USDT", "SOL-USDT"],
-    ["XRP-USDT", "XRP-USDT"],
-    ["DOGE-USDT", "DOGE-USDT"],
-    ["NCCOGOLD2USD-USDT", "NCCOGOLD2USD-USDT"],
-    ["NCCO1OILWTI2USD-USDT", "NCCO1OILWTI2USD-USDT"]
+    {
+      symbol: "BTC-USDT",
+      names: ["BTCUSDT", "BTC-USDT"]
+    },
+    {
+      symbol: "ETH-USDT",
+      names: ["ETHUSDT", "ETH-USDT"]
+    },
+    {
+      symbol: "BNB-USDT",
+      names: ["BNBUSDT", "BNB-USDT"]
+    },
+    {
+      symbol: "SOL-USDT",
+      names: ["SOLUSDT", "SOL-USDT"]
+    },
+    {
+      symbol: "XRP-USDT",
+      names: ["XRPUSDT", "XRP-USDT"]
+    },
+    {
+      symbol: "DOGE-USDT",
+      names: ["DOGEUSDT", "DOGE-USDT"]
+    },
+    {
+      symbol: "NCCOGOLD2USD-USDT",
+      names: [
+        "GOLD (XAU)",
+        "GOLD",
+        "XAU",
+        "NCCOGOLD2USD-USDT"
+      ],
+      commodity: true
+    },
+    {
+      symbol: "NCCO1OILWTI2USD-USDT",
+      names: [
+        "OIL WTI",
+        "OIL",
+        "WTI",
+        "NCCO1OILWTI2USD-USDT"
+      ],
+      commodity: true
+    }
   ];
 
   const state = {
     prices: new Map(),
     busy: false,
-    lastUpdate: null
+    lastUpdate: null,
+    market: "perpetual"
   };
 
-  const PROXY = location.origin;
+  const normalizeName = value =>
+    String(value || "")
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, "");
+
+  const assetLookup = new Map();
+
+  for (const asset of assets) {
+    assetLookup.set(
+      normalizeName(asset.symbol),
+      asset
+    );
+
+    for (const name of asset.names) {
+      assetLookup.set(normalizeName(name), asset);
+    }
+  }
+
+  function findAsset(row) {
+    const open = row.querySelector(".cl-market-open");
+
+    if (!open) return null;
+
+    const label = open.querySelector(
+      ".cl-asset-label strong"
+    );
+
+    const name = label?.textContent || "";
+
+    const aria = (
+      open.getAttribute("aria-label") || ""
+    ).replace(/^Abrir gráfica de\s*/i, "");
+
+    return (
+      assetLookup.get(normalizeName(name)) ||
+      assetLookup.get(normalizeName(aria)) ||
+      null
+    );
+  }
 
   async function fetchJSON(url) {
     const controller = new AbortController();
+
     const timer = setTimeout(
       () => controller.abort(),
       TIMEOUT_MS
@@ -44,22 +126,49 @@
 
     try {
       const response = await fetch(url, {
+        method: "GET",
+        cache: "no-store",
         signal: controller.signal,
-        cache: "no-store"
+        headers: {
+          Accept: "application/json"
+        }
       });
 
       if (!response.ok) {
-        throw new Error("HTTP " + response.status);
+        throw new Error(
+          "HTTP " + response.status
+        );
       }
 
       return await response.json();
+
     } finally {
       clearTimeout(timer);
     }
   }
 
-  function unwrap(json) {
+  function validNumber(value) {
+    if (
+      value === null ||
+      value === undefined ||
+      value === ""
+    ) {
+      return null;
+    }
+
+    const number = Number(value);
+
+    return Number.isFinite(number)
+      ? number
+      : null;
+  }
+
+  function parseTicker(json) {
     if (!json || typeof json !== "object") {
+      return null;
+    }
+
+    if (json.ok === false) {
       return null;
     }
 
@@ -69,25 +178,23 @@
       data = data[0];
     }
 
-    if (data && Array.isArray(data.tickers)) {
+    if (data?.list && Array.isArray(data.list)) {
+      data = data.list[0];
+    }
+
+    if (data?.tickers && Array.isArray(data.tickers)) {
       data = data.tickers[0];
     }
 
-    if (data && Array.isArray(data.data)) {
+    if (data?.data && Array.isArray(data.data)) {
       data = data.data[0];
     }
 
-    return data && typeof data === "object"
-      ? data
-      : null;
-  }
+    if (!data || typeof data !== "object") {
+      return null;
+    }
 
-  function parseTicker(json) {
-    const data = unwrap(json);
-
-    if (!data) return null;
-
-    const price = Number(
+    const price = validNumber(
       data.lastPrice ??
       data.last ??
       data.price ??
@@ -95,28 +202,32 @@
       data.c
     );
 
-    const open = Number(
+    if (price === null || price <= 0) {
+      return null;
+    }
+
+    const open = validNumber(
       data.openPrice ??
-      data.open ??
       data.open24h ??
+      data.open ??
       data.o
     );
 
-    const high = Number(
+    const high = validNumber(
       data.highPrice ??
-      data.high ??
       data.high24h ??
+      data.high ??
       data.h
     );
 
-    const low = Number(
+    const low = validNumber(
       data.lowPrice ??
-      data.low ??
       data.low24h ??
+      data.low ??
       data.l
     );
 
-    const volume = Number(
+    const volume = validNumber(
       data.quoteVolume ??
       data.turnover ??
       data.volume ??
@@ -124,84 +235,85 @@
       data.v
     );
 
-    let change = Number(
+    let change = validNumber(
       data.priceChangePercent ??
       data.changePercent ??
       data.changeRate ??
       data.priceChangeRate
     );
 
-    if (!Number.isFinite(change)) {
-      change = Number.isFinite(open) && open > 0
-        ? ((price - open) / open) * 100
-        : NaN;
-    } else if (
-      data.priceChangeRate !== undefined ||
-      data.changeRate !== undefined
+    if (
+      data.priceChangePercent === undefined &&
+      (
+        data.changeRate !== undefined ||
+        data.priceChangeRate !== undefined
+      ) &&
+      change !== null
     ) {
       change *= 100;
     }
 
-    if (!Number.isFinite(price) || price <= 0) {
-      return null;
+    if (
+      change === null &&
+      open !== null &&
+      open > 0
+    ) {
+      change = ((price - open) / open) * 100;
     }
 
     return {
       price,
-      change: Number.isFinite(change) ? change : null,
-      high: Number.isFinite(high) ? high : null,
-      low: Number.isFinite(low) ? low : null,
-      volume: Number.isFinite(volume) ? volume : null
+      change,
+      open,
+      high,
+      low,
+      volume,
+      receivedAt: Date.now()
     };
   }
 
-  async function getTicker(symbol, market) {
-    const encoded = encodeURIComponent(symbol);
+  async function getTicker(asset, market) {
+    const actualMarket = asset.commodity
+      ? "perpetual"
+      : market;
 
-    const paths = [
-      `/api/exchange/bingx/ticker/${encoded}?market=${market}`,
-      `/api/exchange/bingx/ticker?symbol=${encoded}&market=${market}`,
-      `/api/exchange/bingx/tickers?symbol=${encoded}&market=${market}`
-    ];
+    const url =
+      "/api/exchange/bingx/ticker/" +
+      encodeURIComponent(asset.symbol) +
+      "?market=" +
+      encodeURIComponent(actualMarket);
 
-    // Último recurso: endpoint público de BingX.
-    if (market === "spot") {
-      paths.push(
-        `https://open-api.bingx.com/openApi/spot/v1/ticker/24hr?symbol=${encoded}`
+    try {
+      const json = await fetchJSON(url);
+      return parseTicker(json);
+
+    } catch (error) {
+      console.warn(
+        "[MERCADOS LIVE]",
+        asset.symbol,
+        error.message
       );
-    } else {
-      paths.push(
-        `https://open-api.bingx.com/openApi/swap/v2/quote/ticker?symbol=${encoded}`
-      );
+
+      return null;
     }
-
-    for (const path of paths) {
-      try {
-        const json = await fetchJSON(
-          path.startsWith("http")
-            ? path
-            : PROXY + path
-        );
-
-        const ticker = parseTicker(json);
-
-        if (ticker) return ticker;
-      } catch (error) {
-        // Intentar la siguiente ruta.
-      }
-    }
-
-    return null;
   }
 
   function formatPrice(value) {
-    if (!Number.isFinite(value)) return "—";
+    if (!Number.isFinite(value)) {
+      return "—";
+    }
 
-    const digits = value >= 1000
-      ? 2
-      : value >= 1
-        ? 4
-        : 6;
+    let digits;
+
+    if (value >= 100) {
+      digits = 2;
+    } else if (value >= 1) {
+      digits = 4;
+    } else if (value >= 0.01) {
+      digits = 5;
+    } else {
+      digits = 8;
+    }
 
     return "$" + value.toLocaleString("en-US", {
       minimumFractionDigits: 2,
@@ -210,7 +322,9 @@
   }
 
   function formatChange(value) {
-    if (!Number.isFinite(value)) return "—%";
+    if (!Number.isFinite(value)) {
+      return "—%";
+    }
 
     return (
       (value > 0 ? "+" : "") +
@@ -224,31 +338,16 @@
       "#clMarketList .cl-market-row"
     );
 
-    rows.forEach(row => {
+    for (const row of rows) {
+      const asset = findAsset(row);
+
+      if (!asset) continue;
+
       const button = row.querySelector(
         ".cl-market-open"
       );
 
-      if (!button) return;
-
-      const label = button.querySelector(
-        ".cl-asset-label strong"
-      );
-
-      if (!label) return;
-
-      const asset = assets.find(
-        item => item[0].replace(/-/g, "") ===
-          label.textContent.replace(/[^A-Z0-9]/gi, "")
-      ) || assets.find(
-        item => item[0] ===
-          (button.getAttribute("aria-label") || "")
-            .replace("Abrir gráfica de ", "")
-      );
-
-      if (!asset) return;
-
-      const data = state.prices.get(asset[0]);
+      if (!button) continue;
 
       const priceNode = button.querySelector(
         ".cl-market-price"
@@ -258,44 +357,56 @@
         ".cl-market-change"
       );
 
-      if (!priceNode || !changeNode) return;
+      if (!priceNode || !changeNode) continue;
+
+      const data = state.prices.get(asset.symbol);
 
       if (!data) {
         priceNode.textContent = "—";
         changeNode.textContent = "—%";
         changeNode.style.background = "";
-        return;
+        changeNode.style.color = "";
+        continue;
       }
 
-      priceNode.textContent = formatPrice(data.price);
-      changeNode.textContent = formatChange(data.change);
+      priceNode.textContent = formatPrice(
+        data.price
+      );
 
-      if (data.change !== null) {
-        changeNode.style.background =
-          data.change >= 0
-            ? "rgba(0,190,130,.22)"
-            : "rgba(225,50,85,.22)";
+      changeNode.textContent = formatChange(
+        data.change
+      );
 
-        changeNode.style.color =
-          data.change >= 0
-            ? "#00f5a0"
-            : "#ff6382";
+      if (Number.isFinite(data.change)) {
+        const positive = data.change >= 0;
+
+        changeNode.style.background = positive
+          ? "rgba(0,190,130,.22)"
+          : "rgba(225,50,85,.22)";
+
+        changeNode.style.color = positive
+          ? "#00f5a0"
+          : "#ff6382";
+
       } else {
         changeNode.style.background = "";
         changeNode.style.color = "";
       }
-    });
+    }
   }
 
   function updateStatus() {
     const status = $("clMarketListStatus");
+
     if (!status) return;
 
-    const count = state.prices.size;
+    const available = [...state.prices.values()]
+      .filter(Boolean).length;
 
-    if (count === 0) {
+    if (!available) {
       status.textContent =
-        "No se pudieron consultar los precios. Revisa la conexión del servidor.";
+        "Sin cotizaciones disponibles. " +
+        "Comprueba la conexión con BingX.";
       return;
     }
 
@@ -304,11 +415,16 @@
       : "—";
 
     status.textContent =
-      `${count} activos con precio disponible · Actualizado ${time}`;
+      available +
+      " activos con cotización disponible · " +
+      "Actualizado " +
+      time;
   }
 
   async function refresh() {
-    if (state.busy || document.hidden) return;
+    if (state.busy || document.hidden) {
+      return;
+    }
 
     state.busy = true;
 
@@ -316,35 +432,56 @@
       ? "spot"
       : "perpetual";
 
+    state.market = market;
+
     try {
       const results = await Promise.all(
-        assets.map(async ([symbol]) => {
-          const isCommodity = symbol.startsWith("NCCO");
-
-          if (market === "spot" && isCommodity) {
-            return [symbol, null];
-          }
-
+        assets.map(async asset => {
           const data = await getTicker(
-            symbol,
-            isCommodity ? "perpetual" : market
+            asset,
+            market
           );
 
-          return [symbol, data];
+          return {
+            symbol: asset.symbol,
+            data
+          };
         })
       );
 
-      for (const [symbol, data] of results) {
-        if (data) {
-          state.prices.set(symbol, data);
+      // Evitar mezclar respuestas de Spot y Perpetuos.
+      const currentMarket =
+        $("market")?.value === "spot"
+          ? "spot"
+          : "perpetual";
+
+      if (currentMarket !== market) {
+        return;
+      }
+
+      for (const result of results) {
+        if (result.data) {
+          state.prices.set(
+            result.symbol,
+            result.data
+          );
         } else {
-          state.prices.delete(symbol);
+          state.prices.delete(
+            result.symbol
+          );
         }
       }
 
       state.lastUpdate = new Date();
+
       updateRows();
       updateStatus();
+
+    } catch (error) {
+      console.error(
+        "[MERCADOS LIVE]",
+        error
+      );
 
     } finally {
       state.busy = false;
@@ -353,9 +490,16 @@
 
   function start() {
     const list = $("clMarketList");
-    if (!list) return;
 
-    // Reaplicar precios al buscar o cambiar filtros.
+    if (!list) {
+      console.warn(
+        "No existe clMarketList"
+      );
+      return;
+    }
+
+    // El index vuelve a crear filas al buscar
+    // y cambiar filtros. Recuperar sus precios.
     const observer = new MutationObserver(() => {
       requestAnimationFrame(updateRows);
     });
@@ -366,27 +510,43 @@
 
     $("market")?.addEventListener(
       "change",
-      refresh
+      () => {
+        state.prices.clear();
+        updateRows();
+        refresh();
+      }
     );
 
     document.addEventListener(
       "visibilitychange",
       () => {
-        if (!document.hidden) refresh();
+        if (!document.hidden) {
+          refresh();
+        }
       }
     );
 
+    window.addEventListener(
+      "online",
+      refresh
+    );
+
     refresh();
-    setInterval(refresh, REFRESH_MS);
+
+    setInterval(
+      refresh,
+      REFRESH_MS
+    );
   }
 
   if (document.readyState === "loading") {
     document.addEventListener(
       "DOMContentLoaded",
       start,
-      {once:true}
+      { once: true }
     );
   } else {
     start();
   }
+
 })();
