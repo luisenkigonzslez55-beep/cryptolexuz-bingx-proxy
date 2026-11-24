@@ -1,15 +1,24 @@
 
 /*
- CRYPTOLEXUZ PRO — APP.JS V17
+ CRYPTOLEXUZ PRO — APP.JS V18
  Gráficas, Escáner y Resultados
  Lightweight Charts 4.2.2
- Datos públicos vía servidor proxy
- Integración de Volume Profile sobre las velas
- Sin ejecución automática de órdenes
+
+ CORRECCIONES:
+ - Desplazamiento horizontal con un dedo
+ - Zoom táctil con dos dedos
+ - Zoom con rueda del mouse
+ - Conservación del rango visible
+ - Sincronización segura de gráficas
+ - Actualización sin restablecer la vista
+ - Compatibilidad con Fibonacci y Volume Profile
+ - Historial de señales y estadísticas
+ - Sin ejecución automática de órdenes
 */
 "use strict";
 
 (() => {
+
 const $ = id => document.getElementById(id);
 
 const C = {
@@ -25,12 +34,20 @@ const GOLD="NCCOGOLD2USD-USDT";
 const OIL="NCCO1OILWTI2USD-USDT";
 
 const ASSETS=[
- "BTC-USDT","ETH-USDT","BNB-USDT",
- "SOL-USDT","XRP-USDT","DOGE-USDT",
- GOLD,OIL
+ "BTC-USDT",
+ "ETH-USDT",
+ "BNB-USDT",
+ "SOL-USDT",
+ "XRP-USDT",
+ "DOGE-USDT",
+ GOLD,
+ OIL
 ];
 
-const TF=["1d","4h","1h","30m","15m","5m","1m"];
+const TF=[
+ "1d","4h","1h",
+ "30m","15m","5m","1m"
+];
 
 const SEC={
  "1m":60,
@@ -50,27 +67,62 @@ const COLORS={
  ma200:C.blue
 };
 
-const enabled=new Set(["ema21","ma55","rsi","fvg"]);
-const charts={},series={},moving={};
-const lines=[],cache=new Map();
+const enabled=new Set([
+ "ema21","ma55","rsi","fvg"
+]);
+
+const charts={};
+const series={};
+const moving={};
+const lines=[];
+const cache=new Map();
 
 const STORE="cryptolexuz-v16-history";
 
-let rows=[],zones=[],pivots=[],sweeps=[];
-let activeKey="",generation=0,scanGeneration=0;
-let scanBusy=false,scanLast=0,monitorLast=0;
-let socket=null,socketId=0,reconnect=null;
-let lastWS=0,lastRSI="RSI no disponible";
-let history=[],resizeObserver=null;
-let chartBusy=false,chartTimer=null,tickerTimer=null;
-let scanTimer=null,verifyTimer=null;
+let rows=[];
+let zones=[];
+let pivots=[];
+let sweeps=[];
 
-/*
- VOLUME PROFILE
- Conexión centralizada con el gráfico principal.
-*/
+let activeKey="";
+let generation=0;
+let scanGeneration=0;
+
+let scanBusy=false;
+let scanLast=0;
+let monitorLast=0;
+
+let socket=null;
+let socketId=0;
+let reconnect=null;
+
+let lastWS=0;
+let lastRSI="RSI no disponible";
+
+let history=[];
+let resizeObserver=null;
+
+let chartBusy=false;
+let tickerBusy=false;
+let verifyBusy=false;
+
+let chartTimer=null;
+let tickerTimer=null;
+let scanTimer=null;
+let verifyTimer=null;
+
 let volumeProfileAttached=false;
 let volumeProfileModule=null;
+
+/*
+ CONTROL DE MOVILIDAD
+*/
+let syncing=false;
+let restoringRange=false;
+let userInteracting=false;
+let interactionTimer=null;
+let visibleRange=null;
+let lastAppliedTime=0;
 
 function volumeProfile(){
  return window.CryptolexuzVolumeProfile||
@@ -78,118 +130,19 @@ function volumeProfile(){
         null;
 }
 
-function announceChartReady(){
- if(!charts.price||!series.price)return;
-
- window.CryptolexuzChart={
-  chart:charts.price,
-  candle:series.price,
-  candleSeries:series.price,
-  getRows:()=>rows,
-  getCandles:()=>rows,
-  getSelection:selection
- };
-
- window.dispatchEvent(new CustomEvent(
-  "cryptolexuz:chart-ready",{
-   detail:{
-    chart:charts.price,
-    candle:series.price,
-    candleSeries:series.price,
-    rows,
-    candles:rows,
-    getRows:()=>rows,
-    getSelection:selection
-   }
-  }
- ));
-}
-
-function attachVolumeProfile(){
- if(!charts.price||!series.price)return;
-
- const vp=volumeProfile();
-
- if(!vp){
-  announceChartReady();
-  return;
- }
-
- if(volumeProfileAttached&&volumeProfileModule===vp)
-  return;
-
- try{
-  if(typeof vp.attach==="function"){
-   vp.attach(charts.price,series.price,{
-    getRows:()=>rows,
-    getCandles:()=>rows,
-    getSelection:selection
-   });
-
-   volumeProfileAttached=true;
-   volumeProfileModule=vp;
-  }
- }catch(e){
-  console.warn("Volume Profile attach:",e);
- }
-
- announceChartReady();
-}
-
-function updateVolumeProfile(){
- if(!charts.price||!series.price)return;
-
- const vp=volumeProfile();
-
- if(vp&&!volumeProfileAttached)
-  attachVolumeProfile();
-
- try{
-  if(typeof vp?.setData==="function"){
-   vp.setData(rows);
-  }else if(typeof vp?.updateData==="function"){
-   vp.updateData(rows);
-  }
- }catch(e){
-  console.warn("Volume Profile datos:",e);
- }
-
- window.dispatchEvent(new CustomEvent(
-  "cryptolexuz:candles-updated",{
-   detail:{
-    chart:charts.price,
-    candle:series.price,
-    candleSeries:series.price,
-    rows,
-    candles:rows,
-    selection:selection()
-   }
-  }
- ));
-
- try{vp?.redraw?.();}catch(e){}
-}
-
-try{
- const saved=JSON.parse(
-  localStorage.getItem(STORE)||"[]"
- );
- if(Array.isArray(saved))
-  history=saved.slice(0,300);
-}catch(e){
- console.warn("Historial:",e);
-}
-
-function put(id,text){
+function put(id,value){
  const el=$(id);
- if(el)el.textContent=String(text);
+ if(el)el.textContent=String(value);
 }
 
-function fmt(x,d=2){
- if(x===null||x===undefined||x==="")
-  return "—";
+function fmt(value,d=2){
+ if(
+  value===null||
+  value===undefined||
+  value===""
+ )return "—";
 
- const n=Number(x);
+ const n=Number(value);
 
  return Number.isFinite(n)
   ?n.toLocaleString("en-US",{
@@ -204,8 +157,12 @@ function now(){
 }
 
 function selection(){
- const symbol=$("symbol")?.value||"BTC-USDT";
- const commodity=[GOLD,OIL].includes(symbol);
+ const symbol=$("symbol")?.value||
+  "BTC-USDT";
+
+ const commodity=[
+  GOLD,OIL
+ ].includes(symbol);
 
  return {
   symbol,
@@ -221,7 +178,10 @@ function selection(){
 
 function key(s){
  return [
-  s.exchange,s.market,s.symbol,s.tf
+  s.exchange,
+  s.market,
+  s.symbol,
+  s.tf
  ].join("|");
 }
 
@@ -240,20 +200,24 @@ function syncCommodity(){
 function connection(text,color=C.yellow){
  const el=$("connection");
 
- if(el){
-  el.textContent="● "+text;
-  el.style.color=color;
- }
+ if(!el)return;
+
+ el.textContent="● "+text;
+ el.style.color=color;
 }
 
-function timestamp(v){
- const n=typeof v==="string"&&!/^\d+$/.test(v)
-  ?Date.parse(v)
-  :Number(v);
+function timestamp(value){
+ const n=
+  typeof value==="string"&&
+  !/^\d+$/.test(value)
+   ?Date.parse(value)
+   :Number(value);
 
- return Number.isFinite(n)
-  ?Math.floor(n>1e12?n/1000:n)
-  :NaN;
+ if(!Number.isFinite(n))return NaN;
+
+ return Math.floor(
+  n>1e12?n/1000:n
+ );
 }
 
 function normalize(raw){
@@ -278,20 +242,35 @@ function normalize(raw){
   const c={
    time:timestamp(
     a?x[0]:
-    x.time??x.timestamp??x.openTime??x.t
+    x.time??
+    x.timestamp??
+    x.openTime??
+    x.t
    ),
-   open:Number(a?x[1]:x.open??x.o),
-   high:Number(a?x[2]:x.high??x.h),
-   low:Number(a?x[3]:x.low??x.l),
-   close:Number(a?x[4]:x.close??x.c),
+   open:Number(
+    a?x[1]:x.open??x.o
+   ),
+   high:Number(
+    a?x[2]:x.high??x.h
+   ),
+   low:Number(
+    a?x[3]:x.low??x.l
+   ),
+   close:Number(
+    a?x[4]:x.close??x.c
+   ),
    volume:Number(
     a?x[5]:
-    x.volume??x.vol??x.v??0
+    x.volume??
+    x.vol??
+    x.v??
+    0
    )
   };
 
-  if(!Object.values(c).every(Number.isFinite))
-   continue;
+  if(!Object.values(c).every(
+   Number.isFinite
+  ))continue;
 
   if(
    c.time<=0||
@@ -321,13 +300,16 @@ function normalize(raw){
 }
 
 function closed(a,tf){
- const s=SEC[tf]||60;
+ const seconds=SEC[tf]||60;
 
  return a.filter(
-  x=>x.time+s<=now()-2
+  x=>x.time+seconds<=now()-2
  );
 }
 
+/*
+ INDICADORES
+*/
 function sma(a,p){
  const r=Array(a.length).fill(null);
  let sum=0;
@@ -335,8 +317,7 @@ function sma(a,p){
  for(let i=0;i<a.length;i++){
   sum+=a[i];
 
-  if(i>=p)
-   sum-=a[i-p];
+  if(i>=p)sum-=a[i-p];
 
   if(i>=p-1)
    r[i]=sum/p;
@@ -439,8 +420,11 @@ function adx(a,p=14){
    sm=sm-sm/p+down[i];
   }
 
-  plus[i]=atrValue?100*sp/atrValue:0;
-  minus[i]=atrValue?100*sm/atrValue:0;
+  plus[i]=atrValue
+   ?100*sp/atrValue:0;
+
+  minus[i]=atrValue
+   ?100*sm/atrValue:0;
 
   dx[i]=plus[i]+minus[i]
    ?100*Math.abs(
@@ -506,44 +490,266 @@ function volumeBar(c){
  };
 }
 
+/*
+ CONFIGURACIÓN DE GRÁFICAS V18
+*/
 function options(height){
  return {
   width:300,
   height,
+
   layout:{
-   background:{color:"#080e20"},
+   background:{
+    type:"solid",
+    color:"#080e20"
+   },
    textColor:"#c9d3ee",
    fontSize:11
   },
+
   grid:{
    vertLines:{color:"#15213a"},
    horzLines:{color:"#15213a"}
   },
+
   rightPriceScale:{
    borderColor:"#34456c",
    minimumWidth:65
   },
+
   timeScale:{
    borderColor:"#34456c",
-   timeVisible:true
+   timeVisible:true,
+   secondsVisible:false,
+   rightOffset:5,
+   barSpacing:9,
+   minBarSpacing:2,
+   fixLeftEdge:false,
+   fixRightEdge:false,
+   lockVisibleTimeRangeOnResize:true
   },
+
   crosshair:{
    mode:LightweightCharts.CrosshairMode.Normal
   },
+
+  /*
+   DESPLAZAMIENTO
+  */
   handleScroll:{
    mouseWheel:true,
    pressedMouseMove:true,
    horzTouchDrag:true,
    vertTouchDrag:false
   },
+
+  /*
+   ZOOM
+  */
   handleScale:{
    mouseWheel:true,
    pinch:true,
-   axisPressedMouseMove:true
+   axisPressedMouseMove:{
+    time:true,
+    price:true
+   },
+   axisDoubleClickReset:true
+  },
+
+  kineticScroll:{
+   touch:true,
+   mouse:true
   }
  };
 }
 
+/*
+ GESTOS TÁCTILES
+*/
+function enableTouch(){
+ const el=$("chart");
+
+ if(!el)return;
+
+ el.style.touchAction="none";
+ el.style.userSelect="none";
+ el.style.webkitUserSelect="none";
+ el.style.webkitTouchCallout="none";
+
+ /*
+  Las capas visuales no deben bloquear
+  el contacto con las velas.
+ */
+ for(const id of [
+  "zonesCanvas",
+  "fibonacciCanvas",
+  "clVpCanvas"
+ ]){
+  const layer=$(id);
+
+  if(layer)
+   layer.style.pointerEvents="none";
+ }
+
+ const interaction=()=>{
+  userInteracting=true;
+
+  clearTimeout(interactionTimer);
+
+  interactionTimer=setTimeout(()=>{
+   userInteracting=false;
+  },1200);
+ };
+
+ el.addEventListener(
+  "touchstart",
+  interaction,
+  {passive:true}
+ );
+
+ el.addEventListener(
+  "touchmove",
+  interaction,
+  {passive:true}
+ );
+
+ el.addEventListener(
+  "pointerdown",
+  interaction,
+  {passive:true}
+ );
+
+ el.addEventListener(
+  "wheel",
+  interaction,
+  {passive:true}
+ );
+}
+
+/*
+ RANGO VISIBLE
+*/
+function getVisibleRange(){
+ if(!charts.price)return null;
+
+ try{
+  const range=charts.price.timeScale()
+   .getVisibleLogicalRange();
+
+  if(
+   range&&
+   Number.isFinite(range.from)&&
+   Number.isFinite(range.to)
+  ){
+   return {
+    from:range.from,
+    to:range.to
+   };
+  }
+ }catch(e){}
+
+ return null;
+}
+
+function restoreVisibleRange(range){
+ if(
+  !charts.price||
+  !range||
+  restoringRange
+ )return;
+
+ try{
+  restoringRange=true;
+
+  charts.price.timeScale()
+   .setVisibleLogicalRange(range);
+
+  visibleRange={
+   from:range.from,
+   to:range.to
+  };
+ }catch(e){
+  console.warn(
+   "Restaurar vista:",e
+  );
+ }finally{
+  restoringRange=false;
+ }
+}
+
+/*
+ SINCRONIZACIÓN SEGURA
+*/
+function syncCharts(source,range){
+ if(
+  syncing||
+  restoringRange||
+  !range
+ )return;
+
+ if(
+  !Number.isFinite(range.from)||
+  !Number.isFinite(range.to)
+ )return;
+
+ syncing=true;
+
+ try{
+  if(source===charts.price){
+   visibleRange={
+    from:range.from,
+    to:range.to
+   };
+  }
+
+  for(const other of Object.values(charts)){
+   if(other===source)continue;
+
+   /*
+    No sincronizar gráficas ocultas.
+   */
+   const container=other.chartElement?.();
+
+   if(
+    container&&
+    container.getClientRects().length===0
+   )continue;
+
+   try{
+    const current=other.timeScale()
+     .getVisibleLogicalRange();
+
+    if(
+     current&&
+     Math.abs(current.from-range.from)<.01&&
+     Math.abs(current.to-range.to)<.01
+    )continue;
+
+    other.timeScale()
+     .setVisibleLogicalRange(range);
+   }catch(e){}
+  }
+ }finally{
+  syncing=false;
+ }
+
+ requestAnimationFrame(()=>{
+  drawZones();
+
+  try{
+   window.CryptolexuzFibonacci
+    ?.redraw?.();
+  }catch(e){}
+
+  try{
+   volumeProfile()?.redraw?.();
+  }catch(e){}
+ });
+}
+
+/*
+ TAMAÑOS
+*/
 function resize(){
  for(const [k,id] of [
   ["price","chart"],
@@ -554,50 +760,205 @@ function resize(){
   const el=$(id);
 
   if(
-   charts[k]&&
-   el?.clientWidth>0&&
-   el.clientHeight>0
-  ){
+   !charts[k]||
+   !el||
+   el.clientWidth<=0
+  )continue;
+
+  const height=
+   k==="price"?360:
+   k==="volume"?115:145;
+
+  try{
    charts[k].resize(
     el.clientWidth,
-    el.clientHeight
+    height
    );
-  }
+  }catch(e){}
  }
 
  resizeCanvas();
 
- window.CryptolexuzFibonacci?.redraw?.();
+ try{
+  window.CryptolexuzFibonacci
+   ?.redraw?.();
+ }catch(e){}
 
  try{
   volumeProfile()?.redraw?.();
  }catch(e){}
 }
 
+/*
+ COMPATIBILIDAD CON MÓDULOS
+*/
+function announceChartReady(){
+ if(!charts.price||!series.price)
+  return;
+
+ const api=charts.price;
+
+ window.CryptolexuzChart={
+  chart:api,
+  chartApi:api,
+  candle:series.price,
+  candleSeries:series.price,
+
+  applyOptions:options=>
+   api.applyOptions(options),
+
+  timeScale:()=>
+   api.timeScale(),
+
+  getRows:()=>rows,
+  getCandles:()=>rows,
+  getSelection:selection,
+
+  resetView:()=>resetView(),
+  resize:()=>resize()
+ };
+
+ window.clChart=api;
+ window.chartApi=api;
+
+ window.dispatchEvent(
+  new CustomEvent(
+   "cryptolexuz:chart-ready",{
+    detail:{
+     chart:api,
+     candle:series.price,
+     candleSeries:series.price,
+     rows,
+     candles:rows,
+     getRows:()=>rows,
+     getSelection:selection
+    }
+   }
+  )
+ );
+}
+
+function attachVolumeProfile(){
+ if(!charts.price||!series.price)
+  return;
+
+ const vp=volumeProfile();
+
+ if(!vp){
+  announceChartReady();
+  return;
+ }
+
+ if(
+  volumeProfileAttached&&
+  volumeProfileModule===vp
+ )return;
+
+ try{
+  if(typeof vp.attach==="function"){
+   vp.attach(
+    charts.price,
+    series.price,{
+     getRows:()=>rows,
+     getCandles:()=>rows,
+     getSelection:selection
+    }
+   );
+
+   volumeProfileAttached=true;
+   volumeProfileModule=vp;
+  }
+ }catch(e){
+  console.warn(
+   "Volume Profile attach:",e
+  );
+ }
+
+ announceChartReady();
+}
+
+function updateVolumeProfile(){
+ if(!charts.price||!series.price)
+  return;
+
+ const vp=volumeProfile();
+
+ if(vp&&!volumeProfileAttached)
+  attachVolumeProfile();
+
+ try{
+  if(typeof vp?.setData==="function"){
+   vp.setData(rows);
+  }else if(
+   typeof vp?.updateData==="function"
+  ){
+   vp.updateData(rows);
+  }
+ }catch(e){
+  console.warn(
+   "Volume Profile datos:",e
+  );
+ }
+
+ window.dispatchEvent(
+  new CustomEvent(
+   "cryptolexuz:candles-updated",{
+    detail:{
+     chart:charts.price,
+     candle:series.price,
+     candleSeries:series.price,
+     rows,
+     candles:rows,
+     selection:selection()
+    }
+   }
+  )
+ );
+
+ try{
+  vp?.redraw?.();
+ }catch(e){}
+}
+
+/*
+ CREAR GRÁFICAS
+*/
 function createCharts(){
- if(!window.LightweightCharts||!$("chart")){
+ if(
+  !window.LightweightCharts||
+  !$("chart")
+ ){
   put(
    "message",
    "No se pudo cargar Lightweight Charts."
   );
 
-  connection("Error de gráfica",C.red);
+  connection(
+   "Error de gráfica",
+   C.red
+  );
+
   return false;
  }
 
- charts.price=LightweightCharts.createChart(
-  $("chart"),options(360)
- );
+ charts.price=
+  LightweightCharts.createChart(
+   $("chart"),
+   options(360)
+  );
 
- series.price=charts.price.addCandlestickSeries({
-  upColor:C.green,
-  downColor:C.red,
-  wickUpColor:C.green,
-  wickDownColor:C.red,
-  borderVisible:false
- });
+ series.price=
+  charts.price.addCandlestickSeries({
+   upColor:C.green,
+   downColor:C.red,
+   wickUpColor:C.green,
+   wickDownColor:C.red,
+   borderVisible:false
+  });
 
- for(const [k,color] of Object.entries(COLORS)){
+ for(const [k,color] of Object.entries(
+  COLORS
+ )){
   moving[k]=charts.price.addLineSeries({
    color,
    lineWidth:2,
@@ -613,35 +974,44 @@ function createCharts(){
   ["adx","adxChart",145]
  ]){
   if($(id)){
-   charts[k]=LightweightCharts.createChart(
-    $(id),options(h)
-   );
+   charts[k]=
+    LightweightCharts.createChart(
+     $(id),
+     options(h)
+    );
   }
  }
 
  if(charts.volume){
-  series.volume=charts.volume.addHistogramSeries({
-   priceFormat:{type:"volume"},
-   priceScaleId:""
-  });
+  series.volume=
+   charts.volume.addHistogramSeries({
+    priceFormat:{type:"volume"},
+    priceScaleId:""
+   });
 
-  series.volume.priceScale().applyOptions({
-   scaleMargins:{top:.12,bottom:0}
-  });
+  series.volume.priceScale()
+   .applyOptions({
+    scaleMargins:{
+     top:.12,
+     bottom:0
+    }
+   });
  }
 
  if(charts.rsi){
-  series.rsi=charts.rsi.addLineSeries({
-   color:C.purple,
-   lineWidth:2,
-   priceLineVisible:false
-  });
+  series.rsi=
+   charts.rsi.addLineSeries({
+    color:C.purple,
+    lineWidth:2,
+    priceLineVisible:false
+   });
 
   for(const level of [30,50,70]){
    series.rsi.createPriceLine({
     price:level,
     color:"#657399",
-    lineStyle:LightweightCharts.LineStyle.Dashed,
+    lineStyle:
+     LightweightCharts.LineStyle.Dashed,
     axisLabelVisible:true
    });
   }
@@ -653,93 +1023,91 @@ function createCharts(){
    ["plus",C.green],
    ["minus",C.red]
   ]){
-   series[k]=charts.adx.addLineSeries({
-    color,
-    lineWidth:2,
-    priceLineVisible:false
-   });
+   series[k]=
+    charts.adx.addLineSeries({
+     color,
+     lineWidth:2,
+     priceLineVisible:false
+    });
   }
  }
 
- let syncing=false;
-
+ /*
+  Sincronizar desde la gráfica principal.
+  Las secundarias siguen siendo navegables.
+ */
  for(const chart of Object.values(charts)){
   chart.timeScale()
-   .subscribeVisibleLogicalRangeChange(range=>{
-    if(syncing||!range)return;
+   .subscribeVisibleLogicalRangeChange(
+    range=>{
+     if(!range)return;
 
-    syncing=true;
-
-    try{
-     for(const other of Object.values(charts)){
-      if(other!==chart){
-       try{
-        other.timeScale()
-         .setVisibleLogicalRange(range);
-       }catch(e){}
-      }
-     }
-    }finally{
-     syncing=false;
+     syncCharts(chart,range);
     }
-
-    drawZones();
-
-    window.CryptolexuzFibonacci?.redraw?.();
-
-    try{
-     volumeProfile()?.redraw?.();
-    }catch(e){}
-   });
+   );
  }
 
+ enableTouch();
+
  if(window.ResizeObserver){
-  resizeObserver=new ResizeObserver(resize);
+  resizeObserver=
+   new ResizeObserver(()=>{
+    requestAnimationFrame(resize);
+   });
 
   for(const id of [
-   "chart","volumeChart",
-   "rsiChart","adxChart"
+   "chart",
+   "volumeChart",
+   "rsiChart",
+   "adxChart"
   ]){
    if($(id))
     resizeObserver.observe($(id));
   }
  }
 
- window.addEventListener("resize",resize);
-
- setTimeout(resize,100);
+ window.addEventListener(
+  "resize",
+  resize
+ );
 
  try{
-  window.CryptolexuzFibonacci?.attach?.(
-   charts.price,
-   series.price,{
-    getRows:()=>rows,
-    getSelection:selection
-   }
-  );
+  window.CryptolexuzFibonacci
+   ?.attach?.(
+    charts.price,
+    series.price,{
+     getRows:()=>rows,
+     getSelection:selection
+    }
+   );
  }catch(e){
   console.warn("Fibonacci:",e);
  }
 
- /*
-  V17: conectar Volume Profile.
-  El módulo recibe el chart y la serie.
- */
  attachVolumeProfile();
+
+ setTimeout(resize,100);
 
  return true;
 }
 
 function resetView(){
- if(!charts.price||!rows.length)return;
+ if(
+  !charts.price||
+  !rows.length
+ )return;
 
- charts.price.timeScale()
-  .setVisibleLogicalRange({
-   from:Math.max(0,rows.length-50),
-   to:rows.length+3
-  });
+ const range={
+  from:Math.max(0,rows.length-50),
+  to:rows.length+3
+ };
+
+ restoreVisibleRange(range);
 }
 
+/*
+ PATRONES Y ZONAS
+*/
 function detectPivots(a){
  const result=[];
 
@@ -774,8 +1142,11 @@ function detectFVG(a){
  const result=[];
 
  for(let i=2;i<a.length;i++){
-  const bull=a[i].low>a[i-2].high;
-  const bear=a[i].high<a[i-2].low;
+  const bull=
+   a[i].low>a[i-2].high;
+
+  const bear=
+   a[i].high<a[i-2].low;
 
   if(!bull&&!bear)continue;
 
@@ -788,7 +1159,8 @@ function detectFVG(a){
    :a[i].high;
 
   if(
-   (top-bottom)/((top+bottom)/2)<.00035
+   (top-bottom)/((top+bottom)/2)
+   <.00035
   )continue;
 
   let end=a.length-1;
@@ -839,7 +1211,10 @@ function detectSweeps(a){
    ...prev.map(x=>x.low)
   );
 
-  if(a[i].high>high&&a[i].close<high){
+  if(
+   a[i].high>high&&
+   a[i].close<high
+  ){
    result.push({
     time:a[i].time,
     position:"aboveBar",
@@ -849,7 +1224,10 @@ function detectSweeps(a){
    });
   }
 
-  if(a[i].low<low&&a[i].close>low){
+  if(
+   a[i].low<low&&
+   a[i].close>low
+  ){
    result.push({
     time:a[i].time,
     position:"belowBar",
@@ -864,16 +1242,19 @@ function detectSweeps(a){
 }
 
 function updateLevels(){
- for(const l of lines){
+ for(const line of lines){
   try{
-   series.price.removePriceLine(l);
+   series.price.removePriceLine(
+    line
+   );
   }catch(e){}
  }
 
  lines.length=0;
 
  function add(price,color,title){
-  if(!Number.isFinite(price))return;
+  if(!Number.isFinite(price))
+   return;
 
   lines.push(
    series.price.createPriceLine({
@@ -881,7 +1262,8 @@ function updateLevels(){
     color,
     title,
     lineWidth:1,
-    lineStyle:LightweightCharts.LineStyle.Dashed,
+    lineStyle:
+     LightweightCharts.LineStyle.Dashed,
     axisLabelVisible:true
    })
   );
@@ -922,6 +1304,9 @@ function updateLevels(){
  }
 }
 
+/*
+ CANVAS DE ZONAS
+*/
 function resizeCanvas(){
  const canvas=$("zonesCanvas");
  const area=$("priceChartArea");
@@ -929,7 +1314,8 @@ function resizeCanvas(){
  if(!canvas||!area)return;
 
  const dpr=Math.min(
-  window.devicePixelRatio||1,2
+  window.devicePixelRatio||1,
+  2
  );
 
  canvas.width=Math.round(
@@ -940,8 +1326,12 @@ function resizeCanvas(){
   area.clientHeight*dpr
  );
 
+ canvas.style.pointerEvents="none";
+
  canvas.getContext("2d")
-  ?.setTransform(dpr,0,0,dpr,0,0);
+  ?.setTransform(
+   dpr,0,0,dpr,0,0
+  );
 
  drawZones();
 }
@@ -950,7 +1340,11 @@ function drawZones(){
  const canvas=$("zonesCanvas");
  const area=$("priceChartArea");
 
- if(!canvas||!area||!charts.price)return;
+ if(
+  !canvas||
+  !area||
+  !charts.price
+ )return;
 
  const ctx=canvas.getContext("2d");
 
@@ -975,8 +1369,13 @@ function drawZones(){
    (z.inverted&&enabled.has("ifvg"))
   ))continue;
 
-  const x1=scale.logicalToCoordinate(z.start);
-  const x2=scale.logicalToCoordinate(z.end);
+  const x1=scale.logicalToCoordinate(
+   z.start
+  );
+
+  const x2=scale.logicalToCoordinate(
+   z.end
+  );
 
   const y1=series.price
    .priceToCoordinate(z.top);
@@ -984,13 +1383,16 @@ function drawZones(){
   const y2=series.price
    .priceToCoordinate(z.bottom);
 
-  if(![x1,x2,y1,y2].every(Number.isFinite))
+  if(![
+   x1,x2,y1,y2
+  ].every(Number.isFinite))
    continue;
 
   const left=Math.max(0,x1);
 
   const right=Math.min(
-   area.clientWidth-70,x2
+   area.clientWidth-70,
+   x2
   );
 
   const top=Math.max(
@@ -1002,8 +1404,10 @@ function drawZones(){
    Math.max(y1,y2)
   );
 
-  if(right<=left||bottom<=top)
-   continue;
+  if(
+   right<=left||
+   bottom<=top
+  )continue;
 
   ctx.fillStyle=z.inverted
    ?"rgba(255,225,90,.12)"
@@ -1012,29 +1416,39 @@ function drawZones(){
     :"rgba(255,71,108,.09)";
 
   ctx.fillRect(
-   left,top,
+   left,
+   top,
    right-left,
    bottom-top
   );
 
   ctx.strokeStyle=z.inverted
-   ?" #ffe15a".trim()
+   ?"#ffe15a"
    :z.bull
     ?"rgba(0,245,160,.4)"
     :"rgba(255,71,108,.4)";
 
   ctx.strokeRect(
-   left,top,
+   left,
+   top,
    right-left,
    bottom-top
   );
  }
 }
 
+/*
+ ACTUALIZAR INDICADORES
+*/
 function updateIndicators(){
- if(!rows.length||!series.price)return;
+ if(
+  !rows.length||
+  !series.price
+ )return;
 
- const closes=rows.map(x=>x.close);
+ const closes=rows.map(
+  x=>x.close
+ );
 
  const ma={
   ema21:ema(closes,21),
@@ -1073,7 +1487,8 @@ function updateIndicators(){
  }
 
  const valid=closed(
-  rows,selection().tf
+  rows,
+  selection().tf
  );
 
  const t=valid.at(-1)?.time;
@@ -1083,13 +1498,35 @@ function updateIndicators(){
  );
 
  if(i>=0){
-  put("ema21Value",fmt(ma.ema21[i]));
-  put("ma55Value",fmt(ma.ma55[i]));
-  put("rsiValue",fmt(rv[i],1));
-  put("adxValue",fmt(av.adx[i],1));
+  put(
+   "ema21Value",
+   fmt(ma.ema21[i])
+  );
 
-  put("rsiChartValue",fmt(rv[i],1));
-  put("adxChartValue",fmt(av.adx[i],1));
+  put(
+   "ma55Value",
+   fmt(ma.ma55[i])
+  );
+
+  put(
+   "rsiValue",
+   fmt(rv[i],1)
+  );
+
+  put(
+   "adxValue",
+   fmt(av.adx[i],1)
+  );
+
+  put(
+   "rsiChartValue",
+   fmt(rv[i],1)
+  );
+
+  put(
+   "adxChartValue",
+   fmt(av.adx[i],1)
+  );
 
   const r=rv[i];
 
@@ -1103,7 +1540,10 @@ function updateIndicators(){
       ?"RSI con predominio comprador."
       :"RSI con predominio vendedor.";
 
-  put("rsiInterpretation",lastRSI);
+  put(
+   "rsiInterpretation",
+   lastRSI
+  );
 
   const ax=av.adx[i];
 
@@ -1138,7 +1578,10 @@ function updateIndicators(){
  const last=valid.at(-1);
  const previous=valid.slice(-21,-1);
 
- if(last&&previous.length===20){
+ if(
+  last&&
+  previous.length===20
+ ){
   const avg=previous.reduce(
    (s,x)=>s+x.volume,0
   )/20;
@@ -1173,121 +1616,17 @@ function updateIndicators(){
   $("adxSection").hidden=
    !enabled.has("adx");
 
- requestAnimationFrame(resize);
+ requestAnimationFrame(()=>{
+  resizeCanvas();
+ });
 }
 
-function metric(data,tf){
- const a=closed(data,tf);
-
- if(a.length<60)return null;
-
- const closes=a.map(x=>x.close);
- const last=a.at(-1);
-
- const e=ema(closes,21).at(-1);
- const m=sma(closes,55).at(-1);
- const rv=rsi(closes).at(-1);
-
- const ad=adx(a);
-
- const ax=ad.adx.at(-1);
- const plus=ad.plus.at(-1);
- const minus=ad.minus.at(-1);
-
- if(![
-  e,m,rv,ax,plus,minus
- ].every(Number.isFinite))
-  return null;
-
- let bull=0,bear=0;
-
- if(last.close>e)bull++;
- if(last.close<e)bear++;
-
- if(e>m)bull++;
- if(e<m)bear++;
-
- if(rv>=55)bull++;
- if(rv<=45)bear++;
-
- if(plus>minus)bull++;
- if(minus>plus)bear++;
-
- const prev=a.slice(-7,-1);
-
- const avg=a.slice(-21,-1)
-  .reduce((s,x)=>s+x.volume,0)/20;
-
- return {
-  bull,
-  bear,
-  adx:ax,
-  plus,
-  minus,
-  rsi:rv,
-  volRatio:avg?last.volume/avg:0,
-  close:last.close,
-  closedTime:last.time,
-  atr:atr(a),
-  breakHigh:last.close>
-   Math.max(...prev.map(x=>x.high)),
-  breakLow:last.close<
-   Math.min(...prev.map(x=>x.low))
- };
-}
-
-function analyze(data,tf){
- const m=metric(data,tf);
-
- if(!m){
-  return {
-   state:"SIN DATOS",
-   direction:"neutral",
-   detail:"Historial insuficiente.",
-   metrics:"—",
-   price:null
-  };
- }
-
- const bullish=
-  m.bull>=3&&m.bull>m.bear;
-
- const bearish=
-  m.bear>=3&&m.bear>m.bull;
-
- const state=bullish
-  ?"SESGO ALCISTA"
-  :bearish
-   ?"SESGO BAJISTA"
-   :"LATERAL / MIXTO";
-
- const direction=bullish
-  ?"bullish"
-  :bearish
-   ?"bearish"
-   :"neutral";
-
- const opportunity=
-  m.bull===4&&m.adx>=25&&m.rsi<70
-   ?"Posible LONG"
-   :m.bear===4&&m.adx>=25&&m.rsi>30
-    ?"Posible SHORT"
-    :"Sin entrada confirmada";
-
- return {
-  state,
-  direction,
-  detail:opportunity+
-   ". Requiere confirmación.",
-  metrics:
-   "RSI "+fmt(m.rsi,1)+
-   " · ADX "+fmt(m.adx,1),
-  price:m.close
- };
-}
-
+/*
+ DATOS DEL SERVIDOR
+*/
 async function getJSON(url,timeout=12000){
- const controller=new AbortController();
+ const controller=
+  new AbortController();
 
  const timer=setTimeout(
   ()=>controller.abort(),
@@ -1316,8 +1655,10 @@ function candleURL(s,limit=300){
   encodeURIComponent(s.exchange)+
   "/klines/"+
   encodeURIComponent(s.symbol)+
-  "?market="+encodeURIComponent(s.market)+
-  "&interval="+encodeURIComponent(s.tf)+
+  "?market="+
+  encodeURIComponent(s.market)+
+  "&interval="+
+  encodeURIComponent(s.tf)+
   "&limit="+limit;
 }
 
@@ -1326,59 +1667,123 @@ function tickerURL(s){
   encodeURIComponent(s.exchange)+
   "/ticker/"+
   encodeURIComponent(s.symbol)+
-  "?market="+encodeURIComponent(s.market);
+  "?market="+
+  encodeURIComponent(s.market);
 }
 
 /*
- V17:
- Actualización central de velas.
- El Volume Profile recibe el mismo
- conjunto OHLCV utilizado por la gráfica.
+ ACTUALIZACIÓN SIN PERDER LA VISTA
 */
 function applyCandles(data,s){
- const changed=activeKey!==key(s);
+ const changed=
+  activeKey!==key(s);
 
- let range=null;
+ const previousRows=rows;
 
- if(!changed){
-  try{
-   range=charts.price.timeScale()
-    .getVisibleLogicalRange();
-  }catch(e){}
- }
+ const previousRange=
+  !changed
+   ?getVisibleRange()||visibleRange
+   :null;
+
+ const previousLastTime=
+  previousRows.at(-1)?.time;
+
+ const nextLastTime=
+  data.at(-1)?.time;
+
+ const sameTimeline=
+  previousRows.length===data.length&&
+  previousRows[0]?.time===data[0]?.time&&
+  previousLastTime===nextLastTime;
 
  rows=data;
  activeKey=key(s);
 
  /*
-  La serie recibe también volume.
-  Lightweight Charts ignora propiedades
-  adicionales que no utiliza.
+  Si solamente cambió la última vela,
+  actualizarla sin reconstruir toda
+  la gráfica.
  */
- series.price.setData(rows);
+ if(
+  !changed&&
+  sameTimeline&&
+  previousRows.length
+ ){
+  const previous=
+   previousRows.at(-1);
 
- series.volume?.setData(
-  rows.map(volumeBar)
- );
+  const current=
+   data.at(-1);
 
- /*
-  Actualizar indicadores y módulos.
- */
+  const sameLast=
+   previous.open===current.open&&
+   previous.high===current.high&&
+   previous.low===current.low&&
+   previous.close===current.close&&
+   previous.volume===current.volume;
+
+  if(sameLast){
+   put(
+    "status",
+    "Velas actualizadas"
+   );
+   return;
+  }
+
+  series.price.update(current);
+
+  series.volume?.update(
+   volumeBar(current)
+  );
+
+ }else{
+  series.price.setData(rows);
+
+  series.volume?.setData(
+   rows.map(volumeBar)
+  );
+ }
+
  updateIndicators();
-
- /*
-  Entregar velas completas al perfil.
- */
  updateVolumeProfile();
 
  if(changed){
+  visibleRange=null;
   resetView();
- }else if(range){
-  try{
-   charts.price.timeScale()
-    .setVisibleLogicalRange(range);
-  }catch(e){}
+ }else if(previousRange){
+  /*
+   Conservar el rango elegido.
+   Si entró una vela nueva y el usuario
+   estaba siguiendo el precio actual,
+   desplazar la vista una vela.
+  */
+  const oldLength=previousRows.length;
+  const newLength=rows.length;
+
+  const delta=
+   newLength-oldLength;
+
+  const nearRightEdge=
+   previousRange.to>=oldLength-2;
+
+  const range={
+   from:previousRange.from,
+   to:previousRange.to
+  };
+
+  if(
+   delta>0&&
+   nearRightEdge&&
+   !userInteracting
+  ){
+   range.from+=delta;
+   range.to+=delta;
+  }
+
+  restoreVisibleRange(range);
  }
+
+ lastAppliedTime=Date.now();
 
  put(
   "chartTitle",
@@ -1396,16 +1801,24 @@ function applyCandles(data,s){
 
  drawZones();
 
- window.CryptolexuzFibonacci
-  ?.redraw?.();
+ try{
+  window.CryptolexuzFibonacci
+   ?.redraw?.();
+ }catch(e){}
 
  try{
   volumeProfile()?.redraw?.();
  }catch(e){}
 }
 
+/*
+ REFRESCAR VELAS
+*/
 async function refresh(){
- if(chartBusy||!series.price)return;
+ if(
+  chartBusy||
+  !series.price
+ )return;
 
  chartBusy=true;
 
@@ -1419,7 +1832,9 @@ async function refresh(){
 
  try{
   const data=normalize(
-   await getJSON(candleURL(s))
+   await getJSON(
+    candleURL(s)
+   )
   );
 
   if(
@@ -1428,7 +1843,9 @@ async function refresh(){
   )return;
 
   if(!data.length)
-   throw Error("Sin velas válidas");
+   throw Error(
+    "Sin velas válidas"
+   );
 
   applyCandles(data,s);
 
@@ -1458,13 +1875,21 @@ async function refresh(){
  }
 }
 
+/*
+ TICKER
+*/
 async function refreshTicker(){
+ if(tickerBusy)return;
+
+ tickerBusy=true;
+
  const s=selection();
  const id=generation;
 
  try{
   const raw=await getJSON(
-   tickerURL(s),8000
+   tickerURL(s),
+   8000
   );
 
   if(
@@ -1519,17 +1944,16 @@ async function refreshTicker(){
 
   if(
    Number.isFinite(price)&&
-   price>0
+   price>0&&
+   Date.now()-lastWS>7000
   ){
-   if(Date.now()-lastWS>7000){
-    put("price",fmt(price));
+   put("price",fmt(price));
 
-    connection(
-     s.exchange.toUpperCase()+
-     " · REST",
-     C.yellow
-    );
-   }
+   connection(
+    s.exchange.toUpperCase()+
+    " · REST",
+    C.yellow
+   );
   }
 
   put("high",fmt(high));
@@ -1594,9 +2018,14 @@ async function refreshTicker(){
   console.warn(
    "Ticker:",e.message
   );
+ }finally{
+  tickerBusy=false;
  }
 }
 
+/*
+ WEBSOCKET
+*/
 function disconnect(){
  socketId++;
 
@@ -1715,7 +2144,6 @@ function connect(){
   if(id!==socketId)return;
 
   socket=null;
-
   scheduleReconnect(id);
  };
 }
@@ -1733,6 +2161,131 @@ function scheduleReconnect(id){
  },4000);
 }
 
+/*
+ MÉTRICAS DE TRADING
+*/
+function metric(data,tf){
+ const a=closed(data,tf);
+
+ if(a.length<60)return null;
+
+ const closes=a.map(x=>x.close);
+ const last=a.at(-1);
+
+ const e=ema(closes,21).at(-1);
+ const m=sma(closes,55).at(-1);
+ const rv=rsi(closes).at(-1);
+
+ const ad=adx(a);
+
+ const ax=ad.adx.at(-1);
+ const plus=ad.plus.at(-1);
+ const minus=ad.minus.at(-1);
+
+ if(![
+  e,m,rv,ax,plus,minus
+ ].every(Number.isFinite))
+  return null;
+
+ let bull=0;
+ let bear=0;
+
+ if(last.close>e)bull++;
+ if(last.close<e)bear++;
+
+ if(e>m)bull++;
+ if(e<m)bear++;
+
+ if(rv>=55)bull++;
+ if(rv<=45)bear++;
+
+ if(plus>minus)bull++;
+ if(minus>plus)bear++;
+
+ const prev=a.slice(-7,-1);
+
+ const avg=a.slice(-21,-1)
+  .reduce((s,x)=>s+x.volume,0)/20;
+
+ return {
+  bull,
+  bear,
+  adx:ax,
+  plus,
+  minus,
+  rsi:rv,
+  volRatio:avg
+   ?last.volume/avg
+   :0,
+  close:last.close,
+  closedTime:last.time,
+  atr:atr(a),
+  breakHigh:last.close>
+   Math.max(...prev.map(x=>x.high)),
+  breakLow:last.close<
+   Math.min(...prev.map(x=>x.low))
+ };
+}
+
+function analyze(data,tf){
+ const m=metric(data,tf);
+
+ if(!m){
+  return {
+   state:"SIN DATOS",
+   direction:"neutral",
+   detail:"Historial insuficiente.",
+   metrics:"—",
+   price:null
+  };
+ }
+
+ const bullish=
+  m.bull>=3&&
+  m.bull>m.bear;
+
+ const bearish=
+  m.bear>=3&&
+  m.bear>m.bull;
+
+ const state=bullish
+  ?"SESGO ALCISTA"
+  :bearish
+   ?"SESGO BAJISTA"
+   :"LATERAL / MIXTO";
+
+ const direction=bullish
+  ?"bullish"
+  :bearish
+   ?"bearish"
+   :"neutral";
+
+ const opportunity=
+  m.bull===4&&
+  m.adx>=25&&
+  m.rsi<70
+   ?"Posible LONG"
+   :m.bear===4&&
+    m.adx>=25&&
+    m.rsi>30
+    ?"Posible SHORT"
+    :"Sin entrada confirmada";
+
+ return {
+  state,
+  direction,
+  detail:opportunity+
+   ". Requiere confirmación.",
+  metrics:
+   "RSI "+fmt(m.rsi,1)+
+   " · ADX "+fmt(m.adx,1),
+  price:m.close
+ };
+}
+
+/*
+ MONITOR
+*/
 async function monitor(){
  if(
   Date.now()-monitorLast<60000
@@ -1761,7 +2314,8 @@ async function monitor(){
    const suffix=i===0?"5":"15";
 
    const r=analyze(
-    results[i],tf
+    results[i],
+    tf
    );
 
    put(
@@ -1815,6 +2369,9 @@ async function monitor(){
  }
 }
 
+/*
+ ESCÁNER
+*/
 function scannerUI(){
  if($("clScanner"))return;
 
@@ -1824,15 +2381,14 @@ function scannerUI(){
 
  if(!host)return;
 
- const section=document.createElement(
-  "section"
- );
+ const section=
+  document.createElement("section");
 
  section.id="clScanner";
  section.className="cl-module";
 
  section.innerHTML=`
- <h2>📡 Escáner CRYPTOLEXUZ V17</h2>
+ <h2>📡 Escáner CRYPTOLEXUZ V18</h2>
  <p id="clScanStatus">
   Esperando análisis...
  </p>
@@ -1991,7 +2547,8 @@ function rank(m,f){
 
  for(const tf of TF){
   metrics[tf]=metric(
-   f[tf]||[],tf
+   f[tf]||[],
+   tf
   );
  }
 
@@ -2019,7 +2576,9 @@ function rank(m,f){
   "1m":19
  };
 
- let bull=0,bear=0,available=0;
+ let bull=0;
+ let bear=0;
+ let available=0;
 
  for(const tf of TF){
   const v=metrics[tf];
@@ -2107,6 +2666,20 @@ function rank(m,f){
   price:fast.close,
   atr:fast.atr
  };
+}
+
+/*
+ HISTORIAL
+*/
+try{
+ const saved=JSON.parse(
+  localStorage.getItem(STORE)||"[]"
+ );
+
+ if(Array.isArray(saved))
+  history=saved.slice(0,300);
+}catch(e){
+ console.warn("Historial:",e);
 }
 
 function saveHistory(){
@@ -2233,70 +2806,74 @@ function evaluateSignal(s,data){
 }
 
 async function verifySignals(){
- const pending=history.filter(
-  s=>[
-   "PENDIENTE",
-   "ACTIVADA"
-  ].includes(s.state)
- );
+ if(verifyBusy)return;
 
- const groups=new Map();
+ verifyBusy=true;
 
- for(const s of pending){
-  const k=key(s);
+ try{
+  const pending=history.filter(
+   s=>[
+    "PENDIENTE",
+    "ACTIVADA"
+   ].includes(s.state)
+  );
 
-  if(!groups.has(k))
-   groups.set(k,[]);
+  const groups=new Map();
 
-  groups.get(k).push(s);
- }
+  for(const s of pending){
+   const k=key(s);
 
- let dirty=false;
+   if(!groups.has(k))
+    groups.set(k,[]);
 
- for(const group of groups.values()){
-  const s=group[0];
-
-  try{
-   const data=normalize(
-    await getJSON(
-     candleURL(s,300)
-    )
-   );
-
-   const valid=closed(
-    data,s.tf
-   );
-
-   if(!valid.length)
-    continue;
-
-   for(const item of group){
-    if(
-     item.lastChecked<
-     valid[0].time-SEC[item.tf]
-    ){
-     item.state="NO VERIFICABLE";
-     item.ended=now();
-     dirty=true;
-     continue;
-    }
-
-    if(
-     evaluateSignal(item,data)
-    ){
-     dirty=true;
-    }
-   }
-  }catch(e){
-   console.warn(
-    "Verificación:",e.message
-   );
+   groups.get(k).push(s);
   }
- }
 
- if(dirty){
-  saveHistory();
-  renderHistory();
+  let dirty=false;
+
+  for(const group of groups.values()){
+   const s=group[0];
+
+   try{
+    const data=normalize(
+     await getJSON(
+      candleURL(s,300)
+     )
+    );
+
+    const valid=closed(
+     data,s.tf
+    );
+
+    if(!valid.length)continue;
+
+    for(const item of group){
+     if(
+      item.lastChecked<
+      valid[0].time-SEC[item.tf]
+     ){
+      item.state="NO VERIFICABLE";
+      item.ended=now();
+      dirty=true;
+      continue;
+     }
+
+     if(evaluateSignal(item,data))
+      dirty=true;
+    }
+   }catch(e){
+    console.warn(
+     "Verificación:",e.message
+    );
+   }
+  }
+
+  if(dirty){
+   saveHistory();
+   renderHistory();
+  }
+ }finally{
+  verifyBusy=false;
  }
 }
 
@@ -2328,7 +2905,8 @@ function renderHistory(){
   "clWinRate",
   wins+losses
    ?fmt(
-    wins/(wins+losses)*100,1
+    wins/(wins+losses)*100,
+    1
    )+"%"
    :"—"
  );
@@ -2349,13 +2927,11 @@ function renderHistory(){
   );
 
   td.colSpan=7;
-
   td.textContent=
    "Todavía no hay señales registradas.";
 
   tr.appendChild(td);
   body.appendChild(tr);
-
   return;
  }
 
@@ -2378,12 +2954,12 @@ function renderHistory(){
    s.state
   ];
 
-  for(const v of cells){
+  for(const value of cells){
    const td=document.createElement(
     "td"
    );
 
-   td.textContent=v;
+   td.textContent=value;
    tr.appendChild(td);
   }
 
@@ -2391,6 +2967,9 @@ function renderHistory(){
  }
 }
 
+/*
+ NOTIFICACIONES
+*/
 function notify(r){
  if(
   r.state!=="CONFIRMADA"||
@@ -2424,6 +3003,9 @@ function notify(r){
  }
 }
 
+/*
+ ESCANEAR
+*/
 async function scan(force=false){
  if(
   scanBusy||
@@ -2569,9 +3151,7 @@ async function scan(force=false){
 }
 
 /*
- V17:
- Al cambiar de activo se eliminan
- los datos anteriores del Volume Profile.
+ CAMBIAR MERCADO
 */
 function clearMarket(){
  generation++;
@@ -2586,6 +3166,7 @@ function clearMarket(){
  pivots=[];
  sweeps=[];
 
+ visibleRange=null;
  lastWS=0;
 
  series.price?.setData([]);
@@ -2596,14 +3177,18 @@ function clearMarket(){
  }
 
  for(const k of [
-  "rsi","adx","plus","minus"
+  "rsi",
+  "adx",
+  "plus",
+  "minus"
  ]){
   series[k]?.setData([]);
  }
 
- for(const l of lines){
+ for(const line of lines){
   try{
-   series.price?.removePriceLine(l);
+   series.price
+    ?.removePriceLine(line);
   }catch(e){}
  }
 
@@ -2611,9 +3196,6 @@ function clearMarket(){
 
  series.price?.setMarkers([]);
 
- /*
-  Vaciar el perfil anterior.
- */
  updateVolumeProfile();
 
  put("price","—");
@@ -2626,32 +3208,38 @@ function clearMarket(){
  resizeCanvas();
 }
 
+/*
+ BOTONES
+*/
 function updateButtons(){
  document.querySelectorAll(
   "[data-indicator]"
- ).forEach(b=>{
-  const k=b.dataset.indicator;
+ ).forEach(button=>{
+  const k=button.dataset.indicator;
 
-  b.classList.toggle(
+  button.classList.toggle(
    "active",
    enabled.has(k)
   );
 
-  b.setAttribute(
+  button.setAttribute(
    "aria-pressed",
    String(enabled.has(k))
   );
  });
 }
 
+/*
+ EVENTOS
+*/
 function events(){
  document.querySelectorAll(
   "[data-indicator]"
- ).forEach(b=>{
-  b.addEventListener(
+ ).forEach(button=>{
+  button.addEventListener(
    "click",
    ()=>{
-    const k=b.dataset.indicator;
+    const k=button.dataset.indicator;
 
     if(enabled.has(k)){
      enabled.delete(k);
@@ -2689,9 +3277,10 @@ function events(){
 
    speechSynthesis.cancel();
 
-   const u=new SpeechSynthesisUtterance(
-    lastRSI
-   );
+   const u=
+    new SpeechSynthesisUtterance(
+     lastRSI
+    );
 
    u.lang="es-MX";
 
@@ -2741,29 +3330,35 @@ function events(){
 
  window.addEventListener(
   "cryptolexuz:screen-change",
-  e=>{
+  event=>{
    if(
-    e.detail?.screen==="charts"
+    event.detail?.screen==="charts"
    ){
-    setTimeout(resize,100);
+    setTimeout(()=>{
+     resize();
+
+     const range=
+      visibleRange||
+      getVisibleRange();
+
+     if(range)
+      restoreVisibleRange(range);
+    },120);
    }
 
    if(
-    e.detail?.screen==="results"
+    event.detail?.screen==="results"
    ){
     renderHistory();
    }
   }
  );
 
- /*
-  Permite que un módulo cargado
-  posteriormente solicite la gráfica.
- */
  window.addEventListener(
   "cryptolexuz:volume-profile-ready",
   ()=>{
    volumeProfileAttached=false;
+
    attachVolumeProfile();
    updateVolumeProfile();
   }
@@ -2772,6 +3367,9 @@ function events(){
  updateButtons();
 }
 
+/*
+ INICIALIZACIÓN
+*/
 function init(){
  syncCommodity();
 
@@ -2819,6 +3417,8 @@ function init(){
    clearInterval(scanTimer);
    clearInterval(verifyTimer);
 
+   clearTimeout(interactionTimer);
+
    resizeObserver?.disconnect();
   }
  );
@@ -2827,7 +3427,8 @@ function init(){
 if(document.readyState==="loading"){
  document.addEventListener(
   "DOMContentLoaded",
-  init
+  init,
+  {once:true}
  );
 }else{
  init();
