@@ -1,8 +1,13 @@
 
 /*
- CRYPTOLEXUZ PRO — STYLES.CSS V20
+ CRYPTOLEXUZ PRO — STYLES.CSS V21
  Diseño móvil estilo BingX
- Compatible con index.html actualizado
+
+ - Gráficas táctiles
+ - Caja morada
+ - Sin caja verde automática
+ - Fibonacci y Volume Profile
+ - Mercados, Gráficas, Escáner y Resultados
 */
 
 :root {
@@ -100,6 +105,8 @@ small {
   color: var(--muted);
 }
 
+/* CABECERA */
+
 .app-header {
   position: sticky;
   top: 0;
@@ -151,6 +158,8 @@ small {
   line-height: 1.4;
 }
 
+/* MENÚ LATERAL */
+
 .sidebar {
   position: fixed;
   z-index: 10020;
@@ -174,8 +183,8 @@ small {
 
 .sidebar-head {
   display: flex;
-  align-items: center;
   justify-content: space-between;
+  align-items: center;
   margin-bottom: 16px;
   font-size: 19px;
 }
@@ -254,11 +263,14 @@ small {
   background: #000a;
 }
 
+/* CONTENEDOR Y PANTALLAS */
+
 .app-container {
   width: 100%;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 12px;
+  padding: 12px 12px
+    calc(var(--nav-height) + 25px + env(safe-area-inset-bottom));
 }
 
 .cl-screen {
@@ -607,34 +619,43 @@ small {
   font-size: 10px;
 }
 
+/* CONTENEDOR DEL CHART */
+
 #priceChartArea {
   position: relative;
+  isolation: isolate;
   width: 100%;
   min-width: 0;
   overflow: hidden;
   background: #090c13;
   border: 1px solid #252b3a;
-  border-radius: 7px;
+  border-radius: 9px;
 }
 
 #chart {
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 360px;
   min-height: 240px;
   overflow: hidden;
-  touch-action: pan-y !important;
-  overscroll-behavior: auto;
+  overscroll-behavior: contain;
 }
 
+#chart,
 #chart canvas {
-  touch-action: pan-y !important;
+  touch-action: none !important;
+  -webkit-user-select: none;
+  user-select: none;
 }
+
+/* CAPAS VISUALES */
 
 #zonesCanvas,
 #fibonacciCanvas,
-#clVpCanvas,
-#clRangeOverlay {
+#clVpCanvas {
   pointer-events: none !important;
+  touch-action: none;
 }
 
 #zonesCanvas,
@@ -650,8 +671,103 @@ small {
 }
 
 #fibonacciCanvas {
-  z-index: 50;
+  z-index: 4;
 }
+
+#clVpCanvas {
+  z-index: 5;
+}
+
+/*
+ Caja morada: canvas visual.
+ No intercepta los gestos de la gráfica.
+*/
+
+#clRangeOverlay {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  touch-action: none;
+}
+
+/*
+ Capa de edición independiente.
+ Solo debe mostrarse al activar
+ el modo de movimiento.
+*/
+
+#priceChartArea .cl-box-touch-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 9;
+  pointer-events: auto;
+  touch-action: none;
+  background: transparent;
+}
+
+#priceChartArea .cl-box-touch-layer[hidden] {
+  display: none !important;
+}
+
+#priceChartArea.cl-box-editing {
+  cursor: grab;
+}
+
+#priceChartArea.cl-box-dragging {
+  cursor: grabbing;
+}
+
+/* CONTROLES DE CAJA MORADA */
+
+#clRangeControls {
+  position: relative;
+  z-index: 8;
+  width: 100%;
+  min-width: 0;
+  overflow: visible;
+  border-color: #493365 !important;
+  background: #151123 !important;
+}
+
+#clRangeControls button,
+#clRangeControls select,
+#clRangeControls input {
+  touch-action: manipulation;
+}
+
+#clRangeControls button:focus-visible,
+#clRangeControls select:focus-visible {
+  outline: 2px solid #bb52ff;
+  outline-offset: 2px;
+}
+
+#clRangeControls input[type="checkbox"] {
+  accent-color: #bb52ff;
+}
+
+.cl-purple-box-button {
+  min-height: 40px;
+  padding: 9px 13px;
+  border: 1px solid #a15ce8;
+  border-radius: 9px;
+  background: #39204f;
+  color: #f1ddff;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.cl-purple-box-button.active,
+.cl-purple-box-button[aria-pressed="true"] {
+  background: #7431b1;
+  border-color: #d8a1ff;
+  color: #fff;
+}
+
+/* INDICADORES */
 
 #volumeChart {
   width: 100%;
@@ -916,7 +1032,7 @@ td {
   color: #e0e0e7;
 }
 
-/* AJUSTES TIPO BINGX */
+/* AJUSTES */
 
 .cl-settings-overlay {
   position: fixed;
@@ -935,7 +1051,8 @@ td {
 .cl-settings-sheet {
   width: min(100%, 620px);
   max-height: 92dvh;
-  padding: 20px 17px calc(23px + env(safe-area-inset-bottom));
+  padding: 20px 17px
+    calc(23px + env(safe-area-inset-bottom));
   overflow-y: auto;
   overscroll-behavior: contain;
   border-radius: 27px 27px 0 0;
@@ -1030,7 +1147,8 @@ td {
 
 .cl-ma-grid {
   display: grid;
-  grid-template-columns: 70px minmax(0, 1fr) 70px 60px;
+  grid-template-columns:
+    70px minmax(0, 1fr) 70px 60px;
   gap: 7px;
   align-items: center;
 }
@@ -1121,10 +1239,12 @@ td {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 3px;
-  padding: 7px 6px calc(8px + env(safe-area-inset-bottom));
+  padding: 7px 6px
+    calc(8px + env(safe-area-inset-bottom));
   border-top: 1px solid #30303a;
   background: #090a0d;
   box-shadow: 0 -8px 25px #0007;
+  touch-action: manipulation;
 }
 
 .cl-nav-button {
@@ -1154,7 +1274,7 @@ td {
   line-height: 1;
 }
 
-/* ELEMENTOS AUXILIARES */
+/* AUXILIARES */
 
 #message,
 #status,
@@ -1175,9 +1295,12 @@ footer.cl-notice {
   text-align: center;
 }
 
+/* PANTALLAS PEQUEÑAS */
+
 @media (max-width: 380px) {
   .app-container {
-    padding: 8px;
+    padding: 8px 8px
+      calc(var(--nav-height) + 25px);
   }
 
   .market-card,
@@ -1206,30 +1329,47 @@ footer.cl-notice {
   }
 
   .cl-ma-grid {
-    grid-template-columns: 65px minmax(0, 1fr) 58px 48px;
+    grid-template-columns:
+      65px minmax(0, 1fr) 58px 48px;
     gap: 4px;
   }
 }
 
+/* TABLET */
+
 @media (min-width: 700px) {
   .app-container {
-    padding: 20px;
+    padding: 20px 20px
+      calc(var(--nav-height) + 30px);
   }
 
   .market-bottom {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns:
+      repeat(4, minmax(0, 1fr));
   }
 
   .cl-stats {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns:
+      repeat(4, minmax(0, 1fr));
   }
 
   .signal-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
   }
 }
 
+/* COMPUTADORA */
+
 @media (min-width: 900px) {
+  #chart {
+    height: 430px;
+  }
+
+  #priceChartArea {
+    border-radius: 12px;
+  }
+
   .cl-bottom-nav {
     left: 50%;
     right: auto;
@@ -1240,6 +1380,8 @@ footer.cl-notice {
     border-radius: 15px 15px 0 0;
   }
 }
+
+/* ACCESIBILIDAD */
 
 @media (prefers-reduced-motion: reduce) {
   html {
