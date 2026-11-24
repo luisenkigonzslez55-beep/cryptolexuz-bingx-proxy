@@ -1,42 +1,41 @@
 
 /*
- CRYPTOLEXUZ PRO — RANGE BOXES V3
- Lightweight Charts 4.2.x
+ CRYPTOLEXUZ PRO — RANGE BOXES V4
+ Compatible con Lightweight Charts 4.2.x
 
- - Cajas automáticas de rangos
- - Caja de lateralización
- - Caja de penúltima vela
+ - Cajas automáticas extendidas a la derecha
+ - Lateralización y penúltima vela
  - Cajas fijas con cuerpo y mechas
- - Extensión táctil hacia ambos lados
- - Precios fijos al extender
+ - Extensión manual mediante controles
+ - Gráfica libre para deslizar y hacer zoom
  - Persistencia por activo y mercado
- - Compatible con app.js V17
+ - Configuración guardada
  - Sin ejecución automática de órdenes
 */
 "use strict";
 
 (() => {
-  if (window.__clRangeBoxesV3) return;
-  window.__clRangeBoxesV3 = true;
+  if (window.__clRangeBoxesV4) return;
+  window.__clRangeBoxesV4 = true;
 
   const $ = id => document.getElementById(id);
 
   const TF = {
-    "1m":60,"3m":180,"5m":300,
-    "15m":900,"30m":1800,
-    "1h":3600,"2h":7200,
-    "4h":14400,"6h":21600,
-    "8h":28800,"12h":43200,
-    "1d":86400,"1w":604800
+    "1m":60, "3m":180, "5m":300,
+    "15m":900, "30m":1800,
+    "1h":3600, "2h":7200,
+    "4h":14400, "6h":21600,
+    "8h":28800, "12h":43200,
+    "1d":86400, "1w":604800
   };
 
-  const GOLD="NCCOGOLD2USD-USDT";
-  const OIL="NCCO1OILWTI2USD-USDT";
+  const GOLD = "NCCOGOLD2USD-USDT";
+  const OIL = "NCCO1OILWTI2USD-USDT";
 
-  const STORE="cryptolexuz-fixed-boxes-v3";
-  const PREFS="cryptolexuz-range-prefs-v3";
+  const STORE = "cryptolexuz-fixed-boxes-v3";
+  const PREFS = "cryptolexuz-range-prefs-v3";
 
-  const config={
+  const config = {
     range:true,
     sideways:false,
     previous:false,
@@ -46,98 +45,113 @@
     higher1d:false,
     higher1w:false,
     fixed:true,
-    lookback:24
+    lookback:24,
+    extendRight:true
   };
 
-  try {
-    const saved=JSON.parse(
-      localStorage.getItem(PREFS)||"null"
-    );
+  function readJSON(key, fallback) {
+    try {
+      const data = JSON.parse(
+        localStorage.getItem(key) || "null"
+      );
+      return data === null ? fallback : data;
+    } catch(e) {
+      return fallback;
+    }
+  }
 
-    if(saved&&typeof saved==="object"){
-      for(const key of Object.keys(config)){
-        if(key==="lookback"){
-          if([12,24,36,48,72].includes(
-            Number(saved[key])
-          )){
-            config[key]=Number(saved[key]);
-          }
-        }else if(typeof saved[key]==="boolean"){
-          config[key]=saved[key];
+  const savedPrefs = readJSON(PREFS, {});
+
+  if (savedPrefs &&
+      typeof savedPrefs === "object") {
+    for (const key of Object.keys(config)) {
+      if (key === "lookback") {
+        const n = Number(savedPrefs[key]);
+        if ([12,24,36,48,72].includes(n)) {
+          config[key] = n;
         }
+      } else if (
+        typeof savedPrefs[key] === "boolean"
+      ) {
+        config[key] = savedPrefs[key];
       }
     }
-  }catch(e){}
-
-  function savePrefs(){
-    try{
-      localStorage.setItem(
-        PREFS,JSON.stringify(config)
-      );
-    }catch(e){}
   }
 
-  let fixedBoxes=[];
-
-  try{
-    const saved=JSON.parse(
-      localStorage.getItem(STORE)||"[]"
-    );
-
-    if(Array.isArray(saved)){
-      fixedBoxes=saved.filter(b=>
-        b &&
-        typeof b.symbol==="string" &&
-        Number.isFinite(b.high) &&
-        Number.isFinite(b.low) &&
-        Number.isFinite(b.start) &&
-        Number.isFinite(b.end)
-      );
-    }
-  }catch(e){}
-
-  function saveBoxes(){
-    try{
+  function savePrefs() {
+    try {
       localStorage.setItem(
-        STORE,JSON.stringify(fixedBoxes)
+        PREFS, JSON.stringify(config)
       );
-    }catch(e){
-      console.warn("Guardar cajas:",e);
+    } catch(e) {}
+  }
+
+  let fixedBoxes = readJSON(STORE, []);
+
+  if (!Array.isArray(fixedBoxes)) {
+    fixedBoxes = [];
+  }
+
+  fixedBoxes = fixedBoxes.filter(b =>
+    b &&
+    typeof b.id === "string" &&
+    typeof b.symbol === "string" &&
+    Number.isFinite(Number(b.high)) &&
+    Number.isFinite(Number(b.low)) &&
+    Number.isFinite(Number(b.start)) &&
+    Number.isFinite(Number(b.end))
+  ).map(b => ({
+    ...b,
+    high:Number(b.high),
+    low:Number(b.low),
+    start:Number(b.start),
+    end:Number(b.end)
+  }));
+
+  function saveBoxes() {
+    try {
+      localStorage.setItem(
+        STORE, JSON.stringify(fixedBoxes)
+      );
+    } catch(e) {
+      console.warn("Guardar cajas:", e);
     }
   }
 
-  let chart=null;
-  let candle=null;
-  let rows=[];
-  let higher=[];
-  let currentKey="";
-  let generation=0;
-  let attachedChart=null;
-  let drawing=false;
-  let fetching=false;
-  let initialized=false;
-  let drag=null;
-  let activeBoxId=null;
-  let lastPointer=null;
+  let chart = null;
+  let candle = null;
+  let rows = [];
+  let higher = [];
+  let currentKey = "";
+  let generation = 0;
+  let attachedChart = null;
+  let initialized = false;
+  let activeBoxId = null;
+  let drawing = false;
+  let fetching = false;
+  let requestId = 0;
+  let lastDataSignature = "";
+  let resizeObserver = null;
 
-  const cache=new Map();
+  const cache = new Map();
 
-  const canvas=document.createElement("canvas");
-  canvas.id="clRangeOverlay";
+  const canvas = document.createElement("canvas");
+  canvas.id = "clRangeOverlay";
 
-  canvas.style.cssText=`
+  canvas.style.cssText = `
     position:absolute;
     inset:0;
     width:100%;
     height:100%;
-    pointer-events:none;
+    pointer-events:none !important;
+    touch-action:auto;
     z-index:7;
   `;
 
-  const panel=document.createElement("section");
-  panel.id="clRangeControls";
+  const panel = document.createElement("section");
+  panel.id = "clRangeControls";
 
-  panel.style.cssText=`
+  panel.style.cssText = `
     display:flex;
     flex-direction:column;
     gap:12px;
@@ -150,35 +164,40 @@
     font:12px system-ui,sans-serif;
   `;
 
-  const heading=document.createElement("div");
-  heading.style.cssText=`
+  const heading = document.createElement("div");
+
+  heading.style.cssText = `
     display:flex;
     justify-content:space-between;
     align-items:center;
     gap:8px;
   `;
 
-  heading.innerHTML=`
+  heading.innerHTML = `
     <strong style="font-size:14px">
       🟩 Cajas de rangos
     </strong>
-    <span style="color:#93a8c9">
-      V3
-    </span>
+    <span style="color:#93a8c9">V4</span>
   `;
 
-  const grid=document.createElement("div");
-  grid.style.cssText=`
+  const grid = document.createElement("div");
+
+  grid.style.cssText = `
     display:grid;
     grid-template-columns:
       repeat(auto-fit,minmax(145px,1fr));
     gap:8px;
   `;
 
-  function addToggle(text,key,color){
-    const label=document.createElement("label");
+  function saveAndRedraw() {
+    savePrefs();
+    redrawSoon();
+  }
 
-    label.style.cssText=`
+  function addToggle(text, key, color) {
+    const label = document.createElement("label");
+
+    label.style.cssText = `
       display:flex;
       align-items:center;
       gap:7px;
@@ -190,21 +209,18 @@
       cursor:pointer;
     `;
 
-    const input=document.createElement("input");
-    input.type="checkbox";
-    input.checked=config[key];
-    input.style.accentColor=color;
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.checked = config[key];
+    input.style.accentColor = color;
 
-    input.addEventListener("change",()=>{
-      config[key]=input.checked;
-      savePrefs();
-      redrawSoon();
+    input.addEventListener("change", () => {
+      config[key] = input.checked;
+      saveAndRedraw();
 
-      if(key.startsWith("higher")){
+      if (key.startsWith("higher")) {
         refreshHigher();
       }
-
-      updateInteraction();
     });
 
     label.append(
@@ -213,33 +229,58 @@
     );
 
     grid.append(label);
+
+    return input;
   }
 
-  addToggle("🟩 Rango","range","#00d99a");
-  addToggle("🟪 Lateral","sideways","#bb52ff");
-  addToggle("🟦 Penúltima","previous","#36c5ff");
-  addToggle("📌 Cajas fijas","fixed","#ffe15a");
-  addToggle("📏 Línea 50%","midpoint","#ffe15a");
-  addToggle("↔ Bordes","boundaries","#00d99a");
-  addToggle("4H","higher4h","#b38aff");
-  addToggle("Diario","higher1d","#36c5ff");
-  addToggle("Semanal","higher1w","#ff9a35");
+  const fixedToggle = addToggle(
+    "📌 Cajas fijas", "fixed", "#ffe15a"
+  );
 
-  const controls=document.createElement("div");
+  addToggle(
+    "🟩 Rango", "range", "#00d99a"
+  );
 
-  controls.style.cssText=`
-    display:flex;
-    flex-wrap:wrap;
-    align-items:center;
-    gap:8px;
-  `;
+  addToggle(
+    "🟪 Lateral", "sideways", "#bb52ff"
+  );
 
-  function button(text){
-    const el=document.createElement("button");
-    el.type="button";
-    el.textContent=text;
+  addToggle(
+    "🟦 Penúltima", "previous", "#36c5ff"
+  );
 
-    el.style.cssText=`
+  addToggle(
+    "➡ Extender a derecha",
+    "extendRight", "#00d99a"
+  );
+
+  addToggle(
+    "📏 Línea 50%", "midpoint", "#ffe15a"
+  );
+
+  addToggle(
+    "↔ Bordes", "boundaries", "#00d99a"
+  );
+
+  addToggle(
+    "4H", "higher4h", "#b38aff"
+  );
+
+  addToggle(
+    "Diario", "higher1d", "#36c5ff"
+  );
+
+  addToggle(
+    "Semanal", "higher1w", "#ff9a35"
+  );
+
+  function button(text) {
+    const el = document.createElement("button");
+
+    el.type = "button";
+    el.textContent = text;
+
+    el.style.cssText = `
       padding:9px 12px;
       border:1px solid #465a85;
       border-radius:9px;
@@ -252,13 +293,26 @@
     return el;
   }
 
-  const pinRange=button("📌 Fijar rango");
-  const pinPrevious=button("📌 Fijar vela");
-  const removeBox=button("🗑 Eliminar caja");
+  const controls = document.createElement("div");
 
-  const selectBox=document.createElement("select");
+  controls.style.cssText = `
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+  `;
 
-  selectBox.style.cssText=`
+  const pinRange = button("📌 Fijar rango");
+  const pinPrevious = button("📌 Fijar vela");
+  const removeBox = button("🗑 Eliminar caja");
+  const extendLeft = button("← Extender");
+  const extendRight = button("Extender →");
+  const shrinkLeft = button("→ Acortar");
+  const shrinkRight = button("Acortar ←");
+
+  const selectBox = document.createElement("select");
+
+  selectBox.style.cssText = `
     background:#0b1429;
     color:#eaf0ff;
     border:1px solid #485579;
@@ -267,9 +321,9 @@
     max-width:100%;
   `;
 
-  const selector=document.createElement("select");
+  const selector = document.createElement("select");
 
-  selector.style.cssText=`
+  selector.style.cssText = `
     background:#0b1429;
     color:#eaf0ff;
     border:1px solid #485579;
@@ -277,18 +331,17 @@
     padding:9px;
   `;
 
-  [12,24,36,48,72].forEach(n=>{
-    const option=document.createElement("option");
-    option.value=n;
-    option.textContent=n+" velas";
-    option.selected=n===config.lookback;
+  [12,24,36,48,72].forEach(n => {
+    const option = document.createElement("option");
+    option.value = n;
+    option.textContent = n + " velas";
+    option.selected = n === config.lookback;
     selector.append(option);
   });
 
-  selector.addEventListener("change",()=>{
-    config.lookback=Number(selector.value);
-    savePrefs();
-    redrawSoon();
+  selector.addEventListener("change", () => {
+    config.lookback = Number(selector.value);
+    saveAndRedraw();
   });
 
   controls.append(
@@ -296,125 +349,180 @@
     pinPrevious,
     removeBox,
     selectBox,
-    selector
+    selector,
+    extendLeft,
+    extendRight,
+    shrinkLeft,
+    shrinkRight
   );
 
-  const note=document.createElement("div");
+  const note = document.createElement("div");
 
-  note.style.cssText=`
+  note.style.cssText = `
     color:#9eafd0;
     font-size:11px;
     line-height:1.6;
   `;
 
-  note.textContent=
-    "Fija una caja y arrastra sus extremos "+
-    "en la gráfica. Los precios no cambian.";
+  note.textContent =
+    "Desliza las velas con un dedo y amplía " +
+    "con dos. Para modificar una caja fija, " +
+    "selecciónala y usa los botones de extensión.";
 
   panel.append(
-    heading,grid,controls,note
+    heading, grid, controls, note
   );
 
-  function selection(){
-    const symbol=$("symbol")?.value||"BTC-USDT";
-    const commodity=[GOLD,OIL].includes(symbol);
+  function selection() {
+    const symbol = $("symbol")?.value || "BTC-USDT";
+    const commodity = [GOLD,OIL].includes(symbol);
 
     return {
       symbol,
-      tf:$("interval")?.value||"5m",
+      tf:$("interval")?.value || "15m",
       exchange:commodity
-        ?"bingx"
-        :$("exchange")?.value||"bingx",
+        ? "bingx"
+        : $("exchange")?.value || "bingx",
       market:commodity
-        ?"perpetual"
-        :$("market")?.value||"perpetual"
+        ? "perpetual"
+        : $("market")?.value || "perpetual"
     };
   }
 
-  function marketKey(s){
+  function marketKey(s) {
     return [
-      s.exchange,s.market,s.symbol
+      s.exchange, s.market, s.symbol
     ].join("|");
   }
 
-  function dataKey(s){
-    return marketKey(s)+"|"+s.tf;
+  function dataKey(s) {
+    return marketKey(s) + "|" + s.tf;
   }
 
-  function visibleBoxes(){
-    const k=marketKey(selection());
+  function visibleBoxes() {
+    const k = marketKey(selection());
 
     return fixedBoxes.filter(
-      b=>b.marketKey===k
+      b => b.marketKey === k
     );
   }
 
-  function selectedBox(){
+  function selectedBox() {
     return visibleBoxes().find(
-      b=>b.id===activeBoxId
+      b => b.id === activeBoxId
     );
   }
 
-  function saveAndDraw(){
+  function updateBoxSelector() {
+    const boxes = visibleBoxes();
+
+    if (!boxes.some(b => b.id === activeBoxId)) {
+      activeBoxId = boxes.at(-1)?.id || null;
+    }
+
+    selectBox.replaceChildren();
+
+    if (!boxes.length) {
+      const option = document.createElement("option");
+      option.value = "";
+      option.textContent = "Sin cajas fijadas";
+      selectBox.append(option);
+    } else {
+      for (const b of boxes) {
+        const option = document.createElement("option");
+        option.value = b.id;
+        option.textContent = b.name;
+        option.selected = b.id === activeBoxId;
+        selectBox.append(option);
+      }
+    }
+
+    const disabled = !boxes.length;
+
+    for (const el of [
+      removeBox,
+      extendLeft,
+      extendRight,
+      shrinkLeft,
+      shrinkRight
+    ]) {
+      el.disabled = disabled;
+      el.style.opacity = disabled ? ".45" : "1";
+    }
+  }
+
+  function saveAndDraw() {
     saveBoxes();
     updateBoxSelector();
     redrawSoon();
   }
 
-  function updateBoxSelector(){
-    const boxes=visibleBoxes();
-
-    if(
-      !boxes.some(b=>b.id===activeBoxId)
-    ){
-      activeBoxId=boxes.at(-1)?.id||null;
-    }
-
-    selectBox.replaceChildren();
-
-    if(!boxes.length){
-      const option=document.createElement("option");
-      option.textContent="Sin cajas fijadas";
-      option.value="";
-      selectBox.append(option);
-      removeBox.disabled=true;
-      return;
-    }
-
-    removeBox.disabled=false;
-
-    for(const b of boxes){
-      const option=document.createElement("option");
-      option.value=b.id;
-      option.textContent=b.name;
-      option.selected=b.id===activeBoxId;
-      selectBox.append(option);
-    }
-  }
-
-  selectBox.addEventListener("change",()=>{
-    activeBoxId=selectBox.value;
+  selectBox.addEventListener("change", () => {
+    activeBoxId = selectBox.value;
     redrawSoon();
   });
 
-  removeBox.addEventListener("click",()=>{
-    const b=selectedBox();
-    if(!b)return;
+  removeBox.addEventListener("click", () => {
+    const b = selectedBox();
+    if (!b) return;
 
-    if(!confirm(
-      "¿Eliminar la caja seleccionada?"
-    ))return;
+    if (!confirm("¿Eliminar la caja seleccionada?")) {
+      return;
+    }
 
-    fixedBoxes=fixedBoxes.filter(
-      x=>x.id!==b.id
+    fixedBoxes = fixedBoxes.filter(
+      x => x.id !== b.id
     );
 
-    activeBoxId=null;
+    activeBoxId = null;
     saveAndDraw();
   });
 
-  function normalize(payload){
-    const raw=[
+  function modifyBox(edge, direction) {
+    const b = selectedBox();
+    if (!b) return;
+
+    const s = selection();
+    const sec = TF[s.tf] || 60;
+    const amount = sec * 5;
+
+    if (edge === "left") {
+      b.start = direction < 0
+        ? b.start - amount
+        : Math.min(
+            b.start + amount,
+            b.end - sec
+          );
+    } else {
+      b.end = direction > 0
+        ? b.end + amount
+        : Math.max(
+            b.end - amount,
+            b.start + sec
+          );
+    }
+
+    saveAndDraw();
+  }
+
+  extendLeft.addEventListener(
+    "click", () => modifyBox("left", -1)
+  );
+
+  extendRight.addEventListener(
+    "click", () => modifyBox("right", 1)
+  );
+
+  shrinkLeft.addEventListener(
+    "click", () => modifyBox("left", 1)
+  );
+
+  shrinkRight.addEventListener(
+    "click", () => modifyBox("right", -1)
+  );
+
+  function normalize(payload) {
+    const raw = [
       payload?.data?.data,
       payload?.data?.list,
       payload?.data?.candles,
@@ -422,328 +530,294 @@
       payload?.list,
       payload?.candles,
       payload
-    ].find(Array.isArray)||[];
+    ].find(Array.isArray) || [];
 
-    const list=[];
+    const list = [];
 
-    for(const z of raw){
-      if(!z||typeof z!=="object")continue;
+    for (const z of raw) {
+      if (!z || typeof z !== "object") continue;
 
-      const a=Array.isArray(z);
+      const a = Array.isArray(z);
 
-      let t=a
-        ?z[0]
-        :z.time??z.timestamp??
-         z.openTime??z.t;
+      let t = a
+        ? z[0]
+        : z.time ?? z.timestamp ??
+          z.openTime ?? z.t;
 
-      t=typeof t==="string" &&
-        !/^\d+$/.test(t)
-        ?Date.parse(t)
-        :Number(t);
+      t = typeof t === "string" &&
+          !/^\d+$/.test(t)
+        ? Date.parse(t)
+        : Number(t);
 
-      if(t>1e12)t=Math.floor(t/1000);
+      if (t > 1e12) t = Math.floor(t / 1000);
 
-      const open=Number(
-        a?z[1]:z.open??z.o
+      const open = Number(
+        a ? z[1] : z.open ?? z.o
       );
 
-      const high=Number(
-        a?z[2]:z.high??z.h
+      const high = Number(
+        a ? z[2] : z.high ?? z.h
       );
 
-      const low=Number(
-        a?z[3]:z.low??z.l
+      const low = Number(
+        a ? z[3] : z.low ?? z.l
       );
 
-      const close=Number(
-        a?z[4]:z.close??z.c
+      const close = Number(
+        a ? z[4] : z.close ?? z.c
       );
 
-      if(
+      if (
         [t,open,high,low,close]
           .every(Number.isFinite) &&
-        t>0 &&
-        low>0 &&
-        high>=Math.max(open,close) &&
-        low<=Math.min(open,close)
-      ){
+        t > 0 &&
+        low > 0 &&
+        high >= Math.max(open,close) &&
+        low <= Math.min(open,close)
+      ) {
         list.push({
-          time:t,open,high,low,close
+          time:t, open, high, low, close
         });
       }
     }
 
-    list.sort((a,b)=>a.time-b.time);
+    list.sort((a,b) => a.time - b.time);
 
     return [
       ...new Map(
-        list.map(z=>[z.time,z])
+        list.map(z => [z.time,z])
       ).values()
     ];
   }
 
-  function closed(data,tf){
-    const sec=TF[tf]||60;
-    const now=Date.now()/1000;
+  function closed(data, tf) {
+    const sec = TF[tf] || 60;
+    const current = Date.now() / 1000;
 
     return data.filter(
-      c=>c.time+sec<=now-2
+      c => c.time + sec <= current - 2
     );
   }
 
-  function priceY(price){
-    try{
+  function priceY(price) {
+    try {
       return candle?.priceToCoordinate(price);
-    }catch(e){
+    } catch(e) {
       return null;
     }
   }
 
-  function timeX(time){
-    try{
+  function timeX(time) {
+    try {
       return chart?.timeScale()
         .timeToCoordinate(time);
-    }catch(e){
+    } catch(e) {
       return null;
     }
   }
 
-  function barSpacing(){
-    try{
-      return Math.max(
-        3,
-        Number(
-          chart.timeScale().options()
-            .barSpacing
-        )||7
-      );
-    }catch(e){
-      return 7;
-    }
-  }
+  function coordinateAtTime(time) {
+    if (!chart || !rows.length) return null;
 
-  function coordinateAtTime(time){
-    if(!chart)return null;
+    const scale = chart.timeScale();
 
-    const scale=chart.timeScale();
-    const s=selection();
+    const exact = timeX(time);
 
-    const exact=timeX(time);
-
-    if(Number.isFinite(exact)){
+    if (Number.isFinite(exact)) {
       return exact;
     }
 
-    /*
-     Si el tiempo cae entre velas de otra
-     temporalidad, interpolamos usando
-     los tiempos de las velas visibles.
-    */
-    const data=rows;
+    let lo = 0;
+    let hi = rows.length;
 
-    if(!data.length)return null;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
 
-    let before=null;
-    let after=null;
-
-    for(const c of data){
-      if(c.time<=time)before=c;
-      if(c.time>=time){
-        after=c;
-        break;
+      if (rows[mid].time < time) {
+        lo = mid + 1;
+      } else {
+        hi = mid;
       }
     }
 
-    if(before&&after){
-      const x1=timeX(before.time);
-      const x2=timeX(after.time);
+    const before = rows[Math.max(0,lo-1)];
+    const after = rows[Math.min(rows.length-1,lo)];
 
-      if(
-        Number.isFinite(x1)&&
+    if (
+      before &&
+      after &&
+      before.time !== after.time &&
+      time >= before.time &&
+      time <= after.time
+    ) {
+      const x1 = timeX(before.time);
+      const x2 = timeX(after.time);
+
+      if (
+        Number.isFinite(x1) &&
         Number.isFinite(x2)
-      ){
-        if(after.time===before.time)return x1;
-
-        const ratio=(
-          time-before.time
-        )/(after.time-before.time);
-
-        return x1+(x2-x1)*ratio;
+      ) {
+        return x1 +
+          (x2-x1) *
+          (time-before.time) /
+          (after.time-before.time);
       }
     }
 
-    const edge=before||after;
+    const edge = time < rows[0].time
+      ? rows[0]
+      : rows.at(-1);
 
-    if(!edge)return null;
+    const edgeX = timeX(edge.time);
 
-    const edgeX=timeX(edge.time);
+    if (!Number.isFinite(edgeX)) return null;
 
-    if(!Number.isFinite(edgeX))return null;
+    let spacing = 7;
 
-    return edgeX+
-      (time-edge.time)/
-      (TF[s.tf]||60)*
-      barSpacing();
-  }
-
-  function timeAtCoordinate(x){
-    if(!chart)return null;
-
-    const scale=chart.timeScale();
-    const s=selection();
-
-    try{
-      const logical=scale.coordinateToLogical(x);
-
-      if(!Number.isFinite(logical))
-        return null;
-
-      const base=rows[0];
-
-      if(!base)return null;
-
-      const first=scale.timeToCoordinate(
-        base.time
+    try {
+      const first = scale.timeToCoordinate(
+        rows[0].time
       );
 
-      if(!Number.isFinite(first))
-        return null;
+      const second = rows.length > 1
+        ? scale.timeToCoordinate(rows[1].time)
+        : null;
 
-      const diff=(x-first)/barSpacing();
-
-      return Math.round(
-        base.time+diff*(TF[s.tf]||60)
-      );
-    }catch(e){
-      return null;
-    }
-  }
-
-  function formatPrice(n){
-    return Number(n).toLocaleString(
-      "en-US",{
-        minimumFractionDigits:2,
-        maximumFractionDigits:2
+      if (
+        Number.isFinite(first) &&
+        Number.isFinite(second)
+      ) {
+        spacing = second - first;
+      } else {
+        spacing = Number(
+          scale.options().barSpacing
+        ) || 7;
       }
-    );
+    } catch(e) {}
+
+    const sec = TF[selection().tf] || 60;
+
+    return edgeX +
+      ((time-edge.time)/sec) * spacing;
   }
 
   function drawLabel(
-    ctx,text,x,y,color,w,h
-  ){
+    ctx, text, x, y, color, w, h
+  ) {
     ctx.save();
+    ctx.font = "10px system-ui";
 
-    ctx.font="10px system-ui";
-
-    const width=Math.min(
-      Math.max(50,ctx.measureText(text).width+12),
-      w-8
+    const width = Math.min(
+      Math.max(
+        50,
+        ctx.measureText(text).width + 12
+      ),
+      Math.max(30,w-8)
     );
 
-    const left=Math.max(
-      3,Math.min(x,w-width-3)
+    const left = Math.max(
+      3, Math.min(x,w-width-3)
     );
 
-    const top=Math.max(
-      3,Math.min(y,h-20)
+    const top = Math.max(
+      3, Math.min(y,h-20)
     );
 
-    ctx.fillStyle="rgba(8,14,32,.94)";
-    ctx.fillRect(
-      left,top,width,18
-    );
+    ctx.fillStyle = "rgba(8,14,32,.94)";
+    ctx.fillRect(left,top,width,18);
 
-    ctx.strokeStyle=color;
-    ctx.lineWidth=.8;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = .8;
     ctx.strokeRect(
       left+.5,top+.5,width-1,17
     );
 
-    ctx.fillStyle=color;
+    ctx.fillStyle = color;
     ctx.fillText(
-      text,left+6,top+12,
-      width-12
+      text,left+6,top+12,width-12
     );
 
     ctx.restore();
   }
 
-  function drawBox(ctx,b,opts){
-    if(!chart||!candle)return null;
+  function drawBox(ctx,b,opts) {
+    if (!chart || !candle) return;
 
-    const w=canvas.clientWidth;
-    const h=canvas.clientHeight;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
 
-    const xa=coordinateAtTime(b.start);
-    const xb=coordinateAtTime(b.end);
+    const xa = coordinateAtTime(b.start);
+    const xb = opts.extendRight
+      ? w
+      : coordinateAtTime(b.end);
 
-    const ya=priceY(b.high);
-    const yb=priceY(b.low);
+    const ya = priceY(b.high);
+    const yb = priceY(b.low);
 
-    if(![
-      xa,xb,ya,yb
-    ].every(Number.isFinite)){
-      return null;
+    if (![xa,xb,ya,yb].every(Number.isFinite)) {
+      return;
     }
 
-    const left=Math.min(xa,xb);
-    const right=Math.max(xa,xb);
+    const left = Math.min(xa,xb);
+    const right = Math.max(xa,xb);
 
-    const top=Math.min(ya,yb);
-    const bottom=Math.max(ya,yb);
+    const top = Math.min(ya,yb);
+    const bottom = Math.max(ya,yb);
 
-    if(
-      right<0||
-      left>w||
-      bottom<0||
-      top>h
-    )return null;
+    if (
+      right < 0 ||
+      left > w ||
+      bottom < 0 ||
+      top > h
+    ) return;
 
-    const x1=Math.max(0,left);
-    const x2=Math.min(w,right);
+    const x1 = Math.max(0,left);
+    const x2 = Math.min(w,right);
+    const y1 = Math.max(0,top);
+    const y2 = Math.min(h,bottom);
 
-    const y1=Math.max(0,top);
-    const y2=Math.min(h,bottom);
-
-    if(x2<=x1||y2<=y1)return null;
+    if (x2 <= x1 || y2 <= y1) return;
 
     ctx.save();
 
-    ctx.fillStyle=opts.fill;
+    ctx.fillStyle = opts.fill;
     ctx.fillRect(
       x1,y1,x2-x1,y2-y1
     );
 
-    ctx.strokeStyle=opts.color;
-    ctx.lineWidth=opts.selected?2:1.2;
-    ctx.setLineDash([]);
+    ctx.strokeStyle = opts.color;
+    ctx.lineWidth = opts.selected ? 2 : 1.2;
 
     ctx.strokeRect(
       x1+.5,y1+.5,
-      x2-x1-1,y2-y1-1
+      Math.max(0,x2-x1-1),
+      Math.max(0,y2-y1-1)
     );
 
-    if(config.boundaries){
+    if (config.boundaries) {
       ctx.setLineDash([4,4]);
-      ctx.lineWidth=1.5;
+      ctx.lineWidth = 1.2;
 
       ctx.beginPath();
       ctx.moveTo(x1,y1);
       ctx.lineTo(x1,y2);
-      ctx.moveTo(x2,y1);
-      ctx.lineTo(x2,y2);
-      ctx.stroke();
 
+      if (!opts.extendRight) {
+        ctx.moveTo(x2,y1);
+        ctx.lineTo(x2,y2);
+      }
+
+      ctx.stroke();
       ctx.setLineDash([]);
     }
 
-    if(config.midpoint){
-      const mid=(b.high+b.low)/2;
-      const ym=priceY(mid);
+    if (config.midpoint) {
+      const mid = (b.high+b.low)/2;
+      const ym = priceY(mid);
 
-      if(Number.isFinite(ym)){
-        ctx.strokeStyle="#ffe15a";
-        ctx.lineWidth=1;
+      if (Number.isFinite(ym)) {
+        ctx.strokeStyle = "#ffe15a";
+        ctx.lineWidth = 1;
         ctx.setLineDash([5,5]);
 
         ctx.beginPath();
@@ -761,81 +835,53 @@
       opts.color,w,h
     );
 
-    if(opts.fixed){
-      /*
-       Manijas táctiles en ambos extremos.
-      */
-      for(const x of [x1,x2]){
-        const cy=(y1+y2)/2;
-
-        ctx.fillStyle=opts.color;
-        ctx.fillRect(
-          x-5,cy-13,10,26
-        );
-
-        ctx.strokeStyle="#081020";
-        ctx.lineWidth=1;
-        ctx.strokeRect(
-          x-5,cy-13,10,26
-        );
-      }
-    }
-
     ctx.restore();
-
-    return {
-      id:b.id,
-      left,
-      right,
-      top,
-      bottom
-    };
   }
 
-  function drawHigher(ctx){
-    const colors={
+  function drawHigher(ctx) {
+    const colors = {
       "4h":"#b38aff",
       "1d":"#36c5ff",
       "1w":"#ff9a35"
     };
 
-    const names={
+    const names = {
       "4h":"4H",
       "1d":"Día",
       "1w":"Semana"
     };
 
-    const active={
+    const active = {
       "4h":config.higher4h,
       "1d":config.higher1d,
       "1w":config.higher1w
     };
 
-    const labels=[];
+    const labels = [];
 
-    for(const r of higher){
-      if(!active[r.tf])continue;
+    for (const r of higher) {
+      if (!active[r.tf]) continue;
 
-      const levels=[
+      const levels = [
         [r.high,"Máx"],
         [r.low,"Mín"]
       ];
 
-      if(config.midpoint){
+      if (config.midpoint) {
         levels.push([
           (r.high+r.low)/2,"50%"
         ]);
       }
 
-      for(const [price,name] of levels){
-        const y=priceY(price);
+      for (const [price,name] of levels) {
+        const y = priceY(price);
 
-        if(!Number.isFinite(y))continue;
+        if (!Number.isFinite(y)) continue;
 
         ctx.save();
-        ctx.strokeStyle=colors[r.tf];
-        ctx.globalAlpha=.55;
-        ctx.lineWidth=.8;
+        ctx.strokeStyle = colors[r.tf];
+        ctx.globalAlpha = .55;
+        ctx.lineWidth = .8;
         ctx.setLineDash([4,6]);
 
         ctx.beginPath();
@@ -853,13 +899,12 @@
       }
     }
 
-    labels.sort((a,b)=>a.y-b.y);
+    labels.sort((a,b) => a.y-b.y);
 
-    let last=-100;
+    let last = -100;
 
-    for(const item of labels){
-      if(Math.abs(item.y-last)<23)
-        continue;
+    for (const item of labels) {
+      if (Math.abs(item.y-last) < 23) continue;
 
       drawLabel(
         ctx,item.text,
@@ -869,53 +914,48 @@
         canvas.clientHeight
       );
 
-      last=item.y;
+      last = item.y;
     }
   }
 
-  function rangeBox(c){
-    const r=c.slice(-config.lookback);
-
-    if(!r.length)return null;
+  function rangeBox(c) {
+    const r = c.slice(-config.lookback);
+    if (!r.length) return null;
 
     return {
       start:r[0].time,
       end:r.at(-1).time,
-      high:Math.max(
-        ...r.map(x=>x.high)
-      ),
-      low:Math.min(
-        ...r.map(x=>x.low)
-      )
+      high:Math.max(...r.map(x=>x.high)),
+      low:Math.min(...r.map(x=>x.low))
     };
   }
 
-  function sidewaysBox(c){
-    const n=Math.min(
+  function sidewaysBox(c) {
+    const n = Math.min(
       18,config.lookback
     );
 
-    if(c.length<n)return null;
+    if (c.length < n) return null;
 
-    const r=c.slice(-n);
+    const r = c.slice(-n);
 
-    const high=Math.max(
+    const high = Math.max(
       ...r.map(x=>x.high)
     );
 
-    const low=Math.min(
+    const low = Math.min(
       ...r.map(x=>x.low)
     );
 
-    const avg=r.reduce(
-      (sum,x)=>sum+x.high-x.low,
+    const avg = r.reduce(
+      (sum,x) => sum+x.high-x.low,
       0
-    )/r.length;
+    ) / r.length;
 
-    if(
-      (high-low)/
-      Math.max(avg,1e-12)>5
-    )return null;
+    if (
+      (high-low) /
+      Math.max(avg,1e-12) > 5
+    ) return null;
 
     return {
       start:r[0].time,
@@ -924,10 +964,9 @@
     };
   }
 
-  function previousBox(c){
-    const p=c.at(-2);
-
-    if(!p)return null;
+  function previousBox(c) {
+    const p = c.at(-2);
+    if (!p) return null;
 
     return {
       start:p.time,
@@ -937,83 +976,78 @@
     };
   }
 
-  let hitboxes=[];
-
-  function draw(){
-    if(
-      !chart||
-      !candle||
+  function draw() {
+    if (
+      !chart ||
+      !candle ||
       !canvas.isConnected
-    )return;
+    ) return;
 
-    const w=canvas.clientWidth;
-    const h=canvas.clientHeight;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
 
-    if(!w||!h)return;
+    if (!w || !h) return;
 
-    const dpr=Math.min(
-      window.devicePixelRatio||1,2
+    const dpr = Math.min(
+      window.devicePixelRatio || 1,2
     );
 
-    const pw=Math.round(w*dpr);
-    const ph=Math.round(h*dpr);
+    const pw = Math.round(w*dpr);
+    const ph = Math.round(h*dpr);
 
-    if(
-      canvas.width!==pw||
-      canvas.height!==ph
-    ){
-      canvas.width=pw;
-      canvas.height=ph;
+    if (
+      canvas.width !== pw ||
+      canvas.height !== ph
+    ) {
+      canvas.width = pw;
+      canvas.height = ph;
     }
 
-    const ctx=canvas.getContext("2d");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
 
-    if(!ctx)return;
-
-    ctx.setTransform(
-      dpr,0,0,dpr,0,0
-    );
-
+    ctx.setTransform(dpr,0,0,dpr,0,0);
     ctx.clearRect(0,0,w,h);
 
-    hitboxes=[];
+    const s = selection();
+    const c = closed(rows,s.tf);
 
-    const s=selection();
-    const c=closed(rows,s.tf);
+    if (c.length >= 4) {
+      if (config.range) {
+        const b = rangeBox(c);
 
-    if(c.length>=4){
-      if(config.range){
-        const b=rangeBox(c);
-
-        if(b){
+        if (b) {
           drawBox(ctx,b,{
             name:"Rango de velas",
             color:"#00d99a",
-            fill:"rgba(0,217,154,.045)"
+            fill:"rgba(0,217,154,.045)",
+            extendRight:config.extendRight
           });
         }
       }
 
-      if(config.sideways){
-        const b=sidewaysBox(c);
+      if (config.sideways) {
+        const b = sidewaysBox(c);
 
-        if(b){
+        if (b) {
           drawBox(ctx,b,{
             name:"Lateralización",
             color:"#bb52ff",
-            fill:"rgba(187,82,255,.05)"
+            fill:"rgba(187,82,255,.05)",
+            extendRight:config.extendRight
           });
         }
       }
 
-      if(config.previous){
-        const b=previousBox(c);
+      if (config.previous) {
+        const b = previousBox(c);
 
-        if(b){
+        if (b) {
           drawBox(ctx,b,{
             name:"Penúltima",
             color:"#36c5ff",
-            fill:"rgba(54,197,255,.06)"
+            fill:"rgba(54,197,255,.06)",
+            extendRight:config.extendRight
           });
         }
       }
@@ -1021,58 +1055,47 @@
 
     drawHigher(ctx);
 
-    if(config.fixed){
-      for(const b of visibleBoxes()){
-        const selected=b.id===activeBoxId;
+    if (config.fixed) {
+      for (const b of visibleBoxes()) {
+        const selected = b.id === activeBoxId;
 
-        const hit=drawBox(ctx,b,{
+        drawBox(ctx,b,{
           name:b.name,
           color:selected
-            ?"#ffe15a"
-            :"#36c5ff",
+            ? "#ffe15a"
+            : "#36c5ff",
           fill:selected
-            ?"rgba(255,225,90,.07)"
-            :"rgba(54,197,255,.055)",
-          fixed:true,
-          selected
+            ? "rgba(255,225,90,.07)"
+            : "rgba(54,197,255,.055)",
+          selected,
+          extendRight:false
         });
-
-        if(hit){
-          hitboxes.push(hit);
-        }
       }
     }
   }
 
-  function redrawSoon(){
-    if(drawing)return;
+  function redrawSoon() {
+    if (drawing) return;
 
-    drawing=true;
+    drawing = true;
 
-    requestAnimationFrame(()=>{
-      drawing=false;
+    requestAnimationFrame(() => {
+      drawing = false;
       draw();
     });
   }
 
-  function createFixed(source,name){
-    if(!source)return;
+  function createFixed(source,name) {
+    if (!source) return;
 
-    const s=selection();
+    const s = selection();
+    const duration = TF[s.tf] || 60;
 
-    const duration=TF[s.tf]||60;
-
-    const start=source.start;
-    const end=Math.max(
-      source.end,
-      start+duration
-    );
-
-    const id=
-      "box-"+Date.now()+"-"+
+    const id =
+      "box-" + Date.now() + "-" +
       Math.random().toString(36).slice(2,8);
 
-    const box={
+    const box = {
       id,
       marketKey:marketKey(s),
       symbol:s.symbol,
@@ -1082,33 +1105,32 @@
       name,
       high:source.high,
       low:source.low,
-      start,
-      end
+      start:source.start,
+      end:Math.max(
+        source.end,
+        source.start+duration
+      )
     };
 
     fixedBoxes.push(box);
+    activeBoxId = id;
 
-    activeBoxId=id;
+    config.fixed = true;
+    fixedToggle.checked = true;
 
-    config.fixed=true;
     savePrefs();
-
     saveAndDraw();
 
-    note.textContent=
-      "Caja fijada. Arrastra las manijas "+
-      "izquierda o derecha para extenderla. "+
-      "Máximo y mínimo permanecen fijos.";
+    note.textContent =
+      "Caja fijada. Usa los botones " +
+      "para extenderla sin cambiar sus precios.";
   }
 
-  pinRange.addEventListener("click",()=>{
-    const c=closed(
-      rows,selection().tf
-    );
+  pinRange.addEventListener("click", () => {
+    const c = closed(rows,selection().tf);
 
-    if(c.length<4){
-      note.textContent=
-        "Esperando velas cerradas.";
+    if (c.length < 4) {
+      note.textContent = "Esperando velas cerradas.";
       return;
     }
 
@@ -1118,14 +1140,11 @@
     );
   });
 
-  pinPrevious.addEventListener("click",()=>{
-    const c=closed(
-      rows,selection().tf
-    );
+  pinPrevious.addEventListener("click", () => {
+    const c = closed(rows,selection().tf);
 
-    if(c.length<3){
-      note.textContent=
-        "Esperando velas cerradas.";
+    if (c.length < 3) {
+      note.textContent = "Esperando velas cerradas.";
       return;
     }
 
@@ -1135,293 +1154,112 @@
     );
   });
 
-  function hitTest(x,y){
-    const tolerance=20;
-
-    for(let i=hitboxes.length-1;i>=0;i--){
-      const b=hitboxes[i];
-
-      if(
-        y<b.top-tolerance||
-        y>b.bottom+tolerance
-      )continue;
-
-      if(
-        Math.abs(x-b.left)<=tolerance
-      ){
-        return {
-          id:b.id,
-          edge:"left"
-        };
-      }
-
-      if(
-        Math.abs(x-b.right)<=tolerance
-      ){
-        return {
-          id:b.id,
-          edge:"right"
-        };
-      }
-    }
-
-    return null;
-  }
-
-  function pointerPosition(e){
-    const rect=canvas.getBoundingClientRect();
-
-    return {
-      x:e.clientX-rect.left,
-      y:e.clientY-rect.top
-    };
-  }
-
-  function pointerDown(e){
-    if(!config.fixed)return;
-
-    const p=pointerPosition(e);
-    const hit=hitTest(p.x,p.y);
-
-    if(!hit)return;
-
-    const b=fixedBoxes.find(
-      x=>x.id===hit.id
-    );
-
-    if(!b)return;
-
-    activeBoxId=b.id;
-
-    drag={
-      id:b.id,
-      edge:hit.edge,
-      pointerId:e.pointerId,
-      startX:p.x,
-      originalStart:b.start,
-      originalEnd:b.end
-    };
-
-    lastPointer=p;
-
-    canvas.style.pointerEvents="auto";
-    canvas.style.touchAction="none";
-
-    try{
-      canvas.setPointerCapture(e.pointerId);
-    }catch(err){}
-
-    updateBoxSelector();
-    redrawSoon();
-
-    e.preventDefault();
-  }
-
-  function pointerMove(e){
-    if(!drag)return;
-
-    if(
-      e.pointerId!==drag.pointerId
-    )return;
-
-    const p=pointerPosition(e);
-    const b=fixedBoxes.find(
-      x=>x.id===drag.id
-    );
-
-    if(!b)return;
-
-    const s=selection();
-    const sec=TF[s.tf]||60;
-
-    const deltaBars=Math.round(
-      (p.x-drag.startX)/
-      barSpacing()
-    );
-
-    const deltaTime=deltaBars*sec;
-
-    if(drag.edge==="left"){
-      b.start=Math.min(
-        drag.originalStart+deltaTime,
-        b.end-sec
-      );
-    }else{
-      b.end=Math.max(
-        drag.originalEnd+deltaTime,
-        b.start+sec
-      );
-    }
-
-    lastPointer=p;
-
-    redrawSoon();
-
-    e.preventDefault();
-  }
-
-  function pointerUp(e){
-    if(!drag)return;
-
-    if(
-      e.pointerId!==drag.pointerId
-    )return;
-
-    try{
-      canvas.releasePointerCapture(
-        e.pointerId
-      );
-    }catch(err){}
-
-    drag=null;
-    lastPointer=null;
-
-    canvas.style.touchAction="";
-    updateInteraction();
-
-    saveAndDraw();
-  }
-
-  /*
-   El canvas solo captura eventos
-   cuando se inicia una interacción
-   con las manijas.
-  */
-  function updateInteraction(){
-    canvas.style.pointerEvents=
-      config.fixed?"auto":"none";
-
-    canvas.style.touchAction=
-      config.fixed?"pan-y":"auto";
-  }
-
-  canvas.addEventListener(
-    "pointerdown",pointerDown
-  );
-
-  canvas.addEventListener(
-    "pointermove",pointerMove
-  );
-
-  canvas.addEventListener(
-    "pointerup",pointerUp
-  );
-
-  canvas.addEventListener(
-    "pointercancel",pointerUp
-  );
-
-  function bindOverlay(){
-    const host=
-      $("priceChartArea")||
+  function bindOverlay() {
+    const host =
+      $("priceChartArea") ||
       $("chart")?.parentElement;
 
-    if(!host)return;
+    if (!host) return;
 
-    if(
-      getComputedStyle(host).position===
+    if (
+      getComputedStyle(host).position ===
       "static"
-    ){
-      host.style.position="relative";
+    ) {
+      host.style.position = "relative";
     }
 
-    if(canvas.parentElement!==host){
+    if (canvas.parentElement !== host) {
       host.append(canvas);
     }
 
-    const target=
-      $("clRangeBoxesHost")||
-      $("rangeBoxesHost")||
+    const target =
+      $("clRangeBoxesHost") ||
+      $("rangeBoxesHost") ||
       document.querySelector(
         "[data-range-boxes-host]"
       );
 
-    if(target){
-      if(panel.parentElement!==target){
+    if (target) {
+      if (panel.parentElement !== target) {
         target.append(panel);
       }
-    }else{
-      const anchor=
-        $("chartSection")||host;
+    } else {
+      const anchor = $("chartSection") || host;
 
-      if(
-        !panel.isConnected&&
+      if (
+        !panel.isConnected &&
         anchor.parentElement
-      ){
+      ) {
         anchor.parentElement.insertBefore(
           panel,anchor
         );
       }
     }
 
-    updateInteraction();
+    canvas.style.pointerEvents = "none";
   }
 
-  async function getHigher(tf,s){
-    const k=[
+  async function getHigher(tf,s) {
+    const k = [
       s.exchange,s.market,s.symbol,tf
     ].join("|");
 
-    const old=cache.get(k);
+    const old = cache.get(k);
 
-    if(
-      old&&
-      Date.now()-old.at<60000
-    ){
+    if (
+      old &&
+      Date.now()-old.at < 60000
+    ) {
       return old.data;
     }
 
-    const url=
-      "/api/exchange/"+
-      encodeURIComponent(s.exchange)+
-      "/klines/"+
-      encodeURIComponent(s.symbol)+
-      "?market="+
-      encodeURIComponent(s.market)+
-      "&interval="+
-      encodeURIComponent(tf)+
+    const url =
+      "/api/exchange/" +
+      encodeURIComponent(s.exchange) +
+      "/klines/" +
+      encodeURIComponent(s.symbol) +
+      "?market=" +
+      encodeURIComponent(s.market) +
+      "&interval=" +
+      encodeURIComponent(tf) +
       "&limit=12";
 
-    const controller=new AbortController();
+    const controller = new AbortController();
 
-    const timeout=setTimeout(
-      ()=>controller.abort(),9000
+    const timeout = setTimeout(
+      () => controller.abort(),9000
     );
 
-    try{
-      const response=await fetch(url,{
+    try {
+      const response = await fetch(url,{
         signal:controller.signal,
         cache:"no-store"
       });
 
-      if(!response.ok){
-        throw Error(
-          "HTTP "+response.status
-        );
+      if (!response.ok) {
+        throw Error("HTTP "+response.status);
       }
 
-      const payload=await response.json();
+      const payload = await response.json();
 
-      if(
-        payload?.code!==undefined &&
+      if (
+        payload?.code !== undefined &&
         ![0,"0"].includes(payload.code)
-      ){
+      ) {
         throw Error("API error");
       }
 
-      const a=closed(
+      const a = closed(
         normalize(payload),tf
       );
 
-      if(a.length<1){
-        throw Error(
-          "Sin velas cerradas"
-        );
+      if (!a.length) {
+        throw Error("Sin velas cerradas");
       }
 
-      const p=a.at(-1);
+      const p = a.at(-1);
 
-      const result={
+      const result = {
         tf,
         high:p.high,
         low:p.low
@@ -1433,65 +1271,64 @@
       });
 
       return result;
-
-    }finally{
+    } finally {
       clearTimeout(timeout);
     }
   }
 
-  async function refreshHigher(){
-    const gen=++generation;
-    const s=selection();
+  async function refreshHigher() {
+    const gen = ++generation;
+    const s = selection();
 
-    const requested=[
-      config.higher4h?"4h":null,
-      config.higher1d?"1d":null,
-      config.higher1w?"1w":null
+    const requested = [
+      config.higher4h ? "4h" : null,
+      config.higher1d ? "1d" : null,
+      config.higher1w ? "1w" : null
     ].filter(Boolean);
 
-    if(!requested.length){
-      higher=[];
+    if (!requested.length) {
+      higher = [];
       redrawSoon();
       return;
     }
 
-    const results=await Promise.allSettled(
-      requested.map(
-        tf=>getHigher(tf,s)
-      )
+    const results = await Promise.allSettled(
+      requested.map(tf => getHigher(tf,s))
     );
 
-    if(gen!==generation)return;
+    if (
+      gen !== generation ||
+      dataKey(s) !== dataKey(selection())
+    ) return;
 
-    higher=results
-      .filter(
-        r=>r.status==="fulfilled"
-      )
-      .map(r=>r.value);
+    higher = results
+      .filter(r => r.status === "fulfilled")
+      .map(r => r.value);
 
     redrawSoon();
   }
 
-  function attach(detail){
-    if(
-      !detail?.chart||
-      !detail?.candle
-    )return;
+  function attach(detail) {
+    if (
+      !detail?.chart ||
+      !(detail.candle || detail.candleSeries)
+    ) return;
 
-    chart=detail.chart;
-    candle=detail.candle;
+    chart = detail.chart;
+    candle = detail.candle ||
+      detail.candleSeries;
 
     bindOverlay();
 
-    if(attachedChart!==chart){
-      attachedChart=chart;
+    if (attachedChart !== chart) {
+      attachedChart = chart;
 
-      try{
+      try {
         chart.timeScale()
           .subscribeVisibleLogicalRangeChange(
             redrawSoon
           );
-      }catch(e){}
+      } catch(e) {}
     }
 
     redrawSoon();
@@ -1499,143 +1336,199 @@
 
   window.addEventListener(
     "cryptolexuz:chart-ready",
-    e=>attach(e.detail)
+    e => attach(e.detail)
   );
 
   window.addEventListener(
     "cryptolexuz:candles-updated",
-    e=>{
-      const d=e.detail||{};
+    e => {
+      const d = e.detail || {};
 
-      if(d.chart&&d.candle){
+      if (d.chart && (
+        d.candle || d.candleSeries
+      )) {
         attach(d);
       }
 
-      const data=d.rows||d.candles;
+      const data = d.rows || d.candles;
 
-      if(Array.isArray(data)){
-        rows=[...data];
-        currentKey=dataKey(selection());
+      if (Array.isArray(data)) {
+        const k = dataKey(selection());
+
+        if (k !== currentKey) {
+          currentKey = k;
+          higher = [];
+          refreshHigher();
+        }
+
+        rows = data;
+        lastDataSignature = data.length
+          ? k+"|"+data.length+"|"+
+            data.at(-1).time+"|"+
+            data.at(-1).close
+          : "";
+
         redrawSoon();
       }
     }
   );
 
-  function recoverChart(){
-    const shared=window.CryptolexuzChart;
+  function recoverChart() {
+    const shared = window.CryptolexuzChart;
 
-    if(
-      shared?.chart&&
-      (shared.candle||shared.candleSeries)
-    ){
+    if (
+      shared?.chart &&
+      (shared.candle || shared.candleSeries)
+    ) {
       attach({
         chart:shared.chart,
-        candle:shared.candle||
+        candle:shared.candle ||
           shared.candleSeries
       });
 
-      if(
-        typeof shared.getRows==="function"
-      ){
-        const data=shared.getRows();
+      if (
+        typeof shared.getRows === "function"
+      ) {
+        const data = shared.getRows();
 
-        if(
-          Array.isArray(data)&&
-          data.length
-        ){
-          rows=[...data];
+        if (Array.isArray(data)) {
+          rows = data;
           redrawSoon();
         }
       }
     }
   }
 
-  async function poll(){
-    if(fetching||document.hidden)return;
+  async function poll() {
+    if (
+      fetching ||
+      document.hidden
+    ) return;
 
-    fetching=true;
+    fetching = true;
 
-    const s=selection();
-    const k=dataKey(s);
+    const s = selection();
+    const k = dataKey(s);
+    const id = ++requestId;
 
-    if(k!==currentKey){
-      currentKey=k;
-      rows=[];
-      higher=[];
+    if (k !== currentKey) {
+      currentKey = k;
+      rows = [];
+      higher = [];
+      lastDataSignature = "";
       refreshHigher();
       redrawSoon();
     }
 
-    const url=
-      "/api/exchange/"+
-      encodeURIComponent(s.exchange)+
-      "/klines/"+
-      encodeURIComponent(s.symbol)+
-      "?market="+
-      encodeURIComponent(s.market)+
-      "&interval="+
-      encodeURIComponent(s.tf)+
+    /*
+     Si app.js ya proporciona velas,
+     usamos sus datos y evitamos
+     peticiones duplicadas.
+    */
+    const shared = window.CryptolexuzChart;
+
+    if (
+      shared?.chart &&
+      typeof shared.getRows === "function"
+    ) {
+      const data = shared.getRows();
+
+      if (
+        Array.isArray(data) &&
+        data.length &&
+        k === dataKey(selection())
+      ) {
+        rows = data;
+        redrawSoon();
+        fetching = false;
+        return;
+      }
+    }
+
+    const url =
+      "/api/exchange/" +
+      encodeURIComponent(s.exchange) +
+      "/klines/" +
+      encodeURIComponent(s.symbol) +
+      "?market=" +
+      encodeURIComponent(s.market) +
+      "&interval=" +
+      encodeURIComponent(s.tf) +
       "&limit=160";
 
-    const controller=new AbortController();
+    const controller = new AbortController();
 
-    const timeout=setTimeout(
-      ()=>controller.abort(),9000
+    const timeout = setTimeout(
+      () => controller.abort(),9000
     );
 
-    try{
-      const response=await fetch(url,{
+    try {
+      const response = await fetch(url,{
         signal:controller.signal,
         cache:"no-store"
       });
 
-      if(!response.ok){
-        throw Error(
-          "HTTP "+response.status
-        );
+      if (!response.ok) {
+        throw Error("HTTP "+response.status);
       }
 
-      const payload=await response.json();
+      const payload = await response.json();
 
-      if(k!==currentKey)return;
+      if (
+        id !== requestId ||
+        k !== dataKey(selection())
+      ) return;
 
-      rows=normalize(payload);
-      redrawSoon();
+      const data = normalize(payload);
 
-    }catch(e){
-      note.textContent=
-        "No se pudieron actualizar "+
-        "las cajas. Revisar conexión.";
-    }finally{
+      const signature = data.length
+        ? k+"|"+data.length+"|"+
+          data.at(-1).time+"|"+
+          data.at(-1).close
+        : "";
+
+      if (signature !== lastDataSignature) {
+        rows = data;
+        lastDataSignature = signature;
+        redrawSoon();
+      }
+    } catch(e) {
+      console.warn("Cajas:",e.message);
+    } finally {
       clearTimeout(timeout);
-      fetching=false;
+      fetching = false;
     }
   }
 
-  function init(){
-    if(initialized)return;
-    initialized=true;
+  function init() {
+    if (initialized) return;
+    initialized = true;
 
     bindOverlay();
     recoverChart();
     updateBoxSelector();
 
     [
-      "symbol","interval",
-      "market","exchange"
-    ].forEach(id=>{
+      "symbol",
+      "interval",
+      "market",
+      "exchange"
+    ].forEach(id => {
       $(id)?.addEventListener(
         "change",
-        ()=>{
-          currentKey="";
-          rows=[];
-          higher=[];
-          activeBoxId=null;
+        () => {
+          requestId++;
+          currentKey = "";
+          rows = [];
+          higher = [];
+          activeBoxId = null;
+          lastDataSignature = "";
 
           updateBoxSelector();
           redrawSoon();
 
-          setTimeout(()=>{
+          setTimeout(() => {
+            recoverChart();
             poll();
             refreshHigher();
           },400);
@@ -1647,10 +1540,29 @@
       "resize",redrawSoon
     );
 
+    window.addEventListener(
+      "cryptolexuz:screen-change",
+      redrawSoon
+    );
+
+    if (window.ResizeObserver) {
+      resizeObserver = new ResizeObserver(
+        redrawSoon
+      );
+
+      const host =
+        $("priceChartArea") ||
+        $("chart")?.parentElement;
+
+      if (host) {
+        resizeObserver.observe(host);
+      }
+    }
+
     document.addEventListener(
       "visibilitychange",
-      ()=>{
-        if(!document.hidden){
+      () => {
+        if (!document.hidden) {
           recoverChart();
           poll();
           refreshHigher();
@@ -1661,8 +1573,8 @@
     poll();
     refreshHigher();
 
-    setInterval(()=>{
-      if(!document.hidden){
+    setInterval(() => {
+      if (!document.hidden) {
         recoverChart();
         poll();
         refreshHigher();
@@ -1670,12 +1582,12 @@
     },30000);
   }
 
-  if(document.readyState==="loading"){
+  if (document.readyState === "loading") {
     document.addEventListener(
-      "DOMContentLoaded",init
+      "DOMContentLoaded",init,
+      {once:true}
     );
-  }else{
+  } else {
     init();
   }
-
 })();
