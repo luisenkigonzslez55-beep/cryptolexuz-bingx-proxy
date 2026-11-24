@@ -8,7 +8,7 @@
 <meta name="description" content="CRYPTOLEXUZ PRO: mercados, gráficas, indicadores, escáner y resultados informativos.">
 <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
 
-<!-- CRYPTOLEXUZ PRO — INDEX V26 -->
+<!-- CRYPTOLEXUZ PRO — INDEX V27 -->
 <link rel="stylesheet" href="styles.css?v=22">
 
 <style>
@@ -21,8 +21,11 @@
 .cl-screen-title h1{margin-bottom:5px}
 .cl-tool-content,.cl-module,#clRangeBoxesHost,#clFibonacciHost{min-width:0}
 .cl-timeframes,.cl-indicator-strip{
- display:flex;overflow-x:auto;overscroll-behavior-x:contain;
- -webkit-overflow-scrolling:touch;scrollbar-width:thin
+ display:flex;
+ overflow-x:auto;
+ overscroll-behavior-x:contain;
+ -webkit-overflow-scrolling:touch;
+ scrollbar-width:thin
 }
 .cl-timeframes button,.cl-indicator-strip button{flex-shrink:0}
 #clPatternResults{max-width:100%}
@@ -44,27 +47,183 @@
 .cl-market-row .cl-market-change{text-align:center}
 .cl-market-row .cl-asset-name,.cl-market-row .cl-asset-label{min-width:0}
 .cl-market-row .cl-asset-label strong{overflow-wrap:anywhere}
+
+/* ESTABILIDAD DE GRÁFICAS */
+#chart,#volumeChart,#rsiChart,#adxChart,#squeezeChart{
+ position:relative;
+ min-width:0;
+ overflow:hidden;
+}
+#chart{
+ height:360px;
+}
+#volumeChart{height:115px}
+#rsiChart,#adxChart{height:145px}
+#zonesCanvas{
+ position:absolute;
+ inset:0;
+ pointer-events:none!important;
+}
+.cl-chart-gear{
+ position:relative;
+ z-index:2;
+ cursor:pointer;
+}
+
+/* AJUSTES INDEPENDIENTES */
+.cl-settings-overlay{
+ position:fixed;
+ inset:0;
+ z-index:9999;
+ background:rgba(0,0,0,.76);
+ display:flex;
+ align-items:flex-end;
+ justify-content:center;
+}
+.cl-settings-sheet{
+ width:min(100%,560px);
+ max-height:88dvh;
+ overflow-y:auto;
+ background:#121522;
+ color:#f2f4ff;
+ border:1px solid #34384d;
+ border-radius:18px 18px 0 0;
+ padding:16px;
+ box-sizing:border-box;
+}
+.cl-settings-head{
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ margin-bottom:12px;
+}
+.cl-settings-head button{
+ background:#252b3d;
+ color:white;
+ border:0;
+ border-radius:9px;
+ padding:9px 15px;
+ cursor:pointer;
+}
+.cl-settings-row{
+ display:block;
+ width:100%;
+ text-align:left;
+ background:#1b2131;
+ color:#f1f3ff;
+ border:1px solid #343b52;
+ border-radius:10px;
+ padding:14px;
+ margin:7px 0;
+ cursor:pointer;
+}
+.cl-settings-save{
+ display:block;
+ width:100%;
+ padding:13px;
+ border:0;
+ border-radius:10px;
+ background:#8845ed;
+ color:white;
+ font-weight:700;
+ margin-top:16px;
+ cursor:pointer;
+}
+.cl-settings-grid{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:10px;
+}
+.cl-settings-tile{
+ min-height:85px;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:center;
+ gap:8px;
+ background:#1b2131;
+ color:#f1f3ff;
+ border:1px solid #343b52;
+ border-radius:12px;
+ cursor:pointer;
+}
+.cl-settings-tile span{font-size:23px}
+.cl-settings-check{
+ display:flex;
+ align-items:center;
+ gap:10px;
+ padding:12px 4px;
+}
+.cl-ma-grid{
+ display:grid;
+ grid-template-columns:minmax(0,1.1fr) minmax(0,.8fr) minmax(0,.8fr) 46px;
+ gap:8px;
+ align-items:center;
+}
+.cl-ma-grid input[type=number],
+.cl-ma-grid select{
+ width:100%;
+ min-width:0;
+ box-sizing:border-box;
+ padding:9px 4px;
+ background:#22283a;
+ color:white;
+ border:1px solid #46506b;
+ border-radius:7px;
+}
+.cl-ma-grid input[type=color]{
+ width:42px;
+ height:38px;
+ padding:2px;
+ background:transparent;
+ border:0;
+}
+.cl-ma-label{
+ display:flex;
+ align-items:center;
+ gap:5px;
+ font-size:12px;
+}
+.cl-settings-actions{
+ display:flex;
+ flex-wrap:wrap;
+ gap:8px;
+ margin-top:15px;
+}
+.cl-settings-actions button{
+ flex:1;
+ min-width:90px;
+ padding:10px;
+ border:1px solid #46506b;
+ background:#22283a;
+ color:white;
+ border-radius:8px;
+ cursor:pointer;
+}
+.cl-settings-hint{
+ font-size:12px;
+ color:#aebcdd;
+ line-height:1.6;
+}
 </style>
 
-<!-- LIBRERÍA DE GRÁFICAS -->
+<!-- LIGHTWEIGHT CHARTS -->
 <script defer src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
 
-<!-- MÓDULOS -->
+<!-- MÓDULOS EXISTENTES -->
 <script defer src="fibonacci.js?v=8"></script>
 <script defer src="patterns.js?v=2"></script>
 <script defer src="patterns-bridge.js?v=1"></script>
-<script defer src="app.js?v=19"></script>
+
+<!-- MOTOR PRINCIPAL ACTUALIZADO -->
+<script defer src="app.js?v=20"></script>
+
 <script defer src="liquidity.js?v=12"></script>
 <script defer src="trade-plans.js?v=4"></script>
 <script defer src="scalping-rapido.js?v=2"></script>
 <script defer src="range-boxes.js?v=6"></script>
-
-<!-- PERFIL DE VOLUMEN V5 -->
 <script defer src="volume-profile.js?v=5"></script>
-
 <script defer src="mercado-pro.js?v=3"></script>
-
-<!-- PRECIOS EN VIVO V2 -->
 <script defer src="mercados-live.js?v=2"></script>
 </head>
 
@@ -420,7 +579,6 @@ Profundidad de órdenes. No representa liquidaciones reales.
 <span>—% S</span>
 </div>
 
-<!-- La vista real permanece intacta al cambiar de pestaña -->
 <div id="clBookView">Esperando profundidad real...</div>
 <div id="clBookAlternate" hidden role="status"></div>
 
@@ -633,7 +791,7 @@ No ejecuta operaciones ni garantiza resultados.
 
 </nav>
 
-<!-- AJUSTES -->
+<!-- VENTANA DE AJUSTES -->
 <div id="clSettingsOverlay" class="cl-settings-overlay" hidden>
 <div class="cl-settings-sheet" role="dialog" aria-modal="true"
  aria-label="Configuración del gráfico">
@@ -649,110 +807,93 @@ No ejecuta operaciones ni garantiza resultados.
 (() => {
 "use strict";
 
-if (window.__CL_INDEX_V26__) return;
-window.__CL_INDEX_V26__ = true;
+if(window.__CL_INDEX_V27__)return;
+window.__CL_INDEX_V27__=true;
 
-const $ = id => document.getElementById(id);
-const qa = selector => Array.from(document.querySelectorAll(selector));
+const $=id=>document.getElementById(id);
+const qa=selector=>Array.from(document.querySelectorAll(selector));
 
-let screen = "markets";
-let organizing = false;
-let queued = false;
-let marketFilter = "all";
+let screen="markets";
+let organizing=false;
+let queued=false;
+let marketFilter="all";
 
-const assets = [
+const assets=[
  {id:"BTC-USDT",name:"BTCUSDT",icon:"₿"},
  {id:"ETH-USDT",name:"ETHUSDT",icon:"Ξ"},
  {id:"BNB-USDT",name:"BNBUSDT",icon:"⬡"},
  {id:"SOL-USDT",name:"SOLUSDT",icon:"◎"},
  {id:"XRP-USDT",name:"XRPUSDT",icon:"✕"},
  {id:"DOGE-USDT",name:"DOGEUSDT",icon:"Ð"},
- {
-  id:"NCCOGOLD2USD-USDT",
-  name:"GOLD (XAU)",
-  icon:"◆",
-  commodity:true
- },
- {
-  id:"NCCO1OILWTI2USD-USDT",
-  name:"OIL WTI",
-  icon:"◉",
-  commodity:true
- }
+ {id:"NCCOGOLD2USD-USDT",name:"GOLD (XAU)",icon:"◆",commodity:true},
+ {id:"NCCO1OILWTI2USD-USDT",name:"OIL WTI",icon:"◉",commodity:true}
 ];
 
-let favorites = [];
+let favorites=[];
+try{
+ const saved=JSON.parse(localStorage.getItem("cl-favorites")||"[]");
+ favorites=Array.isArray(saved)?saved.filter(x=>typeof x==="string"):[];
+}catch{}
 
-try {
- const saved = JSON.parse(
-  localStorage.getItem("cl-favorites") || "[]"
- );
- favorites = Array.isArray(saved)
-  ? saved.filter(x => typeof x === "string")
-  : [];
-} catch {}
-
-function saveFavorites() {
- try {
-  localStorage.setItem(
-   "cl-favorites",
-   JSON.stringify(favorites)
-  );
- } catch {}
+function saveFavorites(){
+ try{
+  localStorage.setItem("cl-favorites",JSON.stringify(favorites));
+ }catch{}
 }
 
-function refreshCharts() {
- requestAnimationFrame(() => {
-  window.dispatchEvent(new Event("resize"));
+/* REDIMENSIONAMIENTO CONTROLADO */
+let chartResizeQueued=false;
+
+function refreshCharts(){
+ if(chartResizeQueued)return;
+ chartResizeQueued=true;
+
+ requestAnimationFrame(()=>{
+  chartResizeQueued=false;
+
+  if(screen!=="charts"||$("clGraphContent")?.hidden)return;
+
   window.CryptolexuzChart?.resize?.();
   window.CryptolexuzRangeBoxes?.redraw?.();
   window.CryptolexuzFibonacci?.redraw?.();
-  window.CryptolexuzPatterns?.redraw?.();
   window.CryptolexuzVolumeProfile?.redraw?.();
  });
 }
 
-function setOpen(open) {
+function setOpen(open){
  $("sidebar")?.classList.toggle("is-open",open);
- const backdrop = $("menuBackdrop");
- if (backdrop) backdrop.hidden = !open;
- $("menuToggle")?.setAttribute(
-  "aria-expanded",
-  String(open)
- );
+ const backdrop=$("menuBackdrop");
+ if(backdrop)backdrop.hidden=!open;
+ $("menuToggle")?.setAttribute("aria-expanded",String(open));
  document.body.classList.toggle("menu-open",open);
 }
 
-function activateTab(tab,target) {
- if (!["markets","charts","scanner","results"].includes(tab)) {
-  return;
- }
+function activateTab(tab,target){
+ if(!["markets","charts","scanner","results"].includes(tab))return;
 
- screen = tab;
+ const changed=screen!==tab;
+ screen=tab;
 
- qa("[data-cl-screen]").forEach(element => {
-  element.classList.toggle(
-   "cl-active",
-   element.dataset.clScreen === tab
-  );
+ qa("[data-cl-screen]").forEach(element=>{
+  element.classList.toggle("cl-active",element.dataset.clScreen===tab);
  });
 
- qa("[data-cl-tab]").forEach(element => {
-  const active = element.dataset.clTab === tab;
+ qa("[data-cl-tab]").forEach(element=>{
+  const active=element.dataset.clTab===tab;
   element.classList.toggle("active",active);
   element.setAttribute("aria-pressed",String(active));
  });
 
  setOpen(false);
 
- requestAnimationFrame(() => {
-  if (target && $(target)) {
+ requestAnimationFrame(()=>{
+  if(target&&$(target)){
    $(target).scrollIntoView({block:"start"});
-  } else {
+  }else{
    window.scrollTo({top:0,behavior:"auto"});
   }
 
-  if (tab === "charts") refreshCharts();
+  if(tab==="charts"&&changed)refreshCharts();
  });
 
  window.dispatchEvent(new CustomEvent(
@@ -761,258 +902,180 @@ function activateTab(tab,target) {
  ));
 }
 
-window.CryptolexuzNavigation = {
+window.CryptolexuzNavigation={
  activateTab,
- getScreen:() => screen
+ getScreen:()=>screen
 };
 
-$("menuToggle")?.addEventListener("click",() => {
+$("menuToggle")?.addEventListener("click",()=>{
  setOpen(!$("sidebar")?.classList.contains("is-open"));
 });
+$("menuClose")?.addEventListener("click",()=>setOpen(false));
+$("menuBackdrop")?.addEventListener("click",()=>setOpen(false));
 
-$("menuClose")?.addEventListener("click",() => setOpen(false));
-$("menuBackdrop")?.addEventListener("click",() => setOpen(false));
-
-qa("[data-cl-tab]").forEach(button => {
- button.addEventListener("click",() => {
-  activateTab(button.dataset.clTab);
- });
+qa("[data-cl-tab]").forEach(button=>{
+ button.addEventListener("click",()=>activateTab(button.dataset.clTab));
 });
 
-qa(".side-nav a").forEach(link => {
- link.addEventListener("click",event => {
+qa(".side-nav a").forEach(link=>{
+ link.addEventListener("click",event=>{
   event.preventDefault();
-
-  const target = link.getAttribute("href")?.slice(1);
-
-  if ($(target)?.tagName === "DETAILS") {
-   $(target).open = true;
-  }
-
+  const target=link.getAttribute("href")?.slice(1);
+  if($(target)?.tagName==="DETAILS")$(target).open=true;
   activateTab(link.dataset.screen,target);
  });
 });
 
-function move(id,hostId) {
- const element = $(id);
- const host = $(hostId);
-
- if (
-  element &&
-  host &&
-  element !== host &&
-  !host.contains(element) &&
-  !element.contains(host)
- ) {
+function move(id,hostId){
+ const element=$(id),host=$(hostId);
+ if(element&&host&&element!==host&&
+    !host.contains(element)&&!element.contains(host)){
   host.appendChild(element);
  }
 }
 
-function organizeModules() {
- if (organizing) return;
- organizing = true;
-
- try {
+function organizeModules(){
+ if(organizing)return;
+ organizing=true;
+ try{
   move("clScanner","clScannerHost");
   move("fibToolbar","clFibonacciHost");
   move("fibPanel","clFibonacciHost");
 
-  for (const id of [
+  for(const id of [
    "clQuickScalpPanel",
    "clQuickScalpSection",
    "clScalpingRapido",
    "clQuickScalpDashboard"
-  ]) {
-   if ($(id)) {
+  ]){
+   if($(id)){
     move(id,"clQuickScalpHost");
     break;
    }
   }
 
-  for (const id of [
+  for(const id of [
    "rangeBoxesToolbar",
    "rangeBoxesPanel",
    "clRangeToolbar",
    "clRangePanel",
    "clRangeControls"
-  ]) {
-   move(id,"clRangeBoxesControls");
-  }
+  ])move(id,"clRangeBoxesControls");
 
   move("clPatternResults","clPatternsReadout");
 
-  for (const id of [
+  for(const id of [
    "clMarketTrend",
    "clMarketVolumeProfile",
    "clMarketDepth"
-  ]) {
-   move(id,"clMercadoProHost");
-  }
+  ])move(id,"clMercadoProHost");
 
   move("clAuditV4","clScreenResults");
- } finally {
-  organizing = false;
+ }finally{
+  organizing=false;
  }
 }
 
-function scheduleOrganize() {
- if (queued) return;
- queued = true;
-
- requestAnimationFrame(() => {
-  queued = false;
+function scheduleOrganize(){
+ if(queued)return;
+ queued=true;
+ requestAnimationFrame(()=>{
+  queued=false;
   organizeModules();
  });
 }
 
-function selectAsset(asset) {
- const symbol = $("symbol");
- const market = $("market");
- const exchange = $("exchange");
+function selectAsset(asset){
+ const symbol=$("symbol"),market=$("market"),exchange=$("exchange");
+ if(!symbol)return;
 
- if (!symbol) return;
-
- if (asset.commodity) {
-  if (exchange && exchange.value !== "bingx") {
-   exchange.value = "bingx";
-   exchange.dispatchEvent(
-    new Event("change",{bubbles:true})
-   );
+ if(asset.commodity){
+  if(exchange&&exchange.value!=="bingx"){
+   exchange.value="bingx";
+   exchange.dispatchEvent(new Event("change",{bubbles:true}));
   }
-
-  if (market && market.value !== "perpetual") {
-   market.value = "perpetual";
-   market.dispatchEvent(
-    new Event("change",{bubbles:true})
-   );
+  if(market&&market.value!=="perpetual"){
+   market.value="perpetual";
+   market.dispatchEvent(new Event("change",{bubbles:true}));
   }
- } else if (
-  market &&
-  ["spot","perpetual"].includes(marketFilter) &&
-  market.value !== marketFilter
- ) {
-  market.value = marketFilter;
-  market.dispatchEvent(
-   new Event("change",{bubbles:true})
-  );
+ }else if(market&&["spot","perpetual"].includes(marketFilter)&&
+          market.value!==marketFilter){
+  market.value=marketFilter;
+  market.dispatchEvent(new Event("change",{bubbles:true}));
  }
 
- symbol.value = asset.id;
+ symbol.value=asset.id;
  symbol.dispatchEvent(new Event("change",{bubbles:true}));
-
  activateTab("charts");
 }
 
-function renderMarkets() {
- const host = $("clMarketList");
- if (!host) return;
+function renderMarkets(){
+ const host=$("clMarketList");
+ if(!host)return;
 
- const term = ($("clMarketSearch")?.value || "")
-  .trim()
-  .toLowerCase();
+ const term=($("clMarketSearch")?.value||"").trim().toLowerCase();
+ const fragment=document.createDocumentFragment();
+ let count=0;
 
- const fragment = document.createDocumentFragment();
- let count = 0;
+ for(const asset of assets){
+  if(!asset.name.toLowerCase().includes(term)&&
+     !asset.id.toLowerCase().includes(term))continue;
+  if(marketFilter==="favorites"&&!favorites.includes(asset.id))continue;
+  if(marketFilter==="commodities"&&!asset.commodity)continue;
+  if(["spot","perpetual"].includes(marketFilter)&&asset.commodity)continue;
 
- for (const asset of assets) {
-  if (
-   !asset.name.toLowerCase().includes(term) &&
-   !asset.id.toLowerCase().includes(term)
-  ) continue;
+  const row=document.createElement("div");
+  row.className="cl-market-row";
+  row.dataset.symbol=asset.id;
 
-  if (
-   marketFilter === "favorites" &&
-   !favorites.includes(asset.id)
-  ) continue;
-
-  if (
-   marketFilter === "commodities" &&
-   !asset.commodity
-  ) continue;
-
-  if (
-   ["spot","perpetual"].includes(marketFilter) &&
-   asset.commodity
-  ) continue;
-
-  const row = document.createElement("div");
-  row.className = "cl-market-row";
-
-  // Identificador exacto para mercados-live.js V2.
-  row.dataset.symbol = asset.id;
-
-  const star = document.createElement("button");
-  star.type = "button";
-  star.className = "cl-favorite";
-
-  star.classList.toggle(
-   "is-favorite",
-   favorites.includes(asset.id)
+  const star=document.createElement("button");
+  star.type="button";
+  star.className="cl-favorite";
+  star.classList.toggle("is-favorite",favorites.includes(asset.id));
+  star.textContent=favorites.includes(asset.id)?"★":"☆";
+  star.setAttribute("aria-label",
+   (favorites.includes(asset.id)?"Quitar de":"Agregar a")+
+   " favoritos: "+asset.name
   );
-
-  star.textContent = favorites.includes(asset.id)
-   ? "★" : "☆";
-
-  star.setAttribute(
-   "aria-label",
-   (favorites.includes(asset.id)
-    ? "Quitar de" : "Agregar a") +
-   " favoritos: " + asset.name
-  );
-
-  star.addEventListener("click",() => {
-   favorites = favorites.includes(asset.id)
-    ? favorites.filter(x => x !== asset.id)
-    : [...favorites,asset.id];
-
+  star.addEventListener("click",()=>{
+   favorites=favorites.includes(asset.id)
+    ?favorites.filter(x=>x!==asset.id)
+    :[...favorites,asset.id];
    saveFavorites();
    renderMarkets();
   });
 
-  const open = document.createElement("button");
-  open.type = "button";
-  open.className = "cl-market-open";
-  open.setAttribute(
-   "aria-label",
-   "Abrir gráfica de " + asset.name
-  );
+  const open=document.createElement("button");
+  open.type="button";
+  open.className="cl-market-open";
+  open.setAttribute("aria-label","Abrir gráfica de "+asset.name);
 
-  const name = document.createElement("span");
-  name.className = "cl-asset-name";
-
-  const icon = document.createElement("span");
-  icon.className = "cl-asset-icon";
-  icon.textContent = asset.icon;
-
-  const label = document.createElement("span");
-  label.className = "cl-asset-label";
-
-  const strong = document.createElement("strong");
-  strong.textContent = asset.name;
-
-  const small = document.createElement("small");
-  small.textContent = asset.commodity
-   ? "Commodities · Futuros"
-   : marketFilter === "spot"
-    ? "Spot"
-    : marketFilter === "perpetual"
-     ? "Perpetuos"
-     : "Perpetuos / Spot";
-
+  const name=document.createElement("span");
+  name.className="cl-asset-name";
+  const icon=document.createElement("span");
+  icon.className="cl-asset-icon";
+  icon.textContent=asset.icon;
+  const label=document.createElement("span");
+  label.className="cl-asset-label";
+  const strong=document.createElement("strong");
+  strong.textContent=asset.name;
+  const small=document.createElement("small");
+  small.textContent=asset.commodity?"Commodities · Futuros"
+   :marketFilter==="spot"?"Spot"
+   :marketFilter==="perpetual"?"Perpetuos"
+   :"Perpetuos / Spot";
   label.append(strong,small);
   name.append(icon,label);
 
-  const price = document.createElement("span");
-  price.className = "cl-market-price";
-  price.textContent = "—";
-
-  const change = document.createElement("span");
-  change.className = "cl-market-change";
-  change.textContent = "—%";
+  const price=document.createElement("span");
+  price.className="cl-market-price";
+  price.textContent="—";
+  const change=document.createElement("span");
+  change.className="cl-market-change";
+  change.textContent="—%";
 
   open.append(name,price,change);
-  open.addEventListener("click",() => selectAsset(asset));
-
+  open.addEventListener("click",()=>selectAsset(asset));
   row.append(star,open);
   fragment.appendChild(row);
   count++;
@@ -1020,12 +1083,11 @@ function renderMarkets() {
 
  host.replaceChildren(fragment);
 
- const status = $("clMarketListStatus");
-
- if (status) {
-  status.textContent = count
-   ? "Consultando precios reales de mercado..."
-   : "No se encontraron activos.";
+ const status=$("clMarketListStatus");
+ if(status){
+  status.textContent=count
+   ?"Consultando precios reales de mercado..."
+   :"No se encontraron activos.";
  }
 
  window.dispatchEvent(new CustomEvent(
@@ -1036,510 +1098,398 @@ function renderMarkets() {
 
 $("clMarketSearch")?.addEventListener("input",renderMarkets);
 
-qa("[data-market-filter]").forEach(button => {
- button.addEventListener("click",() => {
-  marketFilter = button.dataset.marketFilter;
-
-  qa("[data-market-filter]").forEach(element => {
-   element.classList.toggle(
-    "active",
-    element === button
-   );
+qa("[data-market-filter]").forEach(button=>{
+ button.addEventListener("click",()=>{
+  marketFilter=button.dataset.marketFilter;
+  qa("[data-market-filter]").forEach(element=>{
+   element.classList.toggle("active",element===button);
   });
-
   renderMarkets();
  });
 });
 
-qa("[data-tf]").forEach(button => {
- button.addEventListener("click",() => {
-  const interval = $("interval");
-  if (!interval) return;
-
-  interval.value = button.dataset.tf;
-  interval.dispatchEvent(
-   new Event("change",{bubbles:true})
-  );
+qa("[data-tf]").forEach(button=>{
+ button.addEventListener("click",()=>{
+  const interval=$("interval");
+  if(!interval)return;
+  if(interval.value===button.dataset.tf)return;
+  interval.value=button.dataset.tf;
+  interval.dispatchEvent(new Event("change",{bubbles:true}));
  });
 });
 
-$("interval")?.addEventListener("change",() => {
- qa("[data-tf]").forEach(button => {
-  button.classList.toggle(
-   "active",
-   button.dataset.tf === $("interval").value
-  );
+$("interval")?.addEventListener("change",()=>{
+ qa("[data-tf]").forEach(button=>{
+  button.classList.toggle("active",
+   button.dataset.tf===$("interval").value);
  });
 });
 
-qa("[data-chart-view]").forEach(button => {
- button.addEventListener("click",() => {
-  qa("[data-chart-view]").forEach(element => {
-   element.classList.toggle(
-    "active",
-    element === button
-   );
+qa("[data-chart-view]").forEach(button=>{
+ button.addEventListener("click",()=>{
+  qa("[data-chart-view]").forEach(element=>{
+   element.classList.toggle("active",element===button);
   });
-
-  const view = button.dataset.chartView;
-
-  $("clGraphContent").hidden = view !== "graph";
-  $("clCoinContent").hidden = view !== "coin";
-  $("clInfoContent").hidden = view !== "info";
-
-  if (view === "graph") refreshCharts();
+  const view=button.dataset.chartView;
+  $("clGraphContent").hidden=view!=="graph";
+  $("clCoinContent").hidden=view!=="coin";
+  $("clInfoContent").hidden=view!=="info";
+  if(view==="graph")refreshCharts();
  });
 });
 
-qa("[data-osc]").forEach(button => {
- button.addEventListener("click",() => {
-  const type = button.dataset.osc;
+/* LOS BOTONES ABREN AJUSTES SOLO CUANDO CORRESPONDE */
+qa("[data-osc]").forEach(button=>{
+ button.addEventListener("click",()=>{
+  const type=button.dataset.osc;
 
-  if (!["RSI","ADX","Squeeze"].includes(type)) {
-   editName = type;
+  if(!["RSI","ADX","Squeeze"].includes(type)){
+   editName=type;
    openSettings("edit");
    return;
   }
 
-  qa("[data-osc]").forEach(element => {
-   element.classList.toggle(
-    "active",
-    element === button
-   );
+  qa("[data-osc]").forEach(element=>{
+   element.classList.toggle("active",element===button);
   });
 
-  $("rsiSection").hidden = type !== "RSI";
-  $("adxSection").hidden = type !== "ADX";
-  $("squeezeSection").hidden = type !== "Squeeze";
-
+  $("rsiSection").hidden=type!=="RSI";
+  $("adxSection").hidden=type!=="ADX";
+  $("squeezeSection").hidden=type!=="Squeeze";
   refreshCharts();
  });
 });
 
-/*
- Libro de órdenes V26:
- No sobrescribe clBookView.
- La vista real se conserva al cambiar de pestaña.
-*/
-qa("[data-book]").forEach(button => {
- button.addEventListener("click",() => {
-  const type = button.dataset.book;
-  const view = $("clBookView");
-  const alternate = $("clBookAlternate");
+/* LIBRO DE ÓRDENES SIN BORRAR LA VISTA REAL */
+qa("[data-book]").forEach(button=>{
+ button.addEventListener("click",()=>{
+  const type=button.dataset.book;
+  const view=$("clBookView"),alternate=$("clBookAlternate");
 
-  qa("[data-book]").forEach(element => {
-   element.classList.toggle(
-    "active",
-    element === button
-   );
+  qa("[data-book]").forEach(element=>{
+   element.classList.toggle("active",element===button);
   });
 
-  if (view) view.hidden = type !== "book";
-
-  if (alternate) {
-   alternate.hidden = type === "book";
-
-   if (type === "trades") {
-    alternate.textContent =
-     "Trades: pendiente de integrar un flujo " +
-     "de operaciones ejecutadas.";
-   } else if (type === "depth") {
-    alternate.textContent =
-     "Profundidad: consulta el libro de órdenes " +
-     "para ver los niveles de compra y venta disponibles.";
-   } else {
-    alternate.textContent = "";
-   }
+  if(view)view.hidden=type!=="book";
+  if(alternate){
+   alternate.hidden=type==="book";
+   alternate.textContent=type==="trades"
+    ?"Trades: pendiente de integrar un flujo de operaciones ejecutadas."
+    :type==="depth"
+    ?"Profundidad: consulta el libro de órdenes para ver los niveles disponibles."
+    :"";
   }
 
   window.dispatchEvent(new CustomEvent(
-   "cryptolexuz:book-view",
-   {detail:{view:type}}
+   "cryptolexuz:book-view",{detail:{view:type}}
   ));
  });
 });
 
-for (const id of ["clLongInfo","clShortInfo"]) {
- $(id)?.addEventListener("click",() => {
+for(const id of ["clLongInfo","clShortInfo"]){
+ $(id)?.addEventListener("click",()=>{
   activateTab("scanner","clTradePlansHost");
  });
 }
 
-/* CONFIGURACIÓN DE GRÁFICA */
+/* CONFIGURACIÓN INDEPENDIENTE MA / EMA */
 
-const settingsKey = "cryptolexuz-chart-settings-v1";
+const settingsKey="cryptolexuz-chart-settings-v1";
 
-const defaults = [
- {period:55,color:"#f47c26",width:2,enabled:true},
- {period:21,color:"#b74cfa",width:2,enabled:true},
- {period:100,color:"#e52c58",width:3,enabled:true},
- {period:200,color:"#0aa47e",width:2,enabled:false}
+const defaultMA=[
+ {period:55,color:"#ff9a35",width:2,enabled:true},
+ {period:100,color:"#ff476c",width:2,enabled:false},
+ {period:200,color:"#36c5ff",width:2,enabled:false}
 ];
 
-let prefs = {
- lines:defaults.map(x => ({...x})),
+const defaultEMA=[
+ {period:21,color:"#bb52ff",width:2,enabled:true}
+];
+
+function cloneLines(lines){
+ return lines.map(line=>({...line}));
+}
+
+function normalizeLines(lines,fallback){
+ if(!Array.isArray(lines)||!lines.length)return cloneLines(fallback);
+ return lines.slice(0,12).map(line=>({
+  period:Math.max(1,Math.min(1000,Number(line.period)||21)),
+  color:/^#[0-9a-f]{6}$/i.test(line.color)
+   ?line.color:"#bb52ff",
+  width:Math.max(1,Math.min(5,Number(line.width)||2)),
+  enabled:line.enabled!==false
+ }));
+}
+
+let prefs={
+ lines:cloneLines(defaultMA),
+ emaLines:cloneLines(defaultEMA),
  height:360,
- options:{
-  countdown:true,
-  multiperiod:true,
-  bidask:false
- },
- indicators:{
-  MA:true,
-  EMA:true,
-  VOL:true,
-  RSI:true
- }
+ options:{countdown:true,multiperiod:true,bidask:false},
+ indicators:{MA:true,EMA:true,VOL:true,RSI:true}
 };
 
-try {
- const saved = JSON.parse(
-  localStorage.getItem(settingsKey) || "null"
- );
+try{
+ const saved=JSON.parse(localStorage.getItem(settingsKey)||"null");
 
- if (
-  saved &&
-  typeof saved === "object" &&
-  !Array.isArray(saved)
- ) {
-  prefs = {
+ if(saved&&typeof saved==="object"&&!Array.isArray(saved)){
+  const legacy=Array.isArray(saved.lines)?saved.lines:[];
+
+  const savedMA=Array.isArray(saved.maLines)
+   ?saved.maLines
+   :legacy.filter(line=>Number(line.period)!==21);
+
+  const savedEMA=Array.isArray(saved.emaLines)
+   ?saved.emaLines
+   :legacy.filter(line=>Number(line.period)===21);
+
+  prefs={
    ...prefs,
    ...saved,
-   options:{
-    ...prefs.options,
-    ...(saved.options || {})
-   },
-   indicators:{
-    ...prefs.indicators,
-    ...(saved.indicators || {})
-   },
-   lines:Array.isArray(saved.lines) && saved.lines.length
-    ? saved.lines
-    : prefs.lines
+   lines:normalizeLines(savedMA,defaultMA),
+   emaLines:normalizeLines(savedEMA,defaultEMA),
+   options:{...prefs.options,...(saved.options||{})},
+   indicators:{...prefs.indicators,...(saved.indicators||{})}
   };
  }
-} catch(error) {
+}catch(error){
  console.warn("Configuración anterior:",error);
 }
 
-function persist() {
- try {
-  localStorage.setItem(
-   settingsKey,
-   JSON.stringify(prefs)
-  );
- } catch(error) {
-  console.warn(
-   "No se pudieron guardar ajustes:",
-   error
-  );
+function persist(){
+ try{
+  localStorage.setItem(settingsKey,JSON.stringify(prefs));
+ }catch(error){
+  console.warn("Guardar ajustes:",error);
  }
 }
 
-function notify() {
+function notify(){
  window.dispatchEvent(new CustomEvent(
   "cryptolexuz:indicator-settings-change",
   {detail:{settings:prefs}}
  ));
 }
 
-const overlay = $("clSettingsOverlay");
-const content = $("clSettingsContent");
+const overlay=$("clSettingsOverlay");
+const content=$("clSettingsContent");
+let settingsPage="main";
+let editName="MA";
 
-let settingsPage = "main";
-let editName = "MA";
-
-function el(tag,text) {
- const node = document.createElement(tag);
- if (text !== undefined) {
-  node.textContent = String(text);
- }
+function el(tag,text){
+ const node=document.createElement(tag);
+ if(text!==undefined)node.textContent=String(text);
  return node;
 }
 
-function button(text,callback,className="cl-settings-row") {
- const node = el("button",text);
- node.type = "button";
- node.className = className;
+function button(text,callback,className="cl-settings-row"){
+ const node=el("button",text);
+ node.type="button";
+ node.className=className;
  node.addEventListener("click",callback);
  return node;
 }
 
-function checkbox(text,checked,callback) {
- const label = el("label");
- label.className = "cl-settings-check";
-
- const input = el("input");
- input.type = "checkbox";
- input.checked = checked;
-
- input.addEventListener("change",() => {
-  callback(input.checked);
- });
-
- label.append(
-  input,
-  document.createTextNode(text)
- );
-
+function checkbox(text,checked,callback){
+ const label=el("label");
+ label.className="cl-settings-check";
+ const input=el("input");
+ input.type="checkbox";
+ input.checked=checked;
+ input.addEventListener("change",()=>callback(input.checked));
+ label.append(input,document.createTextNode(text));
  return label;
 }
 
-function openSettings(page="main") {
- if (!overlay || !content) return;
+function openSettings(page="main"){
+ if(!overlay||!content)return;
 
- settingsPage = page;
- overlay.hidden = false;
+ settingsPage=page;
+ overlay.hidden=false;
  content.replaceChildren();
 
- $("clSettingsBack").hidden = page === "main";
+ $("clSettingsBack").hidden=page==="main";
 
- if (page === "main") {
-  settingsMain();
- } else if (page === "indicators") {
-  settingsIndicators();
- } else if (page === "edit") {
-  settingsEdit();
- } else {
-  settingsOther();
- }
+ if(page==="main")settingsMain();
+ else if(page==="indicators")settingsIndicators();
+ else if(page==="edit")settingsEdit();
+ else settingsOther();
 }
 
-function closeSettings() {
- if (overlay) overlay.hidden = true;
+function closeSettings(){
+ if(overlay)overlay.hidden=true;
  persist();
  notify();
 }
 
-function settingsMain() {
- content.append(
-  el("h2","Configuración del gráfico")
- );
+function settingsMain(){
+ content.append(el("h2","Configuración del gráfico"));
 
- const grid = el("div");
- grid.className = "cl-settings-grid";
+ const grid=el("div");
+ grid.className="cl-settings-grid";
 
- for (const [name,icon,page] of [
+ for(const [name,icon,page] of [
   ["Indicadores","▧","indicators"],
   ["Dibujo","✎","drawing"],
   ["Interfaz","⚙","interface"],
   ["Guía de velas","▣","guide"]
- ]) {
-  const tile = button(
-   name,
-   () => openSettings(page),
-   "cl-settings-tile"
-  );
-
+ ]){
+  const tile=button(name,()=>openSettings(page),"cl-settings-tile");
   tile.prepend(el("span",icon));
   grid.append(tile);
  }
 
- content.append(
-  grid,
-  el("h3","Visualización del gráfico")
- );
+ content.append(grid,el("h3","Visualización del gráfico"));
 
- for (const [name,key] of [
+ for(const [name,key] of [
   ["Cuenta regresiva","countdown"],
   ["Cambios multiperíodo","multiperiod"],
   ["Precios de compra y venta","bidask"]
- ]) {
-  content.append(checkbox(
-   name,
-   Boolean(prefs.options[key]),
-   value => {
-    prefs.options[key] = value;
-    persist();
-    notify();
-   }
-  ));
+ ]){
+  content.append(checkbox(name,Boolean(prefs.options[key]),value=>{
+   prefs.options[key]=value;
+   persist();
+   notify();
+  }));
  }
 
- content.append(
-  el("h3","Altura de la gráfica")
- );
+ content.append(el("h3","Altura de la gráfica"));
 
- const range = el("input");
- range.type = "range";
- range.min = "240";
- range.max = "600";
- range.step = "20";
- range.value = prefs.height;
- range.style.width = "100%";
+ const range=el("input");
+ range.type="range";
+ range.min="240";
+ range.max="600";
+ range.step="20";
+ range.value=prefs.height;
+ range.style.width="100%";
 
- range.addEventListener("input",() => {
-  prefs.height = Number(range.value);
-
-  const chart = $("chart");
-  if (chart) {
-   chart.style.height = prefs.height + "px";
-  }
-
+ range.addEventListener("change",()=>{
+  prefs.height=Number(range.value);
+  const chart=$("chart");
+  if(chart)chart.style.height=prefs.height+"px";
   persist();
   refreshCharts();
  });
 
- content.append(
-  range,
-  button(
-   "Guardar",
-   closeSettings,
-   "cl-settings-save"
-  )
- );
+ content.append(range,button("Guardar",closeSettings,"cl-settings-save"));
 }
 
-function settingsIndicators() {
- content.append(
-  el("h2","Indicadores"),
-  el("h3","Principal")
- );
+function settingsIndicators(){
+ content.append(el("h2","Indicadores"),el("h3","Principal"));
 
- for (const name of [
-  "MA","EMA","BOLL","SAR","AVL","LSR"
- ]) {
-  content.append(button(name+"   ›",() => {
-   editName = name;
+ for(const name of ["MA","EMA","BOLL","SAR","AVL","LSR"]){
+  content.append(button(name+"   ›",()=>{
+   editName=name;
    openSettings("edit");
   }));
  }
 
- content.append(
-  el("h3","Subimagen")
- );
+ content.append(el("h3","Subimagen"));
 
- for (const name of [
+ for(const name of [
   "VOL","MACD","KDJ","RSI","WR",
   "CCI","SKDJ","ADX","Squeeze"
- ]) {
-  content.append(button(name+"   ›",() => {
-   editName = name;
+ ]){
+  content.append(button(name+"   ›",()=>{
+   editName=name;
    openSettings("edit");
   }));
  }
 }
 
-function settingsEdit() {
+function settingsEdit(){
  content.append(el("h2",editName));
 
- if (editName === "MA" || editName === "EMA") {
-  const grid = el("div");
-  grid.className = "cl-ma-grid";
+ if(editName==="MA"||editName==="EMA"){
+  const isEMA=editName==="EMA";
+  const key=isEMA?"emaLines":"lines";
+  const defaults=isEMA?defaultEMA:defaultMA;
+  const lines=prefs[key];
 
-  for (const title of [
-   "Línea","Valor","Ancho","Color"
-  ]) {
+  const grid=el("div");
+  grid.className="cl-ma-grid";
+
+  for(const title of ["Línea","Valor","Ancho","Color"]){
    grid.append(el("small",title));
   }
 
-  prefs.lines.forEach((line,index) => {
-   const label = el(
-    "label",
-    editName+(index+1)
-   );
+  lines.forEach((line,index)=>{
+   const label=el("label",editName+(index+1));
+   label.className="cl-ma-label";
 
-   label.className = "cl-ma-label";
-
-   const enabled = el("input");
-   enabled.type = "checkbox";
-   enabled.checked = Boolean(line.enabled);
-
-   enabled.addEventListener("change",() => {
-    line.enabled = enabled.checked;
+   const enabled=el("input");
+   enabled.type="checkbox";
+   enabled.checked=Boolean(line.enabled);
+   enabled.addEventListener("change",()=>{
+    line.enabled=enabled.checked;
     persist();
     notify();
    });
-
    label.prepend(enabled);
 
-   const period = el("input");
-   period.type = "number";
-   period.min = "1";
-   period.max = "1000";
-   period.value = line.period;
-
-   period.addEventListener("change",() => {
-    line.period = Math.max(
-     1,
-     Math.min(1000,Number(period.value)||21)
-    );
+   const period=el("input");
+   period.type="number";
+   period.min="1";
+   period.max="1000";
+   period.value=line.period;
+   period.addEventListener("change",()=>{
+    line.period=Math.max(1,Math.min(1000,Number(period.value)||21));
     persist();
     notify();
    });
 
-   const width = el("select");
-
-   for (const value of [1,2,3,4,5]) {
-    const option = el(
-     "option",
-     value+" px"
-    );
-    option.value = value;
+   const width=el("select");
+   for(const value of [1,2,3,4,5]){
+    const option=el("option",value+" px");
+    option.value=value;
     width.append(option);
    }
-
-   width.value = String(line.width);
-
-   width.addEventListener("change",() => {
-    line.width = Number(width.value);
+   width.value=String(line.width);
+   width.addEventListener("change",()=>{
+    line.width=Number(width.value);
     persist();
     notify();
    });
 
-   const color = el("input");
-   color.type = "color";
-
-   color.value = /^#[0-9a-fA-F]{6}$/.test(line.color)
-    ? line.color
-    : "#b74cfa";
-
-   color.addEventListener("input",() => {
-    line.color = color.value;
+   const color=el("input");
+   color.type="color";
+   color.value=/^#[0-9a-f]{6}$/i.test(line.color)
+    ?line.color:"#bb52ff";
+   color.addEventListener("change",()=>{
+    line.color=color.value;
     persist();
     notify();
    });
 
-   grid.append(
-    label,
-    period,
-    width,
-    color
-   );
+   grid.append(label,period,width,color);
   });
 
   content.append(grid);
 
-  const actions = el("div");
-  actions.className = "cl-settings-actions";
+  const actions=el("div");
+  actions.className="cl-settings-actions";
 
   actions.append(
-   button("Restablecer",() => {
-    prefs.lines = defaults.map(x => ({...x}));
+   button("Restablecer",()=>{
+    prefs[key]=cloneLines(defaults);
     persist();
     notify();
     openSettings("edit");
    }),
-
-   button("Agregar",() => {
-    if (prefs.lines.length >= 12) return;
-
-    prefs.lines.push({
-     period:50,
-     color:"#479eff",
+   button("Agregar",()=>{
+    if(prefs[key].length>=12)return;
+    prefs[key].push({
+     period:isEMA?9:50,
+     color:isEMA?"#bb52ff":"#479eff",
      width:2,
      enabled:true
     });
-
     persist();
     notify();
     openSettings("edit");
    }),
-
-   button("Eliminar",() => {
-    if (prefs.lines.length > 1) {
-     prefs.lines.pop();
-    }
+   button("Eliminar",()=>{
+    if(prefs[key].length>1)prefs[key].pop();
     persist();
     notify();
     openSettings("edit");
@@ -1547,154 +1497,105 @@ function settingsEdit() {
   );
 
   content.append(actions);
- } else {
+
+  content.append(el("p",
+   "MA y EMA tienen configuraciones independientes. "+
+   "Las líneas activadas se mostrarán sobre las velas "+
+   "cuando el motor de gráficas las admita."
+  ));
+ }else{
   content.append(
-   checkbox(
-    "Mostrar "+editName,
-    Boolean(prefs.indicators[editName]),
-    value => {
-     prefs.indicators[editName] = value;
+   checkbox("Mostrar "+editName,
+    Boolean(prefs.indicators[editName]),value=>{
+     prefs.indicators[editName]=value;
      persist();
      notify();
     }
    ),
-   el(
-    "p",
-    "Los parámetros disponibles dependen " +
-    "del motor del indicador."
-   )
+   el("p",
+    "Los parámetros disponibles dependen del motor del indicador.")
   );
  }
 
- content.append(
-  button(
-   "Guardar",
-   closeSettings,
-   "cl-settings-save"
-  )
- );
+ content.append(button("Guardar",closeSettings,"cl-settings-save"));
 }
 
-function settingsOther() {
- const names = {
+function settingsOther(){
+ const names={
   drawing:"Herramientas de dibujo",
   interface:"Interfaz",
   guide:"Guía de velas japonesas"
  };
 
- content.append(el(
-  "h2",
-  names[settingsPage] || "Configuración"
- ));
+ content.append(el("h2",names[settingsPage]||"Configuración"));
 
- if (settingsPage === "drawing") {
+ if(settingsPage==="drawing"){
   content.append(
-   button("Fibonacci",() => {
+   button("Fibonacci",()=>{
     closeSettings();
-    $("clFibonacciTools").open = true;
-    activateTab(
-     "charts",
-     "clFibonacciTools"
-    );
+    $("clFibonacciTools").open=true;
+    activateTab("charts","clFibonacciTools");
    }),
-
-   button("Cajas moradas",() => {
+   button("Cajas moradas",()=>{
     closeSettings();
-    $("clRangeBoxesTools").open = true;
-    activateTab(
-     "charts",
-     "clRangeBoxesTools"
-    );
+    $("clRangeBoxesTools").open=true;
+    activateTab("charts","clRangeBoxesTools");
    })
   );
- } else {
-  content.append(el(
-   "p",
-   "Apartado preparado para futuras opciones."
-  ));
+ }else{
+  content.append(el("p","Apartado preparado para futuras opciones."));
  }
 
- content.append(button(
-  "Volver",
-  () => openSettings("main"),
-  "cl-settings-save"
- ));
+ content.append(button("Volver",()=>openSettings("main"),"cl-settings-save"));
 }
 
-$("clChartSettings")?.addEventListener("click",() => {
+$("clChartSettings")?.addEventListener("click",()=>{
  openSettings("main");
 });
-
-$("clSettingsClose")?.addEventListener(
- "click",
- closeSettings
-);
-
-$("clSettingsBack")?.addEventListener("click",() => {
- openSettings(
-  settingsPage === "edit"
-   ? "indicators"
-   : "main"
- );
+$("clSettingsClose")?.addEventListener("click",closeSettings);
+$("clSettingsBack")?.addEventListener("click",()=>{
+ openSettings(settingsPage==="edit"?"indicators":"main");
 });
 
-overlay?.addEventListener("click",event => {
- if (event.target === overlay) {
-  closeSettings();
- }
+overlay?.addEventListener("click",event=>{
+ if(event.target===overlay)closeSettings();
 });
 
-function init() {
- const chart = $("chart");
-
- if (chart) {
-  chart.style.height =
-   Math.max(
-    240,
-    Math.min(
-     600,
-     Number(prefs.height)||360
-    )
-   )+"px";
+function init(){
+ const chart=$("chart");
+ if(chart){
+  chart.style.height=Math.max(
+   240,Math.min(600,Number(prefs.height)||360)
+  )+"px";
  }
 
  renderMarkets();
  organizeModules();
 
- const observer = new MutationObserver(
-  scheduleOrganize
- );
-
+ const observer=new MutationObserver(scheduleOrganize);
  observer.observe(document.body,{
   childList:true,
   subtree:true
  });
 
- window.addEventListener("load",() => {
-  setTimeout(() => {
+ window.addEventListener("load",()=>{
+  setTimeout(()=>{
    organizeModules();
-   refreshCharts();
+   if(screen==="charts")refreshCharts();
   },500);
  },{once:true});
 
- window.addEventListener("keydown",event => {
-  if (event.key === "Escape") {
-   if (overlay && !overlay.hidden) {
-    closeSettings();
-   } else {
-    setOpen(false);
-   }
+ window.addEventListener("keydown",event=>{
+  if(event.key==="Escape"){
+   if(overlay&&!overlay.hidden)closeSettings();
+   else setOpen(false);
   }
  });
 }
 
-if (document.readyState === "loading") {
- document.addEventListener(
-  "DOMContentLoaded",
-  init,
-  {once:true}
- );
-} else {
+if(document.readyState==="loading"){
+ document.addEventListener("DOMContentLoaded",init,{once:true});
+}else{
  init();
 }
 
