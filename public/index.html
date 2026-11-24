@@ -8,7 +8,7 @@
 <meta name="description" content="CRYPTOLEXUZ PRO: mercados, gráficas, indicadores, escáner y resultados informativos.">
 <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
 
-<!-- CRYPTOLEXUZ PRO — INDEX V27 -->
+<!-- CRYPTOLEXUZ PRO — INDEX V28 -->
 <link rel="stylesheet" href="styles.css?v=22">
 
 <style>
@@ -48,62 +48,68 @@
 .cl-market-row .cl-asset-name,.cl-market-row .cl-asset-label{min-width:0}
 .cl-market-row .cl-asset-label strong{overflow-wrap:anywhere}
 
-/* ESTABILIDAD DE GRÁFICAS */
+/* GRÁFICAS ESTABLES */
 #chart,#volumeChart,#rsiChart,#adxChart,#squeezeChart{
  position:relative;
  min-width:0;
- overflow:hidden;
+ overflow:hidden
 }
-#chart{
- height:360px;
-}
+#chart{height:360px}
 #volumeChart{height:115px}
 #rsiChart,#adxChart{height:145px}
 #zonesCanvas{
  position:absolute;
  inset:0;
- pointer-events:none!important;
+ pointer-events:none!important
 }
 .cl-chart-gear{
  position:relative;
  z-index:2;
- cursor:pointer;
+ cursor:pointer
 }
 
-/* AJUSTES INDEPENDIENTES */
+/* CONFIGURACIÓN CENTRADA — V28 */
 .cl-settings-overlay{
  position:fixed;
  inset:0;
  z-index:9999;
- background:rgba(0,0,0,.76);
+ background:rgba(0,0,0,.78);
  display:flex;
- align-items:flex-end;
+ align-items:center;
  justify-content:center;
+ padding:14px;
+ box-sizing:border-box;
+ backdrop-filter:blur(5px);
+ -webkit-backdrop-filter:blur(5px)
 }
 .cl-settings-sheet{
  width:min(100%,560px);
- max-height:88dvh;
+ max-height:min(88dvh,780px);
  overflow-y:auto;
+ overscroll-behavior:contain;
  background:#121522;
  color:#f2f4ff;
- border:1px solid #34384d;
- border-radius:18px 18px 0 0;
- padding:16px;
+ border:1px solid #44405f;
+ border-radius:18px;
+ padding:18px;
  box-sizing:border-box;
+ box-shadow:0 24px 75px rgba(0,0,0,.65);
+ scrollbar-width:thin;
+ scrollbar-color:#594a83 #121522
 }
 .cl-settings-head{
  display:flex;
  justify-content:space-between;
  align-items:center;
- margin-bottom:12px;
+ margin-bottom:12px
 }
 .cl-settings-head button{
  background:#252b3d;
  color:white;
- border:0;
+ border:1px solid #3b4157;
  border-radius:9px;
  padding:9px 15px;
- cursor:pointer;
+ cursor:pointer
 }
 .cl-settings-row{
  display:block;
@@ -115,7 +121,11 @@
  border-radius:10px;
  padding:14px;
  margin:7px 0;
- cursor:pointer;
+ cursor:pointer
+}
+.cl-settings-row:active,
+.cl-settings-tile:active{
+ background:#302748
 }
 .cl-settings-save{
  display:block;
@@ -127,12 +137,12 @@
  color:white;
  font-weight:700;
  margin-top:16px;
- cursor:pointer;
+ cursor:pointer
 }
 .cl-settings-grid{
  display:grid;
  grid-template-columns:repeat(2,minmax(0,1fr));
- gap:10px;
+ gap:10px
 }
 .cl-settings-tile{
  min-height:85px;
@@ -145,20 +155,25 @@
  color:#f1f3ff;
  border:1px solid #343b52;
  border-radius:12px;
- cursor:pointer;
+ cursor:pointer
 }
 .cl-settings-tile span{font-size:23px}
 .cl-settings-check{
  display:flex;
  align-items:center;
  gap:10px;
- padding:12px 4px;
+ padding:12px 4px
+}
+.cl-settings-check input{
+ accent-color:#a56cff;
+ width:17px;
+ height:17px
 }
 .cl-ma-grid{
  display:grid;
  grid-template-columns:minmax(0,1.1fr) minmax(0,.8fr) minmax(0,.8fr) 46px;
  gap:8px;
- align-items:center;
+ align-items:center
 }
 .cl-ma-grid input[type=number],
 .cl-ma-grid select{
@@ -169,26 +184,27 @@
  background:#22283a;
  color:white;
  border:1px solid #46506b;
- border-radius:7px;
+ border-radius:7px
 }
 .cl-ma-grid input[type=color]{
  width:42px;
  height:38px;
  padding:2px;
  background:transparent;
- border:0;
+ border:0
 }
 .cl-ma-label{
  display:flex;
  align-items:center;
  gap:5px;
- font-size:12px;
+ font-size:12px
 }
+.cl-ma-label input{accent-color:#a56cff}
 .cl-settings-actions{
  display:flex;
  flex-wrap:wrap;
  gap:8px;
- margin-top:15px;
+ margin-top:15px
 }
 .cl-settings-actions button{
  flex:1;
@@ -198,12 +214,84 @@
  background:#22283a;
  color:white;
  border-radius:8px;
- cursor:pointer;
+ cursor:pointer
 }
 .cl-settings-hint{
  font-size:12px;
  color:#aebcdd;
- line-height:1.6;
+ line-height:1.6
+}
+.cl-settings-heading{
+ color:#e8d7ff;
+ margin:4px 0 14px
+}
+.cl-settings-group-title{
+ font-size:12px;
+ font-weight:700;
+ color:#b7a6e3;
+ text-transform:uppercase;
+ letter-spacing:.07em;
+ margin:18px 0 8px
+}
+.cl-settings-divider{
+ height:1px;
+ background:#33384e;
+ margin:15px 0
+}
+.cl-settings-indicator{
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:12px;
+ width:100%;
+ background:#1b2131;
+ color:#f1f3ff;
+ border:1px solid #343b52;
+ border-radius:10px;
+ padding:12px;
+ margin:6px 0;
+ cursor:pointer;
+ text-align:left
+}
+.cl-settings-indicator .cl-settings-indicator-name{
+ font-weight:600
+}
+.cl-settings-indicator .cl-settings-indicator-status{
+ color:#b2a1e8;
+ font-size:12px
+}
+.cl-settings-indicator.is-unavailable{
+ opacity:.65
+}
+.cl-settings-indicator.is-unavailable .cl-settings-indicator-status{
+ color:#aebcdd
+}
+.cl-settings-disabled-note{
+ color:#c6b5e9;
+ font-size:12px;
+ line-height:1.5
+}
+.cl-settings-overlay input,
+.cl-settings-overlay select,
+.cl-settings-overlay button{
+ font-family:inherit
+}
+body.cl-settings-open{overflow:hidden}
+@media(max-width:420px){
+ .cl-settings-overlay{padding:10px}
+ .cl-settings-sheet{
+  padding:14px;
+  max-height:90dvh;
+  border-radius:15px
+ }
+ .cl-ma-grid{
+  grid-template-columns:minmax(0,1fr) 60px 62px 42px;
+  gap:5px
+ }
+ .cl-ma-grid input[type=color]{width:38px}
+ .cl-ma-label{font-size:11px}
+ .cl-ma-grid input[type=number],
+ .cl-ma-grid select{font-size:12px}
 }
 </style>
 
@@ -215,8 +303,8 @@
 <script defer src="patterns.js?v=2"></script>
 <script defer src="patterns-bridge.js?v=1"></script>
 
-<!-- MOTOR PRINCIPAL ACTUALIZADO -->
-<script defer src="app.js?v=20"></script>
+<!-- MOTOR PRINCIPAL V22 -->
+<script defer src="app.js?v=22"></script>
 
 <script defer src="liquidity.js?v=12"></script>
 <script defer src="trade-plans.js?v=4"></script>
@@ -791,10 +879,10 @@ No ejecuta operaciones ni garantiza resultados.
 
 </nav>
 
-<!-- VENTANA DE AJUSTES -->
+<!-- AJUSTES CENTRADOS -->
 <div id="clSettingsOverlay" class="cl-settings-overlay" hidden>
 <div class="cl-settings-sheet" role="dialog" aria-modal="true"
- aria-label="Configuración del gráfico">
+ aria-labelledby="clSettingsTitle" tabindex="-1">
 <div class="cl-settings-head">
 <button id="clSettingsBack" type="button" aria-label="Volver">‹</button>
 <button id="clSettingsClose" type="button" aria-label="Cerrar ajustes">✕</button>
@@ -807,8 +895,8 @@ No ejecuta operaciones ni garantiza resultados.
 (() => {
 "use strict";
 
-if(window.__CL_INDEX_V27__)return;
-window.__CL_INDEX_V27__=true;
+if(window.__CL_INDEX_V28__)return;
+window.__CL_INDEX_V28__=true;
 
 const $=id=>document.getElementById(id);
 const qa=selector=>Array.from(document.querySelectorAll(selector));
@@ -1138,7 +1226,7 @@ qa("[data-chart-view]").forEach(button=>{
  });
 });
 
-/* LOS BOTONES ABREN AJUSTES SOLO CUANDO CORRESPONDE */
+/* OSCILADORES Y AJUSTES */
 qa("[data-osc]").forEach(button=>{
  button.addEventListener("click",()=>{
   const type=button.dataset.osc;
@@ -1160,7 +1248,7 @@ qa("[data-osc]").forEach(button=>{
  });
 });
 
-/* LIBRO DE ÓRDENES SIN BORRAR LA VISTA REAL */
+/* LIBRO DE ÓRDENES */
 qa("[data-book]").forEach(button=>{
  button.addEventListener("click",()=>{
   const type=button.dataset.book;
@@ -1192,19 +1280,23 @@ for(const id of ["clLongInfo","clShortInfo"]){
  });
 }
 
-/* CONFIGURACIÓN INDEPENDIENTE MA / EMA */
+/* CONFIGURACIÓN MA / EMA — V28 */
 
 const settingsKey="cryptolexuz-chart-settings-v1";
 
 const defaultMA=[
  {period:55,color:"#ff9a35",width:2,enabled:true},
- {period:100,color:"#ff476c",width:2,enabled:false},
+ {period:100,color:"#ff476c",width:3,enabled:false},
  {period:200,color:"#36c5ff",width:2,enabled:false}
 ];
 
 const defaultEMA=[
  {period:21,color:"#bb52ff",width:2,enabled:true}
 ];
+
+const availableIndicators=new Set([
+ "MA","EMA","VOL","RSI","ADX","FVG","IFVG"
+]);
 
 function cloneLines(lines){
  return lines.map(line=>({...line}));
@@ -1213,7 +1305,7 @@ function cloneLines(lines){
 function normalizeLines(lines,fallback){
  if(!Array.isArray(lines)||!lines.length)return cloneLines(fallback);
  return lines.slice(0,12).map(line=>({
-  period:Math.max(1,Math.min(1000,Number(line.period)||21)),
+  period:Math.max(1,Math.min(1000,Math.round(Number(line.period)||21))),
   color:/^#[0-9a-f]{6}$/i.test(line.color)
    ?line.color:"#bb52ff",
   width:Math.max(1,Math.min(5,Number(line.width)||2)),
@@ -1222,11 +1314,11 @@ function normalizeLines(lines,fallback){
 }
 
 let prefs={
- lines:cloneLines(defaultMA),
+ maLines:cloneLines(defaultMA),
  emaLines:cloneLines(defaultEMA),
  height:360,
  options:{countdown:true,multiperiod:true,bidask:false},
- indicators:{MA:true,EMA:true,VOL:true,RSI:true}
+ indicators:{MA:true,EMA:true,VOL:true,RSI:true,ADX:false}
 };
 
 try{
@@ -1246,7 +1338,7 @@ try{
   prefs={
    ...prefs,
    ...saved,
-   lines:normalizeLines(savedMA,defaultMA),
+   maLines:normalizeLines(savedMA,defaultMA),
    emaLines:normalizeLines(savedEMA,defaultEMA),
    options:{...prefs.options,...(saved.options||{})},
    indicators:{...prefs.indicators,...(saved.indicators||{})}
@@ -1273,8 +1365,10 @@ function notify(){
 
 const overlay=$("clSettingsOverlay");
 const content=$("clSettingsContent");
+
 let settingsPage="main";
 let editName="MA";
+let lastFocus=null;
 
 function el(tag,text){
  const node=document.createElement(tag);
@@ -1304,8 +1398,13 @@ function checkbox(text,checked,callback){
 function openSettings(page="main"){
  if(!overlay||!content)return;
 
+ if(overlay.hidden){
+  lastFocus=document.activeElement;
+ }
+
  settingsPage=page;
  overlay.hidden=false;
+ document.body.classList.add("cl-settings-open");
  content.replaceChildren();
 
  $("clSettingsBack").hidden=page==="main";
@@ -1314,12 +1413,27 @@ function openSettings(page="main"){
  else if(page==="indicators")settingsIndicators();
  else if(page==="edit")settingsEdit();
  else settingsOther();
+
+ const heading=content.querySelector("h2");
+ if(heading)heading.id="clSettingsTitle";
+
+ const sheet=overlay.querySelector(".cl-settings-sheet");
+ if(sheet){
+  sheet.scrollTop=0;
+  sheet.focus({preventScroll:true});
+ }
 }
 
 function closeSettings(){
  if(overlay)overlay.hidden=true;
+ document.body.classList.remove("cl-settings-open");
  persist();
  notify();
+
+ if(lastFocus&&typeof lastFocus.focus==="function"){
+  lastFocus.focus({preventScroll:true});
+ }
+ lastFocus=null;
 }
 
 function settingsMain(){
@@ -1363,6 +1477,13 @@ function settingsMain(){
  range.value=prefs.height;
  range.style.width="100%";
 
+ const heightText=el("p",String(prefs.height)+" px");
+ heightText.className="cl-settings-hint";
+
+ range.addEventListener("input",()=>{
+  heightText.textContent=range.value+" px";
+ });
+
  range.addEventListener("change",()=>{
   prefs.height=Number(range.value);
   const chart=$("chart");
@@ -1371,30 +1492,77 @@ function settingsMain(){
   refreshCharts();
  });
 
- content.append(range,button("Guardar",closeSettings,"cl-settings-save"));
+ content.append(
+  range,
+  heightText,
+  button("Guardar",closeSettings,"cl-settings-save")
+ );
 }
 
 function settingsIndicators(){
- content.append(el("h2","Indicadores"),el("h3","Principal"));
+ content.append(el("h2","Indicadores"));
 
- for(const name of ["MA","EMA","BOLL","SAR","AVL","LSR"]){
-  content.append(button(name+"   ›",()=>{
-   editName=name;
-   openSettings("edit");
-  }));
+ content.append(
+  el("h3","Principal")
+ );
+
+ for(const name of [
+  "MA","EMA","BOLL","SAR","AVL","LSR"
+ ]){
+  indicatorRow(name);
  }
 
- content.append(el("h3","Subimagen"));
+ content.append(
+  el("h3","Subimagen")
+ );
 
  for(const name of [
   "VOL","MACD","KDJ","RSI","WR",
   "CCI","SKDJ","ADX","Squeeze"
  ]){
-  content.append(button(name+"   ›",()=>{
+  indicatorRow(name);
+ }
+
+ content.append(
+  el("p",
+   "Los indicadores no integrados aparecen como pendientes. "+
+   "Sus botones no activan cálculos inexistentes."
+  )
+ );
+}
+
+function indicatorRow(name){
+ const available=availableIndicators.has(name);
+ const active=Boolean(prefs.indicators[name]);
+
+ const row=button(
+  name,
+  ()=>{
    editName=name;
    openSettings("edit");
-  }));
+  },
+  "cl-settings-indicator"
+ );
+
+ const label=el("span",name);
+ label.className="cl-settings-indicator-name";
+
+ const status=el("span",
+  available
+   ?active?"Activo ›":"Configurar ›"
+   :"Pendiente"
+ );
+ status.className="cl-settings-indicator-status";
+
+ row.replaceChildren(label,status);
+ row.classList.toggle("is-unavailable",!available);
+
+ if(!available){
+  row.disabled=true;
+  row.title="Indicador pendiente de implementación";
  }
+
+ content.append(row);
 }
 
 function settingsEdit(){
@@ -1402,14 +1570,16 @@ function settingsEdit(){
 
  if(editName==="MA"||editName==="EMA"){
   const isEMA=editName==="EMA";
-  const key=isEMA?"emaLines":"lines";
+  const key=isEMA?"emaLines":"maLines";
   const defaults=isEMA?defaultEMA:defaultMA;
   const lines=prefs[key];
 
   const grid=el("div");
   grid.className="cl-ma-grid";
 
-  for(const title of ["Línea","Valor","Ancho","Color"]){
+  for(const title of [
+   "Línea","Valor","Ancho","Color"
+  ]){
    grid.append(el("small",title));
   }
 
@@ -1420,11 +1590,13 @@ function settingsEdit(){
    const enabled=el("input");
    enabled.type="checkbox";
    enabled.checked=Boolean(line.enabled);
+
    enabled.addEventListener("change",()=>{
     line.enabled=enabled.checked;
     persist();
     notify();
    });
+
    label.prepend(enabled);
 
    const period=el("input");
@@ -1432,19 +1604,27 @@ function settingsEdit(){
    period.min="1";
    period.max="1000";
    period.value=line.period;
+
    period.addEventListener("change",()=>{
-    line.period=Math.max(1,Math.min(1000,Number(period.value)||21));
+    line.period=Math.max(
+     1,
+     Math.min(1000,Math.round(Number(period.value)||21))
+    );
+    period.value=line.period;
     persist();
     notify();
    });
 
    const width=el("select");
+
    for(const value of [1,2,3,4,5]){
     const option=el("option",value+" px");
     option.value=value;
     width.append(option);
    }
+
    width.value=String(line.width);
+
    width.addEventListener("change",()=>{
     line.width=Number(width.value);
     persist();
@@ -1455,6 +1635,7 @@ function settingsEdit(){
    color.type="color";
    color.value=/^#[0-9a-f]{6}$/i.test(line.color)
     ?line.color:"#bb52ff";
+
    color.addEventListener("change",()=>{
     line.color=color.value;
     persist();
@@ -1478,18 +1659,22 @@ function settingsEdit(){
    }),
    button("Agregar",()=>{
     if(prefs[key].length>=12)return;
+
     prefs[key].push({
      period:isEMA?9:50,
      color:isEMA?"#bb52ff":"#479eff",
      width:2,
      enabled:true
     });
+
     persist();
     notify();
     openSettings("edit");
    }),
    button("Eliminar",()=>{
-    if(prefs[key].length>1)prefs[key].pop();
+    if(prefs[key].length>1){
+     prefs[key].pop();
+    }
     persist();
     notify();
     openSettings("edit");
@@ -1498,26 +1683,48 @@ function settingsEdit(){
 
   content.append(actions);
 
-  content.append(el("p",
-   "MA y EMA tienen configuraciones independientes. "+
-   "Las líneas activadas se mostrarán sobre las velas "+
-   "cuando el motor de gráficas las admita."
-  ));
- }else{
+  const hint=el("p",
+   "Cada línea tiene su propio período, grosor, color "+
+   "e interruptor. Los cambios se guardan de forma "+
+   "independiente para MA y EMA."
+  );
+  hint.className="cl-settings-hint";
+  content.append(hint);
+
+ }else if(availableIndicators.has(editName)){
   content.append(
-   checkbox("Mostrar "+editName,
-    Boolean(prefs.indicators[editName]),value=>{
+   checkbox(
+    "Mostrar "+editName,
+    Boolean(prefs.indicators[editName]),
+    value=>{
      prefs.indicators[editName]=value;
      persist();
      notify();
     }
-   ),
-   el("p",
-    "Los parámetros disponibles dependen del motor del indicador.")
+   )
   );
+
+  if(editName==="VOL"){
+   const hint=el("p",
+    "El volumen se representa en el panel inferior "+
+    "cuando el motor dispone de datos."
+   );
+   hint.className="cl-settings-hint";
+   content.append(hint);
+  }
+
+ }else{
+  const warning=el("p",
+   "Este indicador todavía no está integrado. "+
+   "No se activará hasta que exista un motor funcional."
+  );
+  warning.className="cl-settings-disabled-note";
+  content.append(warning);
  }
 
- content.append(button("Guardar",closeSettings,"cl-settings-save"));
+ content.append(
+  button("Guardar",closeSettings,"cl-settings-save")
+ );
 }
 
 function settingsOther(){
@@ -1527,7 +1734,9 @@ function settingsOther(){
   guide:"Guía de velas japonesas"
  };
 
- content.append(el("h2",names[settingsPage]||"Configuración"));
+ content.append(
+  el("h2",names[settingsPage]||"Configuración")
+ );
 
  if(settingsPage==="drawing"){
   content.append(
@@ -1542,24 +1751,120 @@ function settingsOther(){
     activateTab("charts","clRangeBoxesTools");
    })
   );
+ }else if(settingsPage==="interface"){
+  content.append(
+   el("p",
+    "La interfaz conserva el fondo oscuro y "+
+    "los colores de velas verde y rojo."
+   )
+  );
  }else{
-  content.append(el("p","Apartado preparado para futuras opciones."));
+  content.append(
+   el("p",
+    "Guía de velas japonesas pendiente "+
+    "de completar."
+   )
+  );
  }
 
- content.append(button("Volver",()=>openSettings("main"),"cl-settings-save"));
+ content.append(
+  button(
+   "Volver",
+   ()=>openSettings("main"),
+   "cl-settings-save"
+  )
+ );
 }
 
 $("clChartSettings")?.addEventListener("click",()=>{
  openSettings("main");
 });
-$("clSettingsClose")?.addEventListener("click",closeSettings);
+
+$("clSettingsClose")?.addEventListener(
+ "click",closeSettings
+);
+
 $("clSettingsBack")?.addEventListener("click",()=>{
- openSettings(settingsPage==="edit"?"indicators":"main");
+ if(settingsPage==="edit"){
+  openSettings("indicators");
+ }else{
+  openSettings("main");
+ }
 });
 
 overlay?.addEventListener("click",event=>{
  if(event.target===overlay)closeSettings();
 });
+
+overlay?.addEventListener("keydown",event=>{
+ if(event.key!=="Tab")return;
+
+ const focusable=qa(
+  "#clSettingsOverlay button:not([disabled]):not([hidden]),"+
+  "#clSettingsOverlay input:not([disabled]):not([hidden]),"+
+  "#clSettingsOverlay select:not([disabled]):not([hidden])"
+ ).filter(node=>node.getClientRects().length);
+
+ if(!focusable.length)return;
+
+ const first=focusable[0];
+ const last=focusable[focusable.length-1];
+
+ if(event.shiftKey&&document.activeElement===first){
+  event.preventDefault();
+  last.focus();
+ }else if(!event.shiftKey&&document.activeElement===last){
+  event.preventDefault();
+  first.focus();
+ }
+});
+
+/* SINCRONIZAR AJUSTES CON EL MOTOR V22 */
+function applyChartPreferences(){
+ const chart=$("chart");
+ if(chart){
+  chart.style.height=Math.max(
+   240,
+   Math.min(600,Number(prefs.height)||360)
+  )+"px";
+ }
+
+ const indicators=prefs.indicators||{};
+
+ const map={
+  RSI:"rsi",
+  ADX:"adx",
+  FVG:"fvg",
+  IFVG:"ifvg"
+ };
+
+ for(const [name,indicator] of Object.entries(map)){
+  const button=document.querySelector(
+   '[data-indicator="'+indicator+'"]'
+  );
+
+  if(!button||typeof indicators[name]!=="boolean")continue;
+
+  const desired=indicators[name];
+  const current=button.getAttribute("aria-pressed")==="true";
+
+  if(current!==desired){
+   button.click();
+  }
+ }
+
+ if($("rsiSection")&&typeof indicators.RSI==="boolean"){
+  $("rsiSection").hidden=!indicators.RSI;
+ }
+
+ if($("adxSection")&&typeof indicators.ADX==="boolean"){
+  $("adxSection").hidden=!indicators.ADX;
+ }
+
+ persist();
+ notify();
+ refreshCharts();
+}
 
 function init(){
  const chart=$("chart");
@@ -1581,6 +1886,7 @@ function init(){
  window.addEventListener("load",()=>{
   setTimeout(()=>{
    organizeModules();
+   applyChartPreferences();
    if(screen==="charts")refreshCharts();
   },500);
  },{once:true});
@@ -1591,10 +1897,29 @@ function init(){
    else setOpen(false);
   }
  });
+
+ window.addEventListener(
+  "cryptolexuz:indicator-settings-change",
+  event=>{
+   if(event.detail?.settings){
+    const next=event.detail.settings;
+    if(next&&next!==prefs){
+     prefs={
+      ...prefs,
+      ...next,
+      maLines:normalizeLines(next.maLines,defaultMA),
+      emaLines:normalizeLines(next.emaLines,defaultEMA)
+     };
+    }
+   }
+  }
+ );
 }
 
 if(document.readyState==="loading"){
- document.addEventListener("DOMContentLoaded",init,{once:true});
+ document.addEventListener(
+  "DOMContentLoaded",init,{once:true}
+ );
 }else{
  init();
 }
