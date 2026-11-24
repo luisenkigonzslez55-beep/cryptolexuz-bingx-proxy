@@ -1,13 +1,14 @@
 
 /*
- CRYPTOLEXUZ PRO — STYLES.CSS V21
+ CRYPTOLEXUZ PRO — STYLES.CSS V22
  Diseño móvil estilo BingX
 
- - Gráficas táctiles
- - Caja morada
- - Sin caja verde automática
- - Fibonacci y Volume Profile
  - Mercados, Gráficas, Escáner y Resultados
+ - Gráficas táctiles
+ - Fibonacci dibujable y ajustable
+ - Cajas moradas editables
+ - Sin caja verde automática
+ - Volume Profile
 */
 
 :root {
@@ -51,6 +52,10 @@ body.menu-open {
   overflow: hidden;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 button,
 input,
 select,
@@ -70,7 +75,8 @@ button:disabled {
 
 button:focus-visible,
 input:focus-visible,
-select:focus-visible {
+select:focus-visible,
+textarea:focus-visible {
   outline: 2px solid var(--purple);
   outline-offset: 2px;
 }
@@ -105,7 +111,9 @@ small {
   color: var(--muted);
 }
 
-/* CABECERA */
+/* ========================================
+   CABECERA
+======================================== */
 
 .app-header {
   position: sticky;
@@ -130,7 +138,7 @@ small {
   border: 1px solid #343747;
   border-radius: 10px;
   background: #191b26;
-  color: white;
+  color: #fff;
   font-size: 24px;
 }
 
@@ -158,7 +166,9 @@ small {
   line-height: 1.4;
 }
 
-/* MENÚ LATERAL */
+/* ========================================
+   MENÚ LATERAL
+======================================== */
 
 .sidebar {
   position: fixed;
@@ -263,7 +273,9 @@ small {
   background: #000a;
 }
 
-/* CONTENEDOR Y PANTALLAS */
+/* ========================================
+   CONTENEDOR Y PANTALLAS
+======================================== */
 
 .app-container {
   width: 100%;
@@ -338,7 +350,9 @@ small {
   line-height: 1.6;
 }
 
-/* MERCADOS */
+/* ========================================
+   MERCADOS
+======================================== */
 
 .cl-search {
   display: block;
@@ -477,7 +491,7 @@ small {
   padding: 11px 3px;
   border-radius: 7px;
   background: #c6445b;
-  color: white;
+  color: #fff;
   text-align: center;
   font-size: 12px;
   font-weight: 700;
@@ -487,7 +501,9 @@ small {
   background: #0da46e;
 }
 
-/* GRÁFICAS */
+/* ========================================
+   GRÁFICAS
+======================================== */
 
 .market-top,
 .chart-heading {
@@ -619,7 +635,9 @@ small {
   font-size: 10px;
 }
 
-/* CONTENEDOR DEL CHART */
+/* ========================================
+   CONTENEDOR PRINCIPAL DEL CHART
+======================================== */
 
 #priceChartArea {
   position: relative;
@@ -642,6 +660,11 @@ small {
   overscroll-behavior: contain;
 }
 
+/*
+ Lightweight Charts gestiona los gestos
+ táctiles sobre el gráfico principal.
+*/
+
 #chart,
 #chart canvas {
   touch-action: none !important;
@@ -649,18 +672,20 @@ small {
   user-select: none;
 }
 
-/* CAPAS VISUALES */
+/* ========================================
+   CAPAS DE INDICADORES
+======================================== */
 
 #zonesCanvas,
 #fibonacciCanvas,
 #clVpCanvas {
-  pointer-events: none !important;
+  position: absolute;
+  pointer-events: none;
   touch-action: none;
 }
 
 #zonesCanvas,
 #fibonacciCanvas {
-  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
@@ -668,19 +693,46 @@ small {
 
 #zonesCanvas {
   z-index: 2;
+  pointer-events: none !important;
 }
 
+/*
+ Fibonacci:
+ por defecto no bloquea el gráfico.
+ Su JavaScript puede activar la captura
+ táctil al entrar en modo dibujo.
+*/
+
 #fibonacciCanvas {
-  z-index: 4;
+  z-index: 8;
+  pointer-events: none;
+  touch-action: none;
+}
+
+/*
+ La propiedad inline que establece
+ fibonacci.js tiene prioridad normal.
+ Esta regla permite también la captura
+ cuando el modo dibujo está activo.
+*/
+
+#fibonacciCanvas[style*="pointer-events: auto"] {
+  pointer-events: auto !important;
+  touch-action: none !important;
 }
 
 #clVpCanvas {
   z-index: 5;
+  pointer-events: none !important;
 }
 
+/* ========================================
+   CAJAS MORADAS
+======================================== */
+
 /*
- Caja morada: canvas visual.
- No intercepta los gestos de la gráfica.
+ Canvas visual de cajas.
+ Nunca debe interceptar los gestos.
 */
 
 #clRangeOverlay {
@@ -690,23 +742,23 @@ small {
   display: block;
   width: 100%;
   height: 100%;
-  pointer-events: none;
+  pointer-events: none !important;
   touch-action: none;
 }
 
 /*
- Capa de edición independiente.
- Solo debe mostrarse al activar
- el modo de movimiento.
+ Capa independiente de edición.
+ El JavaScript debe ocultarla cuando
+ termina el modo de edición.
 */
 
 #priceChartArea .cl-box-touch-layer {
   position: absolute;
   inset: 0;
   z-index: 9;
+  background: transparent;
   pointer-events: auto;
   touch-action: none;
-  background: transparent;
 }
 
 #priceChartArea .cl-box-touch-layer[hidden] {
@@ -721,7 +773,7 @@ small {
   cursor: grabbing;
 }
 
-/* CONTROLES DE CAJA MORADA */
+/* Controles de las cajas moradas */
 
 #clRangeControls {
   position: relative;
@@ -767,7 +819,43 @@ small {
   color: #fff;
 }
 
-/* INDICADORES */
+/* ========================================
+   FIBONACCI Y HERRAMIENTAS
+======================================== */
+
+#fibToolbar,
+#fibPanel,
+#clRangeControls {
+  max-width: 100%;
+  min-width: 0;
+}
+
+#fibToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+#fibToolbar button,
+#fibPanel button,
+#clRangeControls button,
+#clRangeControls select,
+#clRangeControls input {
+  touch-action: manipulation;
+}
+
+#fibPanel {
+  overflow-wrap: anywhere;
+}
+
+#fibLevels > div {
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+/* ========================================
+   INDICADORES
+======================================== */
 
 #volumeChart {
   width: 100%;
@@ -878,7 +966,9 @@ small {
   font-size: 12px;
 }
 
-/* LIBRO DE ÓRDENES */
+/* ========================================
+   LIBRO DE ÓRDENES
+======================================== */
 
 .cl-book-bar {
   display: flex;
@@ -934,7 +1024,9 @@ small {
   background: #e94b65;
 }
 
-/* ESCÁNER */
+/* ========================================
+   ESCÁNER
+======================================== */
 
 .signal-grid {
   display: grid;
@@ -975,7 +1067,9 @@ small {
   color: var(--red);
 }
 
-/* RESULTADOS */
+/* ========================================
+   RESULTADOS
+======================================== */
 
 .cl-stats {
   display: grid;
@@ -1032,7 +1126,9 @@ td {
   color: #e0e0e7;
 }
 
-/* AJUSTES */
+/* ========================================
+   AJUSTES
+======================================== */
 
 .cl-settings-overlay {
   position: fixed;
@@ -1228,7 +1324,9 @@ td {
   accent-color: var(--purple);
 }
 
-/* NAVEGACIÓN INFERIOR */
+/* ========================================
+   NAVEGACIÓN INFERIOR
+======================================== */
 
 .cl-bottom-nav {
   position: fixed;
@@ -1274,7 +1372,9 @@ td {
   line-height: 1;
 }
 
-/* AUXILIARES */
+/* ========================================
+   AUXILIARES
+======================================== */
 
 #message,
 #status,
@@ -1295,12 +1395,14 @@ footer.cl-notice {
   text-align: center;
 }
 
-/* PANTALLAS PEQUEÑAS */
+/* ========================================
+   PANTALLAS PEQUEÑAS
+======================================== */
 
 @media (max-width: 380px) {
   .app-container {
     padding: 8px 8px
-      calc(var(--nav-height) + 25px);
+      calc(var(--nav-height) + 25px + env(safe-area-inset-bottom));
   }
 
   .market-card,
@@ -1335,12 +1437,14 @@ footer.cl-notice {
   }
 }
 
-/* TABLET */
+/* ========================================
+   TABLET
+======================================== */
 
 @media (min-width: 700px) {
   .app-container {
     padding: 20px 20px
-      calc(var(--nav-height) + 30px);
+      calc(var(--nav-height) + 30px + env(safe-area-inset-bottom));
   }
 
   .market-bottom {
@@ -1359,7 +1463,9 @@ footer.cl-notice {
   }
 }
 
-/* COMPUTADORA */
+/* ========================================
+   COMPUTADORA
+======================================== */
 
 @media (min-width: 900px) {
   #chart {
@@ -1381,7 +1487,9 @@ footer.cl-notice {
   }
 }
 
-/* ACCESIBILIDAD */
+/* ========================================
+   ACCESIBILIDAD
+======================================== */
 
 @media (prefers-reduced-motion: reduce) {
   html {
