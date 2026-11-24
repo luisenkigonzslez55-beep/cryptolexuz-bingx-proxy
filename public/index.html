@@ -7,8 +7,10 @@
 <meta name="theme-color" content="#08090c">
 <meta name="description" content="CRYPTOLEXUZ PRO: mercados, gráficas, indicadores, escáner y resultados informativos.">
 <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
-<!-- INDEX.HTML V24. Mantener los módulos JS y styles.css en el mismo directorio. -->
+
+<!-- CRYPTOLEXUZ PRO - INDEX V25 -->
 <link rel="stylesheet" href="styles.css?v=22">
+
 <style>
 [hidden]{display:none!important}
 .cl-screen{display:none}
@@ -33,7 +35,10 @@
 .cl-market-row .cl-asset-label strong{overflow-wrap:anywhere}
 </style>
 
+<!-- LIBRERÍA DE GRÁFICAS -->
 <script defer src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+
+<!-- MÓDULOS ORIGINALES -->
 <script defer src="fibonacci.js?v=8"></script>
 <script defer src="patterns.js?v=2"></script>
 <script defer src="patterns-bridge.js?v=1"></script>
@@ -44,12 +49,18 @@
 <script defer src="range-boxes.js?v=6"></script>
 <script defer src="volume-profile.js?v=4"></script>
 <script defer src="mercado-pro.js?v=3"></script>
+
+<!-- NUEVO MÓDULO DE PRECIOS -->
+<script defer src="mercados-live.js?v=1"></script>
 </head>
+
 <body>
 
 <header class="app-header">
 <button id="menuToggle" class="menu-toggle" type="button" aria-label="Abrir herramientas" aria-controls="sidebar" aria-expanded="false">☰</button>
-<div class="brand"><img class="logo-3d" src="file_00000000600881fb8ee48d81ba77b640.png" alt="CRYPTOLEXUZ PRO"></div>
+<div class="brand">
+<img class="logo-3d" src="file_00000000600881fb8ee48d81ba77b640.png" alt="CRYPTOLEXUZ PRO">
+</div>
 <span id="connection" class="connection" role="status">● Conectando...</span>
 </header>
 
@@ -109,6 +120,7 @@
 </div>
 
 <div id="patternStatus" role="status">Cargando patrones...</div>
+
 <label class="switch-row">
 Mostrar mapa
 <input id="liquidityMapToggle" type="checkbox" checked disabled>
@@ -121,6 +133,7 @@ Mostrar mapa
 
 <!-- MERCADOS -->
 <div id="clScreenMarkets" class="cl-screen cl-active" data-cl-screen="markets">
+
 <div class="cl-screen-title">
 <h1>Mercados</h1>
 <p>Activos, precios y variaciones del mercado.</p>
@@ -143,15 +156,20 @@ Mostrar mapa
 </div>
 
 <div id="clMarketList"></div>
-<p id="clMarketListStatus" class="cl-notice" role="status">Selecciona un activo para abrir su gráfica.</p>
+
+<p id="clMarketListStatus" class="cl-notice" role="status">
+Consultando precios de mercado...
+</p>
 </div>
 
 <!-- GRÁFICAS -->
 <div id="clScreenCharts" class="cl-screen" data-cl-screen="charts">
+
 <section class="market-card">
 <div class="market-top">
 
 <div class="selectors-row">
+
 <label class="compact-field">
 Activo
 <select id="symbol">
@@ -199,10 +217,12 @@ Temporalidad
 <div><span>Apertura</span><strong id="open">—</strong></div>
 <div><span>Volumen 24h</span><strong id="volume">—</strong></div>
 </div>
+
 </div>
 </section>
 
 <section id="chartSection" class="chart-card">
+
 <div class="chart-heading">
 <div>
 <h2 id="chartTitle">BTC-USDT · 15m</h2>
@@ -298,8 +318,13 @@ Temporalidad
 <p id="message" role="status">Cargando datos...</p>
 </div>
 
-<div id="clCoinContent" hidden><p>Información del activo seleccionado.</p></div>
-<div id="clInfoContent" hidden><p>Información del mercado.</p></div>
+<div id="clCoinContent" hidden>
+<p>Información del activo seleccionado.</p>
+</div>
+
+<div id="clInfoContent" hidden>
+<p>Información del mercado.</p>
+</div>
 
 <details id="clFibonacciTools" class="cl-tool-panel">
 <summary>📐 Fibonacci</summary>
@@ -315,11 +340,14 @@ Temporalidad
 <div id="clRangeBoxesControls"></div>
 </div>
 </details>
+
 </section>
 
 <section id="clPatternsPanel" class="cl-module">
 <h2>🧩 Patrones detectados</h2>
-<div id="clPatternsReadout"><p>Esperando patrones...</p></div>
+<div id="clPatternsReadout">
+<p>Esperando patrones...</p>
+</div>
 </section>
 
 <section id="clMercadoProHost" class="cl-module">
@@ -350,7 +378,10 @@ Temporalidad
 <button class="cl-chip" type="button" data-book="trades">Trades</button>
 <button class="cl-chip" type="button" data-book="depth">Profundidad</button>
 </div>
-<div class="cl-book-bar"><span>B —%</span><span>—% S</span></div>
+<div class="cl-book-bar">
+<span>B —%</span>
+<span>—% S</span>
+</div>
 <div id="clBookView">Esperando profundidad real...</div>
 <p>Bid: <strong id="bid">—</strong></p>
 <p>Ask: <strong id="ask">—</strong></p>
@@ -362,6 +393,7 @@ Temporalidad
 <button id="clLongInfo" type="button">▲ LONG</button>
 <button id="clShortInfo" type="button">▼ SHORT</button>
 </div>
+
 <p class="cl-notice">Botones informativos. No ejecutan órdenes.</p>
 
 <section id="settingsSection" class="market-settings">
@@ -375,6 +407,7 @@ Temporalidad
 <option value="okx">OKX</option>
 </select>
 </label>
+
 <label>Mercado
 <select id="market">
 <option value="perpetual">Perpetuos</option>
@@ -383,18 +416,22 @@ Temporalidad
 </label>
 </div>
 </section>
+
 </div>
 
 <!-- ESCÁNER -->
 <div id="clScreenScanner" class="cl-screen" data-cl-screen="scanner">
+
 <div class="cl-screen-title">
 <h1>📡 Escáner de mercado</h1>
 <p>Señales LONG y SHORT y análisis multitemporal.</p>
 </div>
+
 <div id="clScannerHost"></div>
 
 <section id="clTradePlansHost" class="cl-module">
 <h2>🎯 Planes LONG y SHORT</h2>
+
 <div class="cl-trade-pair">
 <article class="cl-trade-card long">
 <h3>▲ LONG</h3>
@@ -402,6 +439,7 @@ Temporalidad
 <p>Stop: —</p>
 <p>Objetivo: —</p>
 </article>
+
 <article class="cl-trade-card short">
 <h3>▼ SHORT</h3>
 <p>Entrada: <strong>Esperando análisis</strong></p>
@@ -420,6 +458,7 @@ Temporalidad
 
 <section id="signalsSection" class="signals-section">
 <h2>Monitor de señales <span id="engineState">INICIANDO</span></h2>
+
 <div class="signal-grid">
 <article class="signal-card">
 <h3>BTC-USDT / 5m</h3>
@@ -427,6 +466,7 @@ Temporalidad
 <p id="detail5">—</p>
 <small id="metrics5">—</small>
 </article>
+
 <article class="signal-card">
 <h3>BTC-USDT / 15m</h3>
 <strong id="state15">Esperando datos</strong>
@@ -435,10 +475,12 @@ Temporalidad
 </article>
 </div>
 </section>
+
 </div>
 
 <!-- RESULTADOS -->
 <div id="clScreenResults" class="cl-screen" data-cl-screen="results">
+
 <div class="cl-screen-title">
 <h1>📊 Resultados y efectividad</h1>
 <p>Historial y estadísticas de señales verificadas.</p>
@@ -446,17 +488,20 @@ Temporalidad
 
 <section id="clResultsStats" class="cl-module">
 <h2>Resumen de efectividad</h2>
+
 <div class="cl-stats">
 <div class="cl-stat"><span>Señales</span><strong id="clTotalSignals">—</strong></div>
 <div class="cl-stat"><span>Objetivos</span><strong id="clTargetsHit">—</strong></div>
 <div class="cl-stat"><span>Stops</span><strong id="clStopsHit">—</strong></div>
 <div class="cl-stat"><span>Efectividad</span><strong id="clWinRate">—</strong></div>
 </div>
+
 <p class="cl-results-note">Los resultados deben proceder de señales verificadas. No equivalen a operaciones ejecutadas.</p>
 </section>
 
 <section id="clScalpingResults" class="cl-module">
 <h2>⚡ Resultados de scalping</h2>
+
 <div class="table-wrap">
 <table>
 <thead>
@@ -470,6 +515,7 @@ Temporalidad
 <th>Aciertos</th>
 </tr>
 </thead>
+
 <tbody id="clScalpingResultsBody">
 <tr><td colspan="7">Esperando resultados verificables...</td></tr>
 </tbody>
@@ -479,6 +525,7 @@ Temporalidad
 
 <section id="historySection" class="history-section">
 <h2>Historial de señales</h2>
+
 <div class="table-wrap">
 <table>
 <thead>
@@ -492,24 +539,38 @@ Temporalidad
 <th>Estado</th>
 </tr>
 </thead>
+
 <tbody id="signalLog">
 <tr><td colspan="7">Sin señales registradas.</td></tr>
 </tbody>
 </table>
 </div>
 </section>
+
 </div>
 
 <footer class="cl-notice">
 CRYPTOLEXUZ PRO · Análisis informativo. No ejecuta operaciones ni garantiza resultados.
 </footer>
+
 </main>
 
 <nav class="cl-bottom-nav" aria-label="Navegación principal">
-<button class="cl-nav-button active" type="button" data-cl-tab="markets" aria-pressed="true"><span class="cl-nav-icon">📋</span>Mercados</button>
-<button class="cl-nav-button" type="button" data-cl-tab="charts" aria-pressed="false"><span class="cl-nav-icon">📈</span>Gráficas</button>
-<button class="cl-nav-button" type="button" data-cl-tab="scanner" aria-pressed="false"><span class="cl-nav-icon">📡</span>Escáner</button>
-<button class="cl-nav-button" type="button" data-cl-tab="results" aria-pressed="false"><span class="cl-nav-icon">📊</span>Resultados</button>
+<button class="cl-nav-button active" type="button" data-cl-tab="markets" aria-pressed="true">
+<span class="cl-nav-icon">📋</span>Mercados
+</button>
+
+<button class="cl-nav-button" type="button" data-cl-tab="charts" aria-pressed="false">
+<span class="cl-nav-icon">📈</span>Gráficas
+</button>
+
+<button class="cl-nav-button" type="button" data-cl-tab="scanner" aria-pressed="false">
+<span class="cl-nav-icon">📡</span>Escáner
+</button>
+
+<button class="cl-nav-button" type="button" data-cl-tab="results" aria-pressed="false">
+<span class="cl-nav-icon">📊</span>Resultados
+</button>
 </nav>
 
 <div id="clSettingsOverlay" class="cl-settings-overlay" hidden>
@@ -601,6 +662,7 @@ function activateTab(tab,target) {
     } else {
       window.scrollTo({top:0,behavior:"auto"});
     }
+
     if (tab === "charts") refreshCharts();
   });
 
@@ -629,8 +691,13 @@ qa("[data-cl-tab]").forEach(b => {
 qa(".side-nav a").forEach(link => {
   link.addEventListener("click",event => {
     event.preventDefault();
+
     const target = link.getAttribute("href")?.slice(1);
-    if ($(target)?.tagName === "DETAILS") $(target).open = true;
+
+    if ($(target)?.tagName === "DETAILS") {
+      $(target).open = true;
+    }
+
     activateTab(link.dataset.screen,target);
   });
 });
@@ -719,10 +786,12 @@ function selectAsset(asset) {
       exchange.value = "bingx";
       exchange.dispatchEvent(new Event("change",{bubbles:true}));
     }
+
     if (market && market.value !== "perpetual") {
       market.value = "perpetual";
       market.dispatchEvent(new Event("change",{bubbles:true}));
     }
+
   } else if (
     market &&
     ["spot","perpetual"].includes(marketFilter) &&
@@ -850,9 +919,11 @@ function renderMarkets() {
 
   if (status) {
     status.textContent = count
-      ? "Selecciona un activo para abrir su gráfica. Los precios aparecerán cuando el motor de mercados los suministre."
+      ? "Consultando precios reales de BingX..."
       : "No se encontraron activos.";
   }
+
+  window.dispatchEvent(new Event("cryptolexuz:markets-rendered"));
 }
 
 $("clMarketSearch")?.addEventListener("input",renderMarkets);
@@ -1415,5 +1486,6 @@ if (document.readyState === "loading") {
 
 })();
 </script>
+
 </body>
 </html>
