@@ -15,22 +15,23 @@
   <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
 
   <!--
-    CRYPTOLEXUZ PRO — INDEX.HTML V21
+    CRYPTOLEXUZ PRO — INDEX.HTML V22
 
-    Compatible con:
-    styles.css V21
+    styles.css V22
+    fibonacci.js V8
     app.js V19
     range-boxes.js V6
     Lightweight Charts 4.2.2
 
-    No ejecuta órdenes reales.
+    Sin ejecución de órdenes reales.
   -->
 
-  <link rel="stylesheet" href="styles.css?v=21">
+  <link rel="stylesheet" href="styles.css?v=22">
 
   <!--
-    Reglas mínimas que no duplican
-    el diseño completo de styles.css.
+    Reglas de estructura.
+    Los gestos táctiles se controlan
+    desde styles.css y cada módulo.
   -->
   <style>
     [hidden] {
@@ -50,41 +51,26 @@
       isolation: isolate;
     }
 
-    #chart,
-    #chart canvas {
-      touch-action: none !important;
-    }
-
-    #zonesCanvas,
-    #fibonacciCanvas,
-    #clVpCanvas {
-      pointer-events: none !important;
-    }
-
-    #clRangeOverlay {
-      pointer-events: none;
-    }
-
     .cl-box-touch-layer[hidden] {
       display: none !important;
     }
   </style>
 
-  <!-- Librería principal -->
+  <!-- Librería de gráficas -->
   <script
     defer
     src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"
   ></script>
 
-  <!-- Módulos de análisis -->
-  <script defer src="fibonacci.js?v=7"></script>
+  <!-- Fibonacci y patrones -->
+  <script defer src="fibonacci.js?v=8"></script>
   <script defer src="patterns.js?v=2"></script>
   <script defer src="patterns-bridge.js?v=1"></script>
 
   <!-- Motor principal -->
   <script defer src="app.js?v=19"></script>
 
-  <!-- Herramientas complementarias -->
+  <!-- Herramientas -->
   <script defer src="liquidity.js?v=12"></script>
   <script defer src="trade-plans.js?v=1"></script>
   <script defer src="scalping-rapido.js?v=2"></script>
@@ -261,101 +247,69 @@
       id="patternButtons"
       class="indicator-buttons"
     >
-      <button
-        type="button"
-        data-pattern="divergences"
-        disabled
-      >Divergencias RSI</button>
+      <button type="button" data-pattern="divergences" disabled>
+        Divergencias RSI
+      </button>
 
-      <button
-        type="button"
-        data-pattern="squeeze"
-        disabled
-      >Squeeze</button>
+      <button type="button" data-pattern="squeeze" disabled>
+        Squeeze
+      </button>
 
-      <button
-        type="button"
-        data-pattern="orderblocks"
-        disabled
-      >Order Blocks</button>
+      <button type="button" data-pattern="orderblocks" disabled>
+        Order Blocks
+      </button>
 
-      <button
-        type="button"
-        data-pattern="fallingwedge"
-        disabled
-      >Cuña descendente</button>
+      <button type="button" data-pattern="fallingwedge" disabled>
+        Cuña descendente
+      </button>
 
-      <button
-        type="button"
-        data-pattern="impulses"
-        disabled
-      >Ondas 1-2-3</button>
+      <button type="button" data-pattern="impulses" disabled>
+        Ondas 1-2-3
+      </button>
 
-      <button
-        type="button"
-        data-pattern="abc"
-        disabled
-      >ABC</button>
+      <button type="button" data-pattern="abc" disabled>
+        ABC
+      </button>
 
-      <button
-        type="button"
-        data-pattern="abcde"
-        disabled
-      >ABCDE</button>
+      <button type="button" data-pattern="abcde" disabled>
+        ABCDE
+      </button>
 
-      <button
-        type="button"
-        data-pattern="zigzag"
-        disabled
-      >Zig-Zag</button>
+      <button type="button" data-pattern="zigzag" disabled>
+        Zig-Zag
+      </button>
 
-      <button
-        type="button"
-        data-pattern="flat"
-        disabled
-      >Flat</button>
+      <button type="button" data-pattern="flat" disabled>
+        Flat
+      </button>
 
-      <button
-        type="button"
-        data-pattern="diagonal"
-        disabled
-      >Diagonal</button>
+      <button type="button" data-pattern="diagonal" disabled>
+        Diagonal
+      </button>
 
-      <button
-        type="button"
-        data-pattern="doubletop"
-        disabled
-      >Doble techo</button>
+      <button type="button" data-pattern="doubletop" disabled>
+        Doble techo
+      </button>
 
-      <button
-        type="button"
-        data-pattern="doublebottom"
-        disabled
-      >Doble suelo</button>
+      <button type="button" data-pattern="doublebottom" disabled>
+        Doble suelo
+      </button>
 
-      <button
-        type="button"
-        data-pattern="headshoulders"
-        disabled
-      >HCH</button>
+      <button type="button" data-pattern="headshoulders" disabled>
+        HCH
+      </button>
 
-      <button
-        type="button"
-        data-pattern="inversehs"
-        disabled
-      >HCH invertido</button>
+      <button type="button" data-pattern="inversehs" disabled>
+        HCH invertido
+      </button>
 
-      <button
-        type="button"
-        data-pattern="risingwedge"
-        disabled
-      >Cuña ascendente</button>
+      <button type="button" data-pattern="risingwedge" disabled>
+        Cuña ascendente
+      </button>
 
-      <button
-        type="button"
-        data-pattern="triple"
-        disabled
-      >Triple techo/suelo</button>
+      <button type="button" data-pattern="triple" disabled>
+        Triple techo/suelo
+      </button>
     </div>
 
     <div id="patternStatus">
@@ -383,9 +337,7 @@
 
   <main class="app-container">
 
-    <!-- ===================== -->
     <!-- MERCADOS -->
-    <!-- ===================== -->
 
     <div
       id="clScreenMarkets"
@@ -462,9 +414,7 @@
       </p>
     </div>
 
-    <!-- ===================== -->
     <!-- GRÁFICAS -->
-    <!-- ===================== -->
 
     <div
       id="clScreenCharts"
@@ -479,36 +429,16 @@
 
             <label class="compact-field">
               Activo
-
               <select id="symbol">
-                <option value="BTC-USDT">
-                  BTC/USDT
-                </option>
-
-                <option value="ETH-USDT">
-                  ETH/USDT
-                </option>
-
-                <option value="BNB-USDT">
-                  BNB/USDT
-                </option>
-
-                <option value="SOL-USDT">
-                  SOL/USDT
-                </option>
-
-                <option value="XRP-USDT">
-                  XRP/USDT
-                </option>
-
-                <option value="DOGE-USDT">
-                  DOGE/USDT
-                </option>
-
+                <option value="BTC-USDT">BTC/USDT</option>
+                <option value="ETH-USDT">ETH/USDT</option>
+                <option value="BNB-USDT">BNB/USDT</option>
+                <option value="SOL-USDT">SOL/USDT</option>
+                <option value="XRP-USDT">XRP/USDT</option>
+                <option value="DOGE-USDT">DOGE/USDT</option>
                 <option value="NCCOGOLD2USD-USDT">
                   GOLD (XAU)
                 </option>
-
                 <option value="NCCO1OILWTI2USD-USDT">
                   OIL WTI
                 </option>
@@ -517,67 +447,24 @@
 
             <label class="compact-field">
               Temporalidad
-
               <select id="interval">
-                <option value="1m">
-                  1 minuto
-                </option>
-
-                <option value="3m">
-                  3 minutos
-                </option>
-
-                <option value="5m">
-                  5 minutos
-                </option>
-
+                <option value="1m">1 minuto</option>
+                <option value="3m">3 minutos</option>
+                <option value="5m">5 minutos</option>
                 <option value="15m" selected>
                   15 minutos
                 </option>
-
-                <option value="30m">
-                  30 minutos
-                </option>
-
-                <option value="1h">
-                  1 hora
-                </option>
-
-                <option value="2h">
-                  2 horas
-                </option>
-
-                <option value="4h">
-                  4 horas
-                </option>
-
-                <option value="6h">
-                  6 horas
-                </option>
-
-                <option value="8h">
-                  8 horas
-                </option>
-
-                <option value="12h">
-                  12 horas
-                </option>
-
-                <option value="1d">
-                  1 día
-                </option>
-
-                <option value="3d">
-                  3 días
-                </option>
-
-                <option value="1w">
-                  1 semana
-                </option>
-
-                <option value="1M">
-                  1 mes
-                </option>
+                <option value="30m">30 minutos</option>
+                <option value="1h">1 hora</option>
+                <option value="2h">2 horas</option>
+                <option value="4h">4 horas</option>
+                <option value="6h">6 horas</option>
+                <option value="8h">8 horas</option>
+                <option value="12h">12 horas</option>
+                <option value="1d">1 día</option>
+                <option value="3d">3 días</option>
+                <option value="1w">1 semana</option>
+                <option value="1M">1 mes</option>
               </select>
             </label>
 
@@ -617,7 +504,6 @@
         id="chartSection"
         class="chart-card"
       >
-
         <div class="chart-heading">
           <div>
             <h2 id="chartTitle">
@@ -1016,26 +902,16 @@
         <div class="cl-extra-select">
           <label>
             Exchange
-
             <select id="exchange">
-              <option value="bingx">
-                BingX
-              </option>
-              <option value="binance">
-                Binance
-              </option>
-              <option value="bybit">
-                Bybit
-              </option>
-              <option value="okx">
-                OKX
-              </option>
+              <option value="bingx">BingX</option>
+              <option value="binance">Binance</option>
+              <option value="bybit">Bybit</option>
+              <option value="okx">OKX</option>
             </select>
           </label>
 
           <label>
             Mercado
-
             <select id="market">
               <option value="perpetual">
                 Perpetuos
@@ -1050,9 +926,7 @@
 
     </div>
 
-    <!-- ===================== -->
     <!-- ESCÁNER -->
-    <!-- ===================== -->
 
     <div
       id="clScreenScanner"
@@ -1125,22 +999,18 @@
         <div class="signal-grid">
           <article class="signal-card">
             <h3>BTC-USDT / 5m</h3>
-
             <strong id="state5">
               Esperando datos
             </strong>
-
             <p id="detail5">—</p>
             <small id="metrics5">—</small>
           </article>
 
           <article class="signal-card">
             <h3>BTC-USDT / 15m</h3>
-
             <strong id="state15">
               Esperando datos
             </strong>
-
             <p id="detail15">—</p>
             <small id="metrics15">—</small>
           </article>
@@ -1148,9 +1018,7 @@
       </section>
     </div>
 
-    <!-- ===================== -->
     <!-- RESULTADOS -->
-    <!-- ===================== -->
 
     <div
       id="clScreenResults"
@@ -1159,7 +1027,6 @@
     >
       <div class="cl-screen-title">
         <h1>📊 Resultados y efectividad</h1>
-
         <p>
           Historial y estadísticas
           de señales verificadas.
@@ -1344,8 +1211,7 @@
   </div>
 
   <!--
-    CONTROL DE NAVEGACIÓN,
-    MERCADOS Y CONFIGURACIÓN
+    NAVEGACIÓN, MERCADOS Y CONFIGURACIÓN
   -->
 
   <script>
@@ -1433,6 +1299,7 @@
 
         window.CryptolexuzChart?.resize?.();
         window.CryptolexuzRangeBoxes?.redraw?.();
+        window.CryptolexuzFibonacci?.redraw?.();
       });
     }
 
@@ -1899,9 +1766,6 @@
 
     /*
       CONFIGURACIÓN DEL GRÁFICO
-
-      Se conserva la clave de almacenamiento
-      utilizada por el index anterior.
     */
 
     const settingsKey =
