@@ -1500,3 +1500,81 @@ footer.cl-notice {
     transition: none;
   }
 }
+/*
+ CRYPTOLEXUZ PRO — CORRECCIONES V23
+ Ventana centrada y controles táctiles
+*/
+
+/* VENTANA DE AJUSTES CENTRADA */
+
+.cl-settings-overlay {
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 14px !important;
+  background: rgba(0, 0, 0, 0.82) !important;
+  backdrop-filter: blur(6px);
+}
+
+.cl-settings-sheet {
+  width: min(100%, 620px) !important;
+  max-height: calc(100dvh - 28px) !important;
+  padding: 20px 17px !important;
+  border: 1px solid #60427d !important;
+  border-radius: 18px !important;
+  background: #15131e !important;
+  box-shadow: 0 20px 65px #000b !important;
+}
+
+/* BOTONES TÁCTILES */
+
+.cl-timeframes button,
+.cl-indicator-strip button,
+.cl-chart-tabs button,
+.indicator-buttons button,
+.chart-controls button {
+  position: relative;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* TEMPORALIDAD SELECCIONADA */
+
+.cl-timeframes button.active,
+.cl-timeframes button[aria-pressed="true"],
+.cl-timeframes button[aria-selected="true"] {
+  background: #62309a !important;
+  border-color: #d7a3ff !important;
+  color: #fff !important;
+  font-weight: 750;
+  box-shadow: 0 0 12px #bb52ff55;
+}
+
+/* INDICADORES ACTIVADOS */
+
+.cl-indicator-strip button.active,
+.cl-indicator-strip button[aria-pressed="true"],
+.indicator-buttons button.active,
+.indicator-buttons button[aria-pressed="true"] {
+  background: #43205f !important;
+  border: 1px solid #ba69ff !important;
+  border-radius: 8px;
+  color: #fff !important;
+  font-weight: 700;
+}
+
+/* RESPUESTA VISUAL AL PRESIONAR */
+
+.cl-timeframes button:active,
+.cl-indicator-strip button:active,
+.chart-controls button:active,
+.cl-settings-tile:active {
+  filter: brightness(1.35);
+}
+
+/* NAVEGACIÓN ACTIVA */
+
+.cl-nav-button.active,
+.cl-nav-button[aria-current="page"] {
+  background: #39204f !important;
+  color: #e9c5ff !important;
+}
