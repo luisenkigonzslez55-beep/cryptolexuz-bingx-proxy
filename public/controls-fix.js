@@ -1,147 +1,70 @@
 
 /*
  CRYPTOLEXUZ PRO
- CONTROLS-FIX V1
+ CONTROLS-FIX V2
+ Compatible con INDEX V30 y APP.JS V23.
 
- Integración visual de:
- - Temporalidades
- - Indicadores
- - Patrones
- - Fondo negro
+ - Temporalidades funcionales
+ - Indicadores sincronizados
+ - Patrones en su propia fila
  - Desplazamiento horizontal
-
- Compatible con INDEX V29.
- No reemplaza los cálculos de app.js.
+ - Fondo negro
+ - Volume Profile
+ - Conserva el motor de análisis
 */
 
 "use strict";
 
 (() => {
-  if (window.__CL_CONTROLS_FIX_V1__) return;
-  window.__CL_CONTROLS_FIX_V1__ = true;
+  if (window.__CL_CONTROLS_FIX_V2__) return;
+  window.__CL_CONTROLS_FIX_V2__ = true;
 
   const $ = id => document.getElementById(id);
-
-  const qs = selector =>
-    Array.from(document.querySelectorAll(selector));
 
   const SETTINGS_KEY =
     "cryptolexuz-chart-settings-v1";
 
-  const style = document.createElement("style");
+  const TIMEFRAMES = [
+    "1m", "3m", "5m", "15m",
+    "30m", "1h", "2h", "4h",
+    "6h", "8h", "12h", "1d",
+    "3d", "1w", "1M"
+  ];
 
-  style.textContent = `
-    #priceChartArea,
-    #chart,
-    #chart canvas {
-      background-color: #000000 !important;
-    }
+  const INDICATORS = [
+    ["ema21", "EMA 21"],
+    ["ma55", "MA 55"],
+    ["ma100", "MA 100"],
+    ["ma200", "MA 200"],
+    ["rsi", "RSI"],
+    ["adx", "ADX"],
+    ["ao", "AO"],
+    ["volume", "VOL"],
+    ["fvg", "FVG"],
+    ["ifvg", "IFVG"],
+    ["liquidity", "Liquidez"],
+    ["sweeps", "Barridos"],
+    ["support", "Soportes"],
+    ["resistance", "Resistencias"]
+  ];
 
-    #clTradingControlRows {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      width: 100%;
-      min-width: 0;
-      margin: 12px 0;
-    }
+  const PATTERNS = [
+    ["falling-wedge", "Cuña descendente"],
+    ["rising-wedge", "Cuña ascendente"],
+    ["double-top", "Doble techo"],
+    ["double-bottom", "Doble suelo"],
+    ["head-shoulders", "HCH"],
+    ["inverse-head-shoulders", "HCH invertido"],
+    ["rsi-divergence", "Divergencia RSI"],
+    ["zigzag", "Zig-Zag"],
+    ["abc", "ABC"],
+    ["abcde", "ABCDE"]
+  ];
 
-    #clTradingControlRows .cl-control-row {
-      width: 100%;
-      min-width: 0;
-    }
+  let ready = false;
+  let syncing = false;
 
-    #clTradingControlRows .cl-control-label {
-      display: block;
-      margin: 0 0 5px;
-      color: #aebcdd;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .5px;
-      text-transform: uppercase;
-    }
-
-    #clTradingControlRows .cl-timeframes,
-    #clTradingControlRows .indicator-buttons {
-      display: flex !important;
-      flex-direction: row !important;
-      flex-wrap: nowrap !important;
-      align-items: center;
-      gap: 6px;
-      width: 100%;
-      min-width: 0;
-      padding: 4px 0 9px;
-      overflow-x: auto;
-      overflow-y: hidden;
-      overscroll-behavior-x: contain;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: thin;
-      scrollbar-color: #7043a7 #11121a;
-      touch-action: pan-x;
-    }
-
-    #clTradingControlRows button {
-      flex: 0 0 auto !important;
-      min-height: 34px;
-      padding: 7px 11px;
-      border: 1px solid #34364c;
-      border-radius: 8px;
-      background: #171a25;
-      color: #e6e9ff;
-      font-size: 12px;
-      font-weight: 600;
-      white-space: nowrap;
-      cursor: pointer;
-    }
-
-    #clTradingControlRows button.active,
-    #clTradingControlRows button[aria-pressed="true"] {
-      background: #48216c !important;
-      color: #ffffff !important;
-      border-color: #c477ff !important;
-      box-shadow: inset 0 0 0 1px
-        rgba(196,119,255,.15);
-    }
-
-    #clTradingControlRows button:disabled {
-      opacity: .45;
-      cursor: not-allowed;
-    }
-
-    #clTradingControlRows button:focus-visible {
-      outline: 2px solid #d59aff;
-      outline-offset: 2px;
-    }
-
-    #clTradingControlRows
-    .cl-pattern-priority {
-      border-color: #a46bff;
-    }
-
-    #clTradingControlRows
-    .cl-control-row + .cl-control-row {
-      border-top: 1px solid #25283a;
-      padding-top: 7px;
-    }
-
-    #clTradingControlRows .cl-control-note {
-      color: #8993af;
-      font-size: 10px;
-      padding-bottom: 3px;
-    }
-
-    @media (max-width: 600px) {
-      #clTradingControlRows button {
-        min-height: 36px;
-        font-size: 11px;
-        padding: 8px 10px;
-      }
-    }
-  `;
-
-  document.head.appendChild(style);
-
-  function readPrefs() {
+  function settings() {
     try {
       return JSON.parse(
         localStorage.getItem(SETTINGS_KEY) || "{}"
@@ -151,56 +74,238 @@
     }
   }
 
-  function makeRow(label, className) {
+  function saveSettings(data) {
+    try {
+      localStorage.setItem(
+        SETTINGS_KEY,
+        JSON.stringify(data)
+      );
+    } catch (error) {
+      console.warn("Ajustes:", error);
+    }
+  }
+
+  function notifySettings() {
+    window.dispatchEvent(
+      new CustomEvent(
+        "cryptolexuz:indicator-settings-change"
+      )
+    );
+  }
+
+  function styles() {
+    if ($("clControlsFixStyles")) return;
+
+    const style = document.createElement("style");
+    style.id = "clControlsFixStyles";
+
+    style.textContent = `
+      #priceChartArea,
+      #chart,
+      #volumeChart,
+      #rsiChart,
+      #adxChart,
+      #aoChart {
+        background: #000 !important;
+      }
+
+      .cl-fixed-control-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        width: 100%;
+        min-width: 0;
+        margin: 10px 0;
+      }
+
+      .cl-fixed-control-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        width: 100%;
+        min-width: 0;
+        padding: 5px 2px 9px;
+        scrollbar-width: thin;
+        scrollbar-color: #7041b8 transparent;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x;
+      }
+
+      .cl-fixed-control-row button {
+        flex: 0 0 auto;
+        min-height: 36px;
+        padding: 7px 12px;
+        border: 1px solid #394057;
+        border-radius: 9px;
+        background: #171b2a;
+        color: #e7eaff;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+
+      .cl-fixed-control-row button.active {
+        color: #fff;
+        border-color: #a84cff;
+        background: #63309c;
+        box-shadow: 0 0 8px #a84cff55;
+      }
+
+      .cl-fixed-control-row button:disabled {
+        opacity: .48;
+        cursor: not-allowed;
+      }
+
+      .cl-fixed-control-label {
+        color: #aab5d5;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .6px;
+        margin: 3px 0 0;
+      }
+
+      #clFixedControls [hidden] {
+        display: none !important;
+      }
+
+      #priceChartArea {
+        position: relative;
+        isolation: isolate;
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  function createRow(title, id) {
+    const wrapper = document.createElement("div");
+
+    const label = document.createElement("div");
+    label.className = "cl-fixed-control-label";
+    label.textContent = title;
+
     const row = document.createElement("div");
-    row.className = "cl-control-row " + className;
+    row.id = id;
+    row.className = "cl-fixed-control-row";
 
-    const heading = document.createElement("span");
-    heading.className = "cl-control-label";
-    heading.textContent = label;
+    wrapper.append(label, row);
 
-    row.appendChild(heading);
-    return row;
+    return { wrapper, row };
+  }
+
+  function makeButton(text, attributes) {
+    const button = document.createElement("button");
+
+    button.type = "button";
+    button.textContent = text;
+
+    for (const [name, value] of
+      Object.entries(attributes)) {
+      button.setAttribute(name, value);
+    }
+
+    return button;
+  }
+
+  function ensureTimeframeOption(tf) {
+    const select = $("interval");
+
+    if (!select) return false;
+
+    if (
+      !Array.from(select.options)
+        .some(option => option.value === tf)
+    ) {
+      const option = document.createElement("option");
+      option.value = tf;
+      option.textContent = tf;
+      select.appendChild(option);
+    }
+
+    return true;
+  }
+
+  function changeTimeframe(tf) {
+    if (!TIMEFRAMES.includes(tf)) return;
+
+    const select = $("interval");
+
+    if (!select || !ensureTimeframeOption(tf)) {
+      return;
+    }
+
+    if (select.value !== tf) {
+      select.value = tf;
+
+      select.dispatchEvent(
+        new Event("change", { bubbles: true })
+      );
+    }
+
+    syncTimeframes();
   }
 
   function syncTimeframes() {
-    const interval = $("interval");
-    if (!interval) return;
+    const active = $("interval")?.value;
 
-    qs("[data-tf]").forEach(button => {
-      const active =
-        button.dataset.tf === interval.value;
+    document.querySelectorAll(
+      "#clFixedTimeframes [data-tf]"
+    ).forEach(button => {
+      const selected =
+        button.dataset.tf === active;
 
-      button.classList.toggle("active", active);
+      button.classList.toggle("active", selected);
       button.setAttribute(
         "aria-pressed",
-        String(active)
+        String(selected)
       );
     });
   }
 
-  function syncIndicators() {
-    const prefs = readPrefs();
-    const indicators = prefs.indicators || {};
+  function indicatorState(name) {
+    const config = settings();
+    const flags = config.indicators || {};
 
-    const maLines = Array.isArray(prefs.maLines)
-      ? prefs.maLines
-      : [
-          { period: 55, enabled: true },
-          { period: 100, enabled: false },
-          { period: 200, enabled: false }
-        ];
+    const named = {
+      ema21: ["EMA", "emaLines", 21],
+      ma55: ["MA", "maLines", 55],
+      ma100: ["MA", "maLines", 100],
+      ma200: ["MA", "maLines", 200]
+    };
 
-    const emaLines = Array.isArray(prefs.emaLines)
-      ? prefs.emaLines
-      : [
-          { period: 21, enabled: true }
-        ];
+    if (named[name]) {
+      const [group, field, period] = named[name];
 
-    const names = {
+      const fallback = {
+        ema21: true,
+        ma55: true,
+        ma100: false,
+        ma200: false
+      };
+
+      const lines = config[field];
+
+      if (!Array.isArray(lines)) {
+        return flags[group] !== false &&
+          fallback[name];
+      }
+
+      return flags[group] !== false &&
+        lines.some(line =>
+          Number(line.period) === period &&
+          line.enabled !== false
+        );
+    }
+
+    const keys = {
       rsi: "RSI",
       adx: "ADX",
       ao: "AO",
+      volume: "VOL",
       fvg: "FVG",
       ifvg: "IFVG",
       liquidity: "liquidity",
@@ -209,36 +314,35 @@
       resistance: "resistance"
     };
 
-    qs("[data-indicator]").forEach(button => {
-      const id = button.dataset.indicator;
-      let active;
+    const defaults = {
+      RSI: true,
+      ADX: false,
+      AO: false,
+      VOL: true,
+      FVG: true,
+      IFVG: false,
+      liquidity: false,
+      sweeps: false,
+      support: false,
+      resistance: false
+    };
 
-      if (id.startsWith("ma")) {
-        const period = Number(id.slice(2));
+    const key = keys[name];
 
-        active = maLines.some(line =>
-          Number(line.period) === period &&
-          line.enabled !== false
-        );
-      } else if (id.startsWith("ema")) {
-        const period = Number(id.slice(3));
+    if (!key) return false;
 
-        active = emaLines.some(line =>
-          Number(line.period) === period &&
-          line.enabled !== false
-        );
-      } else {
-        const name = names[id];
+    return flags[key] === undefined
+      ? defaults[key]
+      : Boolean(flags[key]);
+  }
 
-        if (
-          name &&
-          typeof indicators[name] === "boolean"
-        ) {
-          active = indicators[name];
-        } else {
-          return;
-        }
-      }
+  function syncIndicators() {
+    document.querySelectorAll(
+      "#clFixedIndicators [data-cl-indicator]"
+    ).forEach(button => {
+      const active = indicatorState(
+        button.dataset.clIndicator
+      );
 
       button.classList.toggle("active", active);
       button.setAttribute(
@@ -248,151 +352,178 @@
     });
   }
 
-  function applyBlackBackground() {
-    const area = $("priceChartArea");
-    const chart = $("chart");
+  function toggleIndicator(name) {
+    if (syncing) return;
 
-    if (area) {
-      area.style.backgroundColor = "#000000";
-    }
+    const api = window.CryptolexuzIndicators;
 
-    if (chart) {
-      chart.style.backgroundColor = "#000000";
-    }
-
-    // Lightweight Charts requiere además que
-    // app.js configure el fondo de su instancia
-    // con chart.applyOptions().
-    const api = window.CryptolexuzChart;
-
-    try {
-      if (
-        api?.chart &&
-        typeof api.chart.applyOptions === "function"
-      ) {
-        api.chart.applyOptions({
-          layout: {
-            background: {
-              type: "solid",
-              color: "#000000"
-            }
-          }
-        });
-      }
-    } catch (error) {
+    if (!api?.setIndicator) {
       console.warn(
-        "No se pudo actualizar el fondo:",
-        error
+        "El motor de indicadores todavía no está disponible."
       );
-    }
-  }
-
-  function organizeControls() {
-    const graph = $("clGraphContent");
-    const chartArea = $("priceChartArea");
-
-    const timeframes =
-      document.querySelector(".cl-timeframes");
-
-    const indicators = $("indicatorButtons");
-    const patterns = $("patternButtons");
-
-    if (!graph || !chartArea) return;
-    if (!timeframes || !indicators || !patterns) {
       return;
     }
 
-    let host = $("clTradingControlRows");
+    syncing = true;
 
-    if (!host) {
-      host = document.createElement("div");
-      host.id = "clTradingControlRows";
-      host.setAttribute(
-        "aria-label",
-        "Controles de análisis técnico"
+    try {
+      api.setIndicator(
+        name,
+        !indicatorState(name)
       );
-
-      const firstRow = makeRow(
-        "Temporalidades",
-        "cl-timeframe-row"
-      );
-
-      const secondRow = makeRow(
-        "Indicadores",
-        "cl-indicators-row"
-      );
-
-      const thirdRow = makeRow(
-        "Patrones",
-        "cl-patterns-row"
-      );
-
-      firstRow.appendChild(timeframes);
-      secondRow.appendChild(indicators);
-      thirdRow.appendChild(patterns);
-
-      host.append(
-        firstRow,
-        secondRow,
-        thirdRow
-      );
-
-      const controls =
-        graph.querySelector(".chart-controls");
-
-      graph.insertBefore(
-        host,
-        controls || chartArea
-      );
+    } finally {
+      syncing = false;
     }
 
-    const wedge = patterns.querySelector(
-      '[data-pattern="fallingwedge"]'
+    syncIndicators();
+  }
+
+  function makeControls() {
+    if ($("clFixedControls")) return;
+
+    const area = $("priceChartArea");
+    const chart = $("chart");
+
+    const anchor = area || chart;
+
+    if (!anchor?.parentElement) return;
+
+    const stack = document.createElement("div");
+    stack.id = "clFixedControls";
+    stack.className = "cl-fixed-control-stack";
+
+    const tf = createRow(
+      "TEMPORALIDADES",
+      "clFixedTimeframes"
     );
 
-    if (wedge) {
-      wedge.classList.add(
-        "cl-pattern-priority"
-      );
+    const indicators = createRow(
+      "INDICADORES",
+      "clFixedIndicators"
+    );
 
-      wedge.title =
-        "Cuña descendente: pendiente de activación verificable";
-    }
+    const patterns = createRow(
+      "PATRONES",
+      "clFixedPatterns"
+    );
 
-    const sidebar = $("sidebar");
-
-    if (sidebar) {
-      qs("#sidebar h3").forEach(heading => {
-        const text =
-          heading.textContent.trim().toLowerCase();
-
-        if (
-          text === "indicadores" ||
-          text === "patrones automáticos"
-        ) {
-          heading.hidden = true;
-        }
+    for (const value of TIMEFRAMES) {
+      const button = makeButton(value, {
+        "data-cl-tf": value,
+        "aria-pressed": "false"
       });
+
+      button.addEventListener("click", () => {
+        changeTimeframe(value);
+      });
+
+      tf.row.appendChild(button);
     }
 
-    // La franja antigua debajo del volumen
-    // se oculta para evitar controles repetidos.
-    // Los ajustes siguen disponibles en ⚙.
-    const oldStrip =
-      document.querySelector(".cl-indicator-strip");
+    for (const [name, label] of INDICATORS) {
+      const button = makeButton(label, {
+        "data-cl-indicator": name,
+        "aria-pressed": "false"
+      });
 
-    if (oldStrip) {
-      oldStrip.hidden = true;
-      oldStrip.style.display = "none";
+      button.addEventListener("click", () => {
+        toggleIndicator(name);
+      });
+
+      indicators.row.appendChild(button);
     }
+
+    for (const [name, label] of PATTERNS) {
+      const button = makeButton(label, {
+        "data-cl-pattern": name,
+        title:
+          "Detección pendiente de integración"
+      });
+
+      button.disabled = true;
+
+      patterns.row.appendChild(button);
+    }
+
+    stack.append(
+      tf.wrapper,
+      indicators.wrapper,
+      patterns.wrapper
+    );
+
+    anchor.parentElement.insertBefore(
+      stack,
+      anchor
+    );
 
     syncTimeframes();
     syncIndicators();
-    applyBlackBackground();
+  }
+
+  function blackCharts() {
+    const api = window.CryptolexuzChart;
+
+    try {
+      api?.chart?.applyOptions({
+        layout: {
+          background: {
+            type: "solid",
+            color: "#000000"
+          }
+        },
+        grid: {
+          vertLines: { color: "#101010" },
+          horzLines: { color: "#101010" }
+        }
+      });
+    } catch (error) {
+      console.warn("Fondo:", error);
+    }
+  }
+
+  function syncVolumeProfile() {
+    const module =
+      window.CryptolexuzVolumeProfile ||
+      window.CRYPTOLEXUZ_VOLUME_PROFILE;
+
+    if (!module) return;
+
+    const buttons = document.querySelectorAll(
+      '[data-indicator="vp"],' +
+      '[data-indicator="volume-profile"]'
+    );
+
+    buttons.forEach(button => {
+      if (button.dataset.clVpBound === "1") {
+        return;
+      }
+
+      button.dataset.clVpBound = "1";
+
+      button.addEventListener("click", () => {
+        try {
+          if (typeof module.toggle === "function") {
+            module.toggle();
+          } else {
+            console.warn(
+              "Volume Profile no expone toggle()."
+            );
+          }
+        } catch (error) {
+          console.warn("Volume Profile:", error);
+        }
+      });
+    });
   }
 
   function init() {
-    organizeControls();
+    if (ready) return;
+    ready = true;
+
+    styles();
+    makeControls();
+    blackCharts();
+    syncVolumeProfile();
 
     $("interval")?.addEventListener(
       "change",
@@ -400,34 +531,46 @@
     );
 
     window.addEventListener(
-      "cryptolexuz:indicator-settings-change",
+      "cryptolexuz:indicator-state-updated",
       syncIndicators
     );
 
     window.addEventListener(
+      "cryptolexuz:indicator-settings-change",
+      () => {
+        queueMicrotask(syncIndicators);
+      }
+    );
+
+    window.addEventListener(
       "cryptolexuz:chart-ready",
-      applyBlackBackground
+      () => {
+        blackCharts();
+        syncVolumeProfile();
+      }
+    );
+
+    window.addEventListener(
+      "cryptolexuz:volume-profile-ready",
+      syncVolumeProfile
     );
 
     window.addEventListener(
       "cryptolexuz:screen-change",
       () => {
-        requestAnimationFrame(() => {
-          syncTimeframes();
-          syncIndicators();
-          applyBlackBackground();
-        });
+        syncTimeframes();
+        syncIndicators();
+        blackCharts();
       }
     );
 
-    // Los botones existentes conservan
-    // sus manejadores de app.js.
-    // No añadimos segundos manejadores
-    // de click para evitar dobles solicitudes.
-
-    console.info(
-      "CRYPTOLEXUZ PRO: controles V1 instalados"
-    );
+    window.CryptolexuzControlsFix = {
+      changeTimeframe,
+      toggleIndicator,
+      syncTimeframes,
+      syncIndicators,
+      blackCharts
+    };
   }
 
   if (document.readyState === "loading") {
