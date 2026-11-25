@@ -1,15 +1,29 @@
 
 /*
- CRYPTOLEXUZ PRO — APP.JS V22
- Motor de gráficas, indicadores y señales.
- Lightweight Charts 4.2.2
+ CRYPTOLEXUZ PRO — APP.JS V23
+ Motor principal de mercado y análisis.
+ Compatible con Lightweight Charts 4.2.2.
+
+ Incluye:
+ - Gráficas de velas y volumen
+ - Temporalidades seleccionables
+ - MA / EMA configurables
+ - RSI / ADX
+ - Awesome Oscillator (AO)
+ - FVG / IFVG
+ - Barridos y niveles
+ - Escáner multitemporal
+ - Monitor independiente 5m / 15m
+ - Historial y estadísticas
+ - Integración con módulos externos
+
  No ejecuta órdenes.
 */
 "use strict";
 
 (() => {
-  if (window.__cryptolexuzAppV22) return;
-  window.__cryptolexuzAppV22 = true;
+  if (window.__cryptolexuzAppV23) return;
+  window.__cryptolexuzAppV23 = true;
 
   const $ = id => document.getElementById(id);
 
@@ -26,9 +40,14 @@
   const OIL = "NCCO1OILWTI2USD-USDT";
 
   const ASSETS = [
-    "BTC-USDT", "ETH-USDT", "BNB-USDT",
-    "SOL-USDT", "XRP-USDT", "DOGE-USDT",
-    GOLD, OIL
+    "BTC-USDT",
+    "ETH-USDT",
+    "BNB-USDT",
+    "SOL-USDT",
+    "XRP-USDT",
+    "DOGE-USDT",
+    GOLD,
+    OIL
   ];
 
   const TF = [
@@ -37,13 +56,21 @@
   ];
 
   const SEC = {
-    "1m": 60, "3m": 180, "5m": 300,
-    "15m": 900, "30m": 1800,
-    "1h": 3600, "2h": 7200,
-    "4h": 14400, "6h": 21600,
-    "8h": 28800, "12h": 43200,
-    "1d": 86400, "3d": 259200,
-    "1w": 604800, "1M": 2592000
+    "1m": 60,
+    "3m": 180,
+    "5m": 300,
+    "15m": 900,
+    "30m": 1800,
+    "1h": 3600,
+    "2h": 7200,
+    "4h": 14400,
+    "6h": 21600,
+    "8h": 28800,
+    "12h": 43200,
+    "1d": 86400,
+    "3d": 259200,
+    "1w": 604800,
+    "1M": 2592000
   };
 
   const SETTINGS_KEY =
@@ -51,62 +78,6 @@
 
   const HISTORY_KEY =
     "cryptolexuz-v16-history";
-
-  const enabled = new Set([
-    "ema21", "ma55", "rsi", "fvg"
-  ]);
-
-  const charts = {};
-  const series = {};
-  const moving = {};
-  const seriesState = new WeakMap();
-  const cache = new Map();
-  const levelLines = [];
-
-  let rows = [];
-  let zones = [];
-  let pivots = [];
-  let sweeps = [];
-  let history = [];
-
-  let activeKey = "";
-  let generation = 0;
-  let scanGeneration = 0;
-
-  let chartBusy = false;
-  let tickerBusy = false;
-  let scanBusy = false;
-  let verifyBusy = false;
-  let monitorBusy = false;
-
-  let monitorLast = 0;
-  let scanLast = 0;
-  let lastWS = 0;
-
-  let socket = null;
-  let socketId = 0;
-  let reconnectTimer = null;
-
-  let lastRSI = "RSI no disponible";
-
-  let movingSignature = "";
-  let lastLevelSignature = "";
-  let lastMarkerSignature = "";
-
-  let resizeQueued = false;
-  let zoneQueued = false;
-  let syncQueued = false;
-  let syncing = false;
-  let pendingRange = null;
-  let resizeObserver = null;
-
-  let volumeProfileAttached = false;
-  let volumeProfileModule = null;
-
-  let chartTimer;
-  let tickerTimer;
-  let scanTimer;
-  let verifyTimer;
 
   const defaultMA = [
     {
@@ -138,12 +109,91 @@
     }
   ];
 
+  const DEFAULT_INDICATORS = {
+    MA: true,
+    EMA: true,
+    VOL: true,
+    RSI: true,
+    ADX: false,
+    AO: false,
+    FVG: true,
+    IFVG: false,
+    liquidity: false,
+    sweeps: false,
+    support: false,
+    resistance: false
+  };
+
+  const enabled = new Set();
+
+  const charts = {};
+  const series = {};
+  const moving = {};
+
+  const seriesState = new WeakMap();
+  const cache = new Map();
+  const levelLines = [];
+
+  let rows = [];
+  let zones = [];
+  let pivots = [];
+  let sweeps = [];
+  let history = [];
+
+  let activeKey = "";
+  let generation = 0;
+  let scanGeneration = 0;
+
+  let chartBusy = false;
+  let tickerBusy = false;
+  let scanBusy = false;
+  let verifyBusy = false;
+  let monitorBusy = false;
+
+  let monitorLast = 0;
+  let scanLast = 0;
+  let lastWS = 0;
+
+  let socket = null;
+  let socketId = 0;
+  let reconnectTimer = null;
+
+  let movingSignature = "";
+  let lastLevelSignature = "";
+  let lastMarkerSignature = "";
+
+  let lastRSI = "RSI no disponible.";
+
+  let resizeQueued = false;
+  let zoneQueued = false;
+  let syncQueued = false;
+  let syncing = false;
+  let pendingRange = null;
+
+  let resizeObserver = null;
+  let volumeProfileAttached = false;
+  let volumeProfileModule = null;
+
+  let chartTimer;
+  let tickerTimer;
+  let scanTimer;
+  let verifyTimer;
+  let monitorTimer;
+
+  let prefs = readSettings();
+
+  // =====================================
   // UTILIDADES
+  // =====================================
 
   function put(id, value) {
-    const e = $(id);
-    if (e && e.textContent !== String(value)) {
-      e.textContent = String(value);
+    const element = $(id);
+
+    if (
+      element &&
+      element.textContent !== String(value)
+    ) {
+      element.textContent = String(value);
     }
   }
 
@@ -164,60 +214,171 @@
       : "—";
   }
 
-  const now = () => Math.floor(Date.now() / 1000);
+  const now = () =>
+    Math.floor(Date.now() / 1000);
 
-  function settings() {
+  function cloneLines(lines) {
+    return lines.map(x => ({...x}));
+  }
+
+  function normalizeLines(lines, fallback) {
+    if (!Array.isArray(lines)) {
+      return cloneLines(fallback);
+    }
+
+    return lines.slice(0, 12).map(x => ({
+      period: Math.max(
+        1,
+        Math.min(
+          1000,
+          Math.round(Number(x.period) || 21)
+        )
+      ),
+      color: /^#[0-9a-f]{6}$/i.test(x.color)
+        ? x.color
+        : C.purple,
+      width: Math.max(
+        1,
+        Math.min(5, Number(x.width) || 2)
+      ),
+      enabled: x.enabled !== false
+    }));
+  }
+
+  function readSettings() {
+    let saved = {};
+
     try {
-      const s = JSON.parse(
-        localStorage.getItem(SETTINGS_KEY) || "null"
+      saved = JSON.parse(
+        localStorage.getItem(SETTINGS_KEY) ||
+        "{}"
       );
+    } catch {}
 
-      return s && typeof s === "object" &&
-        !Array.isArray(s) ? s : {};
-    } catch {
-      return {};
+    if (
+      !saved ||
+      typeof saved !== "object" ||
+      Array.isArray(saved)
+    ) saved = {};
+
+    const legacy = Array.isArray(saved.lines)
+      ? saved.lines
+      : [];
+
+    const ma = Array.isArray(saved.maLines)
+      ? saved.maLines
+      : legacy.length
+        ? legacy.filter(
+            x => Number(x.period) !== 21
+          )
+        : defaultMA;
+
+    const ema = Array.isArray(saved.emaLines)
+      ? saved.emaLines
+      : legacy.length
+        ? legacy.filter(
+            x => Number(x.period) === 21
+          )
+        : defaultEMA;
+
+    return {
+      ...saved,
+      maLines: normalizeLines(ma, defaultMA),
+      emaLines: normalizeLines(ema, defaultEMA),
+      height: Math.max(
+        240,
+        Math.min(
+          600,
+          Number(saved.height) || 360
+        )
+      ),
+      options: {
+        countdown: true,
+        multiperiod: true,
+        bidask: false,
+        ...(saved.options || {})
+      },
+      indicators: {
+        ...DEFAULT_INDICATORS,
+        ...(saved.indicators || {})
+      }
+    };
+  }
+
+  function saveSettings() {
+    try {
+      localStorage.setItem(
+        SETTINGS_KEY,
+        JSON.stringify(prefs)
+      );
+    } catch (error) {
+      console.warn("Guardar ajustes:", error);
     }
   }
 
   function selection() {
-    const symbol = $("symbol")?.value || "BTC-USDT";
-    const commodity = [GOLD, OIL].includes(symbol);
+    const symbol =
+      $("symbol")?.value || "BTC-USDT";
+
+    const commodity =
+      [GOLD, OIL].includes(symbol);
 
     return {
       symbol,
       tf: $("interval")?.value || "15m",
       exchange: commodity
         ? "bingx"
-        : ($("exchange")?.value || "bingx").toLowerCase(),
+        : (
+            $("exchange")?.value || "bingx"
+          ).toLowerCase(),
       market: commodity
         ? "perpetual"
-        : ($("market")?.value || "perpetual").toLowerCase()
+        : (
+            $("market")?.value ||
+            "perpetual"
+          ).toLowerCase()
     };
   }
 
   function key(s) {
     return [
-      s.exchange, s.market, s.symbol, s.tf
+      s.exchange,
+      s.market,
+      s.symbol,
+      s.tf
     ].join("|");
   }
 
   function syncCommodity() {
-    if (![GOLD, OIL].includes($("symbol")?.value)) {
-      return;
+    if (
+      ![GOLD, OIL].includes(
+        $("symbol")?.value
+      )
+    ) return;
+
+    if ($("exchange")) {
+      $("exchange").value = "bingx";
     }
 
-    if ($("exchange")) $("exchange").value = "bingx";
-    if ($("market")) $("market").value = "perpetual";
+    if ($("market")) {
+      $("market").value = "perpetual";
+    }
   }
 
-  function connection(message, color = C.yellow) {
+  function connection(
+    message,
+    color = C.yellow
+  ) {
     put("connection", "● " + message);
+
     if ($("connection")) {
       $("connection").style.color = color;
     }
   }
 
-  // DATOS
+  // =====================================
+  // NORMALIZACIÓN DE VELAS
+  // =====================================
 
   function timestamp(value) {
     const n =
@@ -227,7 +388,9 @@
         : Number(value);
 
     return Number.isFinite(n)
-      ? Math.floor(n > 1e12 ? n / 1000 : n)
+      ? Math.floor(
+          n > 1e12 ? n / 1000 : n
+        )
       : NaN;
   }
 
@@ -251,22 +414,41 @@
       const a = Array.isArray(x);
 
       const c = {
-        time: timestamp(a
-          ? x[0]
-          : x.time ?? x.timestamp ??
-            x.openTime ?? x.t),
-        open: Number(a ? x[1] : x.open ?? x.o),
-        high: Number(a ? x[2] : x.high ?? x.h),
-        low: Number(a ? x[3] : x.low ?? x.l),
-        close: Number(a ? x[4] : x.close ?? x.c),
-        volume: Number(a
-          ? x[5]
-          : x.volume ?? x.vol ?? x.v ?? 0)
+        time: timestamp(
+          a
+            ? x[0]
+            : x.time ??
+              x.timestamp ??
+              x.openTime ??
+              x.t
+        ),
+        open: Number(
+          a ? x[1] : x.open ?? x.o
+        ),
+        high: Number(
+          a ? x[2] : x.high ?? x.h
+        ),
+        low: Number(
+          a ? x[3] : x.low ?? x.l
+        ),
+        close: Number(
+          a ? x[4] : x.close ?? x.c
+        ),
+        volume: Number(
+          a
+            ? x[5]
+            : x.volume ??
+              x.vol ??
+              x.v ??
+              0
+        )
       };
 
-      if (!Object.values(c).every(Number.isFinite)) {
-        continue;
-      }
+      if (
+        !Object.values(c).every(
+          Number.isFinite
+        )
+      ) continue;
 
       if (
         c.time <= 0 ||
@@ -276,41 +458,69 @@
       ) continue;
 
       if (
-        c.high < Math.max(c.open, c.close, c.low) ||
-        c.low > Math.min(c.open, c.close)
+        c.high <
+          Math.max(
+            c.open,
+            c.close,
+            c.low
+          ) ||
+        c.low >
+          Math.min(
+            c.open,
+            c.close
+          )
       ) continue;
 
       result.push(c);
     }
 
-    result.sort((a, b) => a.time - b.time);
+    result.sort(
+      (a, b) => a.time - b.time
+    );
 
-    return [...new Map(
-      result.map(c => [c.time, c])
-    ).values()];
+    return [
+      ...new Map(
+        result.map(
+          c => [c.time, c]
+        )
+      ).values()
+    ];
   }
 
   function closed(data, tf) {
     const seconds = SEC[tf] || 60;
 
     return data.filter(
-      c => c.time + seconds <= now() - 2
+      c =>
+        c.time + seconds <=
+        now() - 2
     );
   }
 
-  // INDICADORES MATEMÁTICOS
+  // =====================================
+  // MATEMÁTICAS
+  // =====================================
 
   function sma(values, period) {
-    const out = Array(values.length).fill(null);
-    period = Math.floor(Number(period));
+    const out =
+      Array(values.length).fill(null);
 
-    if (!Number.isFinite(period) || period < 1) {
-      return out;
-    }
+    period = Math.floor(
+      Number(period)
+    );
+
+    if (
+      !Number.isFinite(period) ||
+      period < 1
+    ) return out;
 
     let sum = 0;
 
-    for (let i = 0; i < values.length; i++) {
+    for (
+      let i = 0;
+      i < values.length;
+      i++
+    ) {
       sum += values[i];
 
       if (i >= period) {
@@ -326,8 +536,12 @@
   }
 
   function ema(values, period) {
-    const out = Array(values.length).fill(null);
-    period = Math.floor(Number(period));
+    const out =
+      Array(values.length).fill(null);
+
+    period = Math.floor(
+      Number(period)
+    );
 
     if (
       !Number.isFinite(period) ||
@@ -335,13 +549,24 @@
       values.length < period
     ) return out;
 
-    let value = values.slice(0, period)
-      .reduce((a, b) => a + b, 0) / period;
+    let value = values
+      .slice(0, period)
+      .reduce(
+        (a, b) => a + b,
+        0
+      ) / period;
 
     out[period - 1] = value;
 
-    for (let i = period; i < values.length; i++) {
-      value += (values[i] - value) * 2 / (period + 1);
+    for (
+      let i = period;
+      i < values.length;
+      i++
+    ) {
+      value +=
+        (values[i] - value) *
+        2 / (period + 1);
+
       out[i] = value;
     }
 
@@ -349,15 +574,24 @@
   }
 
   function rsi(values, period = 14) {
-    const out = Array(values.length).fill(null);
+    const out =
+      Array(values.length).fill(null);
 
-    if (values.length <= period) return out;
+    if (
+      values.length <= period
+    ) return out;
 
     let gains = 0;
     let losses = 0;
 
-    for (let i = 1; i <= period; i++) {
-      const d = values[i] - values[i - 1];
+    for (
+      let i = 1;
+      i <= period;
+      i++
+    ) {
+      const d =
+        values[i] - values[i - 1];
+
       gains += Math.max(d, 0);
       losses += Math.max(-d, 0);
     }
@@ -367,20 +601,31 @@
 
     const calculate = () =>
       losses === 0
-        ? gains === 0 ? 50 : 100
-        : 100 - 100 / (1 + gains / losses);
+        ? gains === 0
+          ? 50
+          : 100
+        : 100 -
+          100 /
+          (1 + gains / losses);
 
     out[period] = calculate();
 
-    for (let i = period + 1; i < values.length; i++) {
-      const d = values[i] - values[i - 1];
+    for (
+      let i = period + 1;
+      i < values.length;
+      i++
+    ) {
+      const d =
+        values[i] - values[i - 1];
 
       gains = (
-        gains * (period - 1) + Math.max(d, 0)
+        gains * (period - 1) +
+        Math.max(d, 0)
       ) / period;
 
       losses = (
-        losses * (period - 1) + Math.max(-d, 0)
+        losses * (period - 1) +
+        Math.max(-d, 0)
       ) / period;
 
       out[i] = calculate();
@@ -391,12 +636,22 @@
 
   function adx(data, period = 14) {
     const n = data.length;
-    const ax = Array(n).fill(null);
-    const plus = Array(n).fill(null);
-    const minus = Array(n).fill(null);
+
+    const ax =
+      Array(n).fill(null);
+
+    const plus =
+      Array(n).fill(null);
+
+    const minus =
+      Array(n).fill(null);
 
     if (n < 2 * period) {
-      return {adx: ax, plus, minus};
+      return {
+        adx: ax,
+        plus,
+        minus
+      };
     }
 
     const tr = [];
@@ -404,98 +659,306 @@
     const down = [];
     const dx = [];
 
-    for (let i = 1; i < n; i++) {
-      const high = data[i].high - data[i - 1].high;
-      const low = data[i - 1].low - data[i].low;
+    for (
+      let i = 1;
+      i < n;
+      i++
+    ) {
+      const high =
+        data[i].high -
+        data[i - 1].high;
+
+      const low =
+        data[i - 1].low -
+        data[i].low;
 
       tr[i] = Math.max(
-        data[i].high - data[i].low,
-        Math.abs(data[i].high - data[i - 1].close),
-        Math.abs(data[i].low - data[i - 1].close)
+        data[i].high -
+          data[i].low,
+        Math.abs(
+          data[i].high -
+          data[i - 1].close
+        ),
+        Math.abs(
+          data[i].low -
+          data[i - 1].close
+        )
       );
 
-      up[i] = high > low && high > 0 ? high : 0;
-      down[i] = low > high && low > 0 ? low : 0;
+      up[i] =
+        high > low &&
+        high > 0
+          ? high
+          : 0;
+
+      down[i] =
+        low > high &&
+        low > 0
+          ? low
+          : 0;
     }
 
     let totalTR = 0;
     let totalPlus = 0;
     let totalMinus = 0;
 
-    for (let i = 1; i <= period; i++) {
+    for (
+      let i = 1;
+      i <= period;
+      i++
+    ) {
       totalTR += tr[i];
       totalPlus += up[i];
       totalMinus += down[i];
     }
 
-    for (let i = period; i < n; i++) {
+    for (
+      let i = period;
+      i < n;
+      i++
+    ) {
       if (i > period) {
-        totalTR = totalTR - totalTR / period + tr[i];
+        totalTR =
+          totalTR -
+          totalTR / period +
+          tr[i];
+
         totalPlus =
-          totalPlus - totalPlus / period + up[i];
+          totalPlus -
+          totalPlus / period +
+          up[i];
+
         totalMinus =
-          totalMinus - totalMinus / period + down[i];
+          totalMinus -
+          totalMinus / period +
+          down[i];
       }
 
       plus[i] = totalTR
-        ? 100 * totalPlus / totalTR : 0;
+        ? 100 *
+          totalPlus / totalTR
+        : 0;
 
       minus[i] = totalTR
-        ? 100 * totalMinus / totalTR : 0;
-
-      dx[i] = plus[i] + minus[i]
-        ? 100 * Math.abs(plus[i] - minus[i]) /
-          (plus[i] + minus[i])
+        ? 100 *
+          totalMinus / totalTR
         : 0;
+
+      dx[i] =
+        plus[i] + minus[i]
+          ? 100 *
+            Math.abs(
+              plus[i] - minus[i]
+            ) /
+            (
+              plus[i] + minus[i]
+            )
+          : 0;
     }
 
     let total = 0;
 
-    for (let i = period; i < 2 * period; i++) {
+    for (
+      let i = period;
+      i < 2 * period;
+      i++
+    ) {
       total += dx[i];
     }
 
-    ax[2 * period - 1] = total / period;
+    ax[2 * period - 1] =
+      total / period;
 
-    for (let i = 2 * period; i < n; i++) {
+    for (
+      let i = 2 * period;
+      i < n;
+      i++
+    ) {
       ax[i] = (
-        ax[i - 1] * (period - 1) + dx[i]
+        ax[i - 1] *
+        (period - 1) +
+        dx[i]
       ) / period;
     }
 
-    return {adx: ax, plus, minus};
+    return {
+      adx: ax,
+      plus,
+      minus
+    };
   }
 
   function atr(data, period = 14) {
-    if (data.length < period + 1) return null;
+    if (
+      data.length < period + 1
+    ) return null;
 
     const values = [];
 
-    for (let i = 1; i < data.length; i++) {
-      values.push(Math.max(
-        data[i].high - data[i].low,
-        Math.abs(data[i].high - data[i - 1].close),
-        Math.abs(data[i].low - data[i - 1].close)
-      ));
+    for (
+      let i = 1;
+      i < data.length;
+      i++
+    ) {
+      values.push(
+        Math.max(
+          data[i].high -
+            data[i].low,
+          Math.abs(
+            data[i].high -
+            data[i - 1].close
+          ),
+          Math.abs(
+            data[i].low -
+            data[i - 1].close
+          )
+        )
+      );
     }
 
-    let value = values.slice(0, period)
-      .reduce((a, b) => a + b, 0) / period;
+    let value = values
+      .slice(0, period)
+      .reduce(
+        (a, b) => a + b,
+        0
+      ) / period;
 
-    for (let i = period; i < values.length; i++) {
+    for (
+      let i = period;
+      i < values.length;
+      i++
+    ) {
       value = (
-        value * (period - 1) + values[i]
+        value * (period - 1) +
+        values[i]
       ) / period;
     }
 
     return value;
   }
 
+  // =====================================
+  // AWESOME OSCILLATOR
+  // =====================================
+
+  function awesomeOscillator(data) {
+    const median = data.map(
+      c => (c.high + c.low) / 2
+    );
+
+    const fast = sma(median, 5);
+    const slow = sma(median, 34);
+
+    return median.map((_, i) => {
+      if (
+        !Number.isFinite(fast[i]) ||
+        !Number.isFinite(slow[i])
+      ) return null;
+
+      return fast[i] - slow[i];
+    });
+  }
+
+  function awesomeHistogram(
+    data,
+    values
+  ) {
+    const result = [];
+
+    for (
+      let i = 0;
+      i < data.length;
+      i++
+    ) {
+      const value = values[i];
+
+      if (!Number.isFinite(value)) {
+        continue;
+      }
+
+      const previous = values[i - 1];
+
+      const rising =
+        !Number.isFinite(previous) ||
+        value >= previous;
+
+      result.push({
+        time: data[i].time,
+        value,
+        color: rising
+          ? C.green
+          : C.red
+      });
+    }
+
+    return result;
+  }
+
+  function awesomeInterpretation(
+    values
+  ) {
+    const valid = values.filter(
+      Number.isFinite
+    );
+
+    if (valid.length < 2) {
+      return "AO sin historial suficiente.";
+    }
+
+    const current = valid.at(-1);
+    const previous = valid.at(-2);
+
+    if (
+      previous <= 0 &&
+      current > 0
+    ) {
+      return "AO: cruce alcista de cero. Confirmar con precio y volumen.";
+    }
+
+    if (
+      previous >= 0 &&
+      current < 0
+    ) {
+      return "AO: cruce bajista de cero. Confirmar con precio y volumen.";
+    }
+
+    if (
+      current > 0 &&
+      current > previous
+    ) {
+      return "AO positivo y aumentando: impulso alcista creciente.";
+    }
+
+    if (
+      current > 0 &&
+      current <= previous
+    ) {
+      return "AO positivo, pero perdiendo impulso.";
+    }
+
+    if (
+      current < 0 &&
+      current < previous
+    ) {
+      return "AO negativo y descendiendo: impulso bajista creciente.";
+    }
+
+    return "AO negativo, pero recuperando impulso.";
+  }
+
+  // =====================================
+  // DATOS PARA SERIES
+  // =====================================
+
   function lineData(data, values) {
-    return data.flatMap((c, i) =>
-      Number.isFinite(values[i])
-        ? [{time: c.time, value: values[i]}]
-        : []
+    return data.flatMap(
+      (c, i) =>
+        Number.isFinite(values[i])
+          ? [{
+              time: c.time,
+              value: values[i]
+            }]
+          : []
     );
   }
 
@@ -503,17 +966,17 @@
     return {
       time: c.time,
       value: c.volume,
-      color: c.close >= c.open
-        ? "rgba(0,245,160,.7)"
-        : "rgba(255,71,108,.7)"
+      color:
+        c.close >= c.open
+          ? "rgba(0,245,160,.7)"
+          : "rgba(255,71,108,.7)"
     };
   }
 
-  // ACTUALIZACIÓN INCREMENTAL
-
   function sameCandle(a, b) {
     return !!(
-      a && b &&
+      a &&
+      b &&
       a.time === b.time &&
       a.open === b.open &&
       a.high === b.high &&
@@ -523,77 +986,130 @@
     );
   }
 
-  function classifyChange(oldData, newData) {
-    if (!oldData.length || !newData.length) {
-      return "rebuild";
-    }
+  function classifyChange(
+    oldData,
+    newData
+  ) {
+    if (
+      !oldData.length ||
+      !newData.length
+    ) return "rebuild";
 
-    if (oldData.length === newData.length) {
-      let earlierSame = true;
-
-      for (let i = 0; i < oldData.length - 1; i++) {
-        if (!sameCandle(oldData[i], newData[i])) {
-          earlierSame = false;
-          break;
-        }
-      }
+    if (
+      oldData.length ===
+      newData.length
+    ) {
+      const earlierSame =
+        oldData
+          .slice(0, -1)
+          .every(
+            (c, i) =>
+              sameCandle(
+                c,
+                newData[i]
+              )
+          );
 
       if (earlierSame) {
         return sameCandle(
-          oldData.at(-1), newData.at(-1)
-        ) ? "none" : "last";
+          oldData.at(-1),
+          newData.at(-1)
+        )
+          ? "none"
+          : "last";
       }
     }
 
     if (
-      newData.length === oldData.length + 1 &&
-      oldData.every((c, i) =>
-        sameCandle(c, newData[i])
+      newData.length ===
+        oldData.length + 1 &&
+      oldData.every(
+        (c, i) =>
+          sameCandle(
+            c,
+            newData[i]
+          )
       )
     ) return "append";
 
     if (
-      newData.length === oldData.length &&
+      newData.length ===
+        oldData.length &&
       newData.length > 1 &&
-      oldData.slice(1, -1).every((c, i) =>
-        sameCandle(c, newData[i])
+      oldData.slice(1).every(
+        (c, i) =>
+          sameCandle(
+            c,
+            newData[i]
+          )
       )
     ) return "shift";
 
     return "rebuild";
   }
 
-  function setLineStable(target, data, force = false) {
+  function setLineStable(
+    target,
+    data,
+    force = false
+  ) {
     if (!target) return;
 
-    const old = seriesState.get(target);
+    const old =
+      seriesState.get(target);
+
     const next = data.at(-1);
 
-    if (force || !old) {
+    if (
+      force ||
+      !old ||
+      old.length > data.length ||
+      (
+        old.first !==
+        data[0]?.time
+      )
+    ) {
       target.setData(data);
+
       seriesState.set(target, {
         length: data.length,
-        last: next ? {...next} : null
+        first: data[0]?.time,
+        last: next
+          ? {...next}
+          : null
       });
+
       return;
     }
 
     if (!next) {
-      if (old.length) target.setData([]);
+      if (old.length) {
+        target.setData([]);
+      }
+
       seriesState.set(target, {
         length: 0,
+        first: undefined,
         last: null
       });
+
       return;
     }
 
-    if (old.last?.time === next.time) {
+    if (
+      old.last?.time ===
+      next.time
+    ) {
       if (
         old.last.value !== next.value ||
         old.last.color !== next.color
-      ) target.update(next);
+      ) {
+        target.update(next);
+      }
     } else if (
-      old.last && next.time > old.last.time
+      old.last &&
+      next.time > old.last.time &&
+      data.length >= old.length
     ) {
       target.update(next);
     } else {
@@ -602,11 +1118,14 @@
 
     seriesState.set(target, {
       length: data.length,
+      first: data[0]?.time,
       last: {...next}
     });
   }
 
+  // =====================================
   // CONFIGURACIÓN DE GRÁFICAS
+  // =====================================
 
   function chartOptions(height) {
     return {
@@ -623,8 +1142,12 @@
       },
 
       grid: {
-        vertLines: {color: "#18202d"},
-        horzLines: {color: "#18202d"}
+        vertLines: {
+          color: "#18202d"
+        },
+        horzLines: {
+          color: "#18202d"
+        }
       },
 
       rightPriceScale: {
@@ -643,7 +1166,9 @@
       },
 
       crosshair: {
-        mode: LightweightCharts.CrosshairMode.Normal
+        mode:
+          LightweightCharts
+            .CrosshairMode.Normal
       },
 
       handleScroll: {
@@ -672,14 +1197,21 @@
 
   function visible() {
     try {
-      const r = charts.price?.timeScale()
-        .getVisibleLogicalRange();
+      const range =
+        charts.price
+          ?.timeScale()
+          .getVisibleLogicalRange();
 
       if (
-        r &&
-        Number.isFinite(r.from) &&
-        Number.isFinite(r.to)
-      ) return {from: r.from, to: r.to};
+        range &&
+        Number.isFinite(range.from) &&
+        Number.isFinite(range.to)
+      ) {
+        return {
+          from: range.from,
+          to: range.to
+        };
+      }
     } catch {}
 
     return null;
@@ -687,25 +1219,37 @@
 
   function sameRange(a, b) {
     return !!(
-      a && b &&
+      a &&
+      b &&
       Math.abs(a.from - b.from) < .05 &&
       Math.abs(a.to - b.to) < .05
     );
   }
 
   function restore(range) {
-    if (!range || !charts.price) return;
-    if (sameRange(visible(), range)) return;
+    if (
+      !range ||
+      !charts.price
+    ) return;
+
+    if (
+      sameRange(
+        visible(),
+        range
+      )
+    ) return;
 
     try {
-      charts.price.timeScale()
+      charts.price
+        .timeScale()
         .setVisibleLogicalRange(range);
-    } catch (error) {
-      console.warn("Rango:", error);
-    }
+    } catch {}
   }
 
-  function syncCharts(source, range) {
+  function syncCharts(
+    source,
+    range
+  ) {
     if (
       syncing ||
       source !== charts.price ||
@@ -720,10 +1264,12 @@
     };
 
     if (syncQueued) return;
+
     syncQueued = true;
 
     requestAnimationFrame(() => {
       syncQueued = false;
+
       const r = pendingRange;
       pendingRange = null;
 
@@ -732,14 +1278,24 @@
       syncing = true;
 
       try {
-        for (const name of ["volume", "rsi", "adx"]) {
-          const chart = charts[name];
+        for (const name of [
+          "volume",
+          "rsi",
+          "adx",
+          "ao"
+        ]) {
+          const chart =
+            charts[name];
+
           if (!chart) continue;
 
-          if (!sameRange(
-            chart.timeScale().getVisibleLogicalRange(),
-            r
-          )) {
+          if (
+            !sameRange(
+              chart.timeScale()
+                .getVisibleLogicalRange(),
+              r
+            )
+          ) {
             chart.timeScale()
               .setVisibleLogicalRange(r);
           }
@@ -753,18 +1309,22 @@
   }
 
   function volumeProfile() {
-    return window.CryptolexuzVolumeProfile ||
+    return (
+      window.CryptolexuzVolumeProfile ||
       window.CRYPTOLEXUZ_VOLUME_PROFILE ||
-      null;
+      null
+    );
   }
 
   function redrawModules() {
     try {
-      window.CryptolexuzFibonacci?.redraw?.();
+      window.CryptolexuzFibonacci
+        ?.redraw?.();
     } catch {}
 
     try {
-      window.CryptolexuzRangeBoxes?.redraw?.();
+      window.CryptolexuzRangeBoxes
+        ?.redraw?.();
     } catch {}
 
     try {
@@ -784,41 +1344,68 @@
   }
 
   function resizeCanvas() {
-    const canvas = $("zonesCanvas");
-    const area = $("priceChartArea");
+    const canvas =
+      $("zonesCanvas");
 
-    if (!canvas || !area) return;
+    const area =
+      $("priceChartArea");
 
-    const width = area.clientWidth;
-    const height = area.clientHeight;
+    if (
+      !canvas ||
+      !area
+    ) return;
 
-    if (!width || !height) return;
+    const width =
+      area.clientWidth;
+
+    const height =
+      area.clientHeight;
+
+    if (
+      !width ||
+      !height
+    ) return;
 
     const dpr = Math.min(
-      window.devicePixelRatio || 1, 2
+      window.devicePixelRatio || 1,
+      2
     );
 
-    const w = Math.round(width * dpr);
-    const h = Math.round(height * dpr);
+    const w =
+      Math.round(width * dpr);
 
-    if (canvas.width !== w || canvas.height !== h) {
+    const h =
+      Math.round(height * dpr);
+
+    if (
+      canvas.width !== w ||
+      canvas.height !== h
+    ) {
       canvas.width = w;
       canvas.height = h;
     }
 
-    canvas.style.pointerEvents = "none";
+    canvas.style.pointerEvents =
+      "none";
 
-    canvas.getContext("2d")?.setTransform(
-      dpr, 0, 0, dpr, 0, 0
-    );
+    canvas
+      .getContext("2d")
+      ?.setTransform(
+        dpr, 0, 0, dpr, 0, 0
+      );
   }
 
   function resize() {
-    for (const [name, id, fallback] of [
+    for (const [
+      name,
+      id,
+      fallback
+    ] of [
       ["price", "chart", 360],
       ["volume", "volumeChart", 115],
       ["rsi", "rsiChart", 145],
-      ["adx", "adxChart", 145]
+      ["adx", "adxChart", 145],
+      ["ao", "aoChart", 145]
     ]) {
       const element = $(id);
       const chart = charts[name];
@@ -829,15 +1416,25 @@
         element.clientWidth <= 0
       ) continue;
 
-      const width = Math.round(element.clientWidth);
-      const height = name === "price"
-        ? Math.max(
-            240,
-            Math.round(element.clientHeight || fallback)
-          )
-        : fallback;
+      const width = Math.round(
+        element.clientWidth
+      );
 
-      chart.resize(width, height);
+      const height =
+        name === "price"
+          ? Math.max(
+              240,
+              Math.round(
+                element.clientHeight ||
+                fallback
+              )
+            )
+          : fallback;
+
+      chart.resize(
+        width,
+        height
+      );
     }
 
     resizeCanvas();
@@ -858,29 +1455,38 @@
 
   function enableTouch() {
     const element = $("chart");
+
     if (!element) return;
 
     element.style.setProperty(
-      "touch-action", "pan-y", "important"
+      "touch-action",
+      "pan-y",
+      "important"
     );
 
-    element.style.userSelect = "none";
+    element.style.userSelect =
+      "none";
 
     for (const id of [
       "zonesCanvas",
-      "fibonacciCanvas",
       "clVpCanvas"
     ]) {
       if ($(id)) {
-        $(id).style.pointerEvents = "none";
+        $(id).style.pointerEvents =
+          "none";
       }
     }
   }
 
+  // =====================================
   // MÓDULOS EXTERNOS
+  // =====================================
 
   function announceChartReady() {
-    if (!charts.price || !series.price) return;
+    if (
+      !charts.price ||
+      !series.price
+    ) return;
 
     const chart = charts.price;
     const candle = series.price;
@@ -890,8 +1496,10 @@
       chartApi: chart,
       candle,
       candleSeries: candle,
-      applyOptions: o => chart.applyOptions(o),
-      timeScale: () => chart.timeScale(),
+      applyOptions: o =>
+        chart.applyOptions(o),
+      timeScale: () =>
+        chart.timeScale(),
       getRows: () => rows,
       getCandles: () => rows,
       getSelection: selection,
@@ -902,25 +1510,32 @@
     window.clChart = chart;
     window.chartApi = chart;
 
-    window.dispatchEvent(new CustomEvent(
-      "cryptolexuz:chart-ready", {
-        detail: {
-          chart,
-          candle,
-          candleSeries: candle,
-          rows,
-          candles: rows,
-          getRows: () => rows,
-          getSelection: selection
+    window.dispatchEvent(
+      new CustomEvent(
+        "cryptolexuz:chart-ready",
+        {
+          detail: {
+            chart,
+            candle,
+            candleSeries: candle,
+            rows,
+            candles: rows,
+            getRows: () => rows,
+            getSelection: selection
+          }
         }
-      }
-    ));
+      )
+    );
   }
 
   function attachVolumeProfile() {
     const vp = volumeProfile();
 
-    if (!vp || !charts.price || !series.price) {
+    if (
+      !vp ||
+      !charts.price ||
+      !series.price
+    ) {
       announceChartReady();
       return;
     }
@@ -944,331 +1559,814 @@
       volumeProfileAttached = true;
       volumeProfileModule = vp;
     } catch (error) {
-      console.warn("Volume Profile:", error);
+      console.warn(
+        "Volume Profile:",
+        error
+      );
     }
 
     announceChartReady();
   }
 
-  function updateModules(force = false) {
+  function updateModules(
+    force = false
+  ) {
     const vp = volumeProfile();
 
-    if (vp && !volumeProfileAttached) {
+    if (
+      vp &&
+      !volumeProfileAttached
+    ) {
       attachVolumeProfile();
     }
 
     try {
-      if (typeof vp?.setData === "function") {
+      if (
+        typeof vp?.setData ===
+        "function"
+      ) {
         vp.setData(rows);
       } else {
         vp?.updateData?.(rows);
       }
     } catch (error) {
-      console.warn("Volume Profile:", error);
+      console.warn(
+        "Volume Profile:",
+        error
+      );
     }
 
-    window.dispatchEvent(new CustomEvent(
-      "cryptolexuz:candles-updated", {
-        detail: {
-          chart: charts.price,
-          candle: series.price,
-          candleSeries: series.price,
-          rows,
-          candles: rows,
-          selection: selection(),
-          force
+    window.dispatchEvent(
+      new CustomEvent(
+        "cryptolexuz:candles-updated",
+        {
+          detail: {
+            chart: charts.price,
+            candle: series.price,
+            candleSeries:
+              series.price,
+            rows,
+            candles: rows,
+            selection: selection(),
+            force
+          }
         }
-      }
-    ));
+      )
+    );
 
-    if (force) redrawModules();
+    if (force) {
+      redrawModules();
+    }
   }
 
-  // MA Y EMA INDEPENDIENTES
+  // =====================================
+  // INDICADORES Y PREFERENCIAS
+  // =====================================
 
   function movingConfigurations() {
-    const s = settings();
-
-    let ma = defaultMA;
-    let emaLines = defaultEMA;
-
-    if (Array.isArray(s.maLines)) {
-      ma = s.maLines;
-    } else if (Array.isArray(s.lines)) {
-      ma = s.lines.filter(
-        x => Number(x.period) !== 21
-      );
-    }
-
-    if (Array.isArray(s.emaLines)) {
-      emaLines = s.emaLines;
-    } else if (Array.isArray(s.lines)) {
-      const legacyEMA = s.lines.filter(
-        x => Number(x.period) === 21
-      );
-
-      if (legacyEMA.length) {
-        emaLines = legacyEMA;
-      }
-    }
-
     return [
-      ...ma.map(x => ({
-        ...x,
-        method: "sma"
-      })),
-      ...emaLines.map(x => ({
-        ...x,
-        method: "ema"
-      }))
+      ...prefs.maLines.map(
+        x => ({
+          ...x,
+          method: "sma"
+        })
+      ),
+      ...prefs.emaLines.map(
+        x => ({
+          ...x,
+          method: "ema"
+        })
+      )
     ];
+  }
+
+  function lineEnabled(line) {
+    const group =
+      line.method === "ema"
+        ? "EMA"
+        : "MA";
+
+    return (
+      line.enabled !== false &&
+      prefs.indicators[group] !== false
+    );
   }
 
   function rebuildMoving() {
     if (!charts.price) return;
 
-    const configs = movingConfigurations();
-    const signature = JSON.stringify(configs);
+    const configs =
+      movingConfigurations();
 
-    if (signature === movingSignature) return;
+    const signature =
+      JSON.stringify(configs);
+
+    if (
+      signature === movingSignature
+    ) return;
 
     movingSignature = signature;
 
     const wanted = new Set();
 
-    configs.forEach((line, index) => {
-      const name = "custom" + index;
-      wanted.add(name);
+    configs.forEach(
+      (line, index) => {
+        const name =
+          "custom" + index;
 
-      const color = /^#[0-9a-f]{6}$/i.test(line.color)
-        ? line.color
-        : C.purple;
+        wanted.add(name);
 
-      const width = Math.max(
-        1,
-        Math.min(5, Number(line.width) || 2)
-      );
+        const color =
+          /^#[0-9a-f]{6}$/i.test(
+            line.color
+          )
+            ? line.color
+            : C.purple;
 
-      if (!moving[name]) {
-        moving[name] = charts.price.addLineSeries({
-          color,
-          lineWidth: width,
-          priceLineVisible: false,
-          lastValueVisible: false,
-          crosshairMarkerVisible: false
-        });
-      } else {
-        moving[name].applyOptions({
-          color,
-          lineWidth: width
-        });
+        const width = Math.max(
+          1,
+          Math.min(
+            5,
+            Number(line.width) || 2
+          )
+        );
+
+        if (!moving[name]) {
+          moving[name] =
+            charts.price.addLineSeries({
+              color,
+              lineWidth: width,
+              priceLineVisible: false,
+              lastValueVisible: false,
+              crosshairMarkerVisible:
+                false
+            });
+        } else {
+          moving[name].applyOptions({
+            color,
+            lineWidth: width
+          });
+        }
+
+        seriesState.delete(
+          moving[name]
+        );
+      }
+    );
+
+    for (const [
+      name,
+      line
+    ] of Object.entries(moving)) {
+      if (wanted.has(name)) {
+        continue;
       }
 
-      seriesState.delete(moving[name]);
-    });
-
-    for (const [name, line] of Object.entries(moving)) {
-      if (wanted.has(name)) continue;
-
       try {
-        charts.price.removeSeries(line);
+        charts.price.removeSeries(
+          line
+        );
       } catch {}
 
       delete moving[name];
     }
   }
 
-  function updateMoving(closes, force = false) {
+  function updateMoving(
+    closes,
+    force = false
+  ) {
     rebuildMoving();
 
-    movingConfigurations().forEach((line, index) => {
-      const period = Math.max(
-        1,
-        Math.floor(Number(line.period) || 21)
+    movingConfigurations().forEach(
+      (line, index) => {
+        const period = Math.max(
+          1,
+          Math.floor(
+            Number(line.period) || 21
+          )
+        );
+
+        const values =
+          line.method === "ema"
+            ? ema(closes, period)
+            : sma(closes, period);
+
+        const on =
+          lineEnabled(line);
+
+        setLineStable(
+          moving["custom" + index],
+          on
+            ? lineData(rows, values)
+            : [],
+          force
+        );
+      }
+    );
+  }
+
+  function setNamedLine(
+    method,
+    period,
+    active
+  ) {
+    const group =
+      method === "ema"
+        ? "EMA"
+        : "MA";
+
+    const list =
+      method === "ema"
+        ? prefs.emaLines
+        : prefs.maLines;
+
+    let line = list.find(
+      x => Number(x.period) === period
+    );
+
+    if (!line && active) {
+      const defaults =
+        method === "ema"
+          ? defaultEMA
+          : defaultMA;
+
+      line = defaults.find(
+        x => x.period === period
       );
 
-      const method = line.method === "ema"
-        ? "ema" : "sma";
+      list.push(
+        line
+          ? {...line}
+          : {
+              period,
+              color: C.purple,
+              width: 2,
+              enabled: true
+            }
+      );
 
-      const values = method === "ema"
-        ? ema(closes, period)
-        : sma(closes, period);
+      line = list.at(-1);
+    }
 
-      let legacy = null;
+    if (line) {
+      line.enabled = active;
+    }
 
-      if (method === "ema" && period === 21) {
-        legacy = "ema21";
-      } else if (method === "sma" && period === 55) {
-        legacy = "ma55";
-      } else if (method === "sma" && period === 100) {
-        legacy = "ma100";
-      } else if (method === "sma" && period === 200) {
-        legacy = "ma200";
+    if (active) {
+      prefs.indicators[group] = true;
+    }
+  }
+
+  function updateButtons() {
+    const names = {
+      ema21: ["ema", 21],
+      ma55: ["sma", 55],
+      ma100: ["sma", 100],
+      ma200: ["sma", 200]
+    };
+
+    document.querySelectorAll(
+      "[data-indicator]"
+    ).forEach(button => {
+      const name =
+        button.dataset.indicator;
+
+      let on;
+
+      if (names[name]) {
+        const [
+          method,
+          period
+        ] = names[name];
+
+        const group =
+          method === "ema"
+            ? "EMA"
+            : "MA";
+
+        const list =
+          method === "ema"
+            ? prefs.emaLines
+            : prefs.maLines;
+
+        on =
+          prefs.indicators[group] !==
+            false &&
+          list.some(
+            x =>
+              Number(x.period) ===
+                period &&
+              x.enabled !== false
+          );
+      } else {
+        on = enabled.has(name);
       }
 
-      const on = Boolean(line.enabled) &&
-        (!legacy || enabled.has(legacy));
+      button.classList.toggle(
+        "active",
+        on
+      );
 
-      setLineStable(
-        moving["custom" + index],
-        on ? lineData(rows, values) : [],
-        force
+      button.setAttribute(
+        "aria-pressed",
+        String(on)
+      );
+    });
+
+    document.querySelectorAll(
+      "[data-osc]"
+    ).forEach(button => {
+      const raw =
+        button.dataset.osc || "";
+
+      const name =
+        raw.toUpperCase();
+
+      const available = [
+        "MA",
+        "EMA",
+        "VOL",
+        "RSI",
+        "ADX",
+        "AO"
+      ].includes(name);
+
+      if (!available) {
+        button.setAttribute(
+          "aria-disabled",
+          "true"
+        );
+        return;
+      }
+
+      const on =
+        prefs.indicators[name] !==
+        false;
+
+      button.classList.toggle(
+        "active",
+        on
+      );
+
+      button.setAttribute(
+        "aria-pressed",
+        String(on)
       );
     });
   }
 
+  function syncEnabled() {
+    enabled.clear();
+
+    const map = {
+      RSI: "rsi",
+      ADX: "adx",
+      AO: "ao",
+      VOL: "volume",
+      FVG: "fvg",
+      IFVG: "ifvg",
+      liquidity: "liquidity",
+      sweeps: "sweeps",
+      support: "support",
+      resistance: "resistance"
+    };
+
+    for (const [
+      name,
+      indicator
+    ] of Object.entries(map)) {
+      if (
+        prefs.indicators[name]
+      ) {
+        enabled.add(indicator);
+      }
+    }
+
+    updateButtons();
+    updatePanelVisibility();
+  }
+
+  function updatePanelVisibility() {
+    const panels = {
+      rsiSection: "RSI",
+      adxSection: "ADX",
+      aoSection: "AO"
+    };
+
+    for (const [
+      id,
+      name
+    ] of Object.entries(panels)) {
+      if ($(id)) {
+        $(id).hidden =
+          !prefs.indicators[name];
+      }
+    }
+
+    const volume =
+      $("volumeChart")
+        ?.closest(".volume-section");
+
+    if (volume) {
+      volume.hidden =
+        !prefs.indicators.VOL;
+    }
+
+    scheduleResize();
+  }
+
+  function setIndicator(
+    name,
+    active
+  ) {
+    const normalized =
+      String(name).toLowerCase();
+
+    const named = {
+      ema21: ["ema", 21],
+      ma55: ["sma", 55],
+      ma100: ["sma", 100],
+      ma200: ["sma", 200]
+    };
+
+    if (named[normalized]) {
+      const [
+        method,
+        period
+      ] = named[normalized];
+
+      setNamedLine(
+        method,
+        period,
+        active
+      );
+    } else {
+      const map = {
+        rsi: "RSI",
+        adx: "ADX",
+        ao: "AO",
+        volume: "VOL",
+        vol: "VOL",
+        fvg: "FVG",
+        ifvg: "IFVG",
+        liquidity: "liquidity",
+        sweeps: "sweeps",
+        support: "support",
+        resistance: "resistance",
+        ma: "MA",
+        ema: "EMA"
+      };
+
+      const key =
+        map[normalized];
+
+      if (!key) return;
+
+      prefs.indicators[key] =
+        active;
+    }
+
+    saveSettings();
+    syncEnabled();
+
+    movingSignature = "";
+
+    if (rows.length) {
+      updateIndicators(true);
+    }
+
+    window.dispatchEvent(
+      new CustomEvent(
+        "cryptolexuz:indicator-state-updated",
+        {
+          detail: {
+            settings: prefs
+          }
+        }
+      )
+    );
+  }
+
+  function toggleIndicator(name) {
+    const normalized =
+      String(name).toLowerCase();
+
+    const button =
+      document.querySelector(
+        '[data-indicator="' +
+        normalized +
+        '"]'
+      );
+
+    if (button) {
+      const current =
+        button.getAttribute(
+          "aria-pressed"
+        ) === "true";
+
+      setIndicator(
+        normalized,
+        !current
+      );
+
+      return;
+    }
+
+    const map = {
+      ma: "MA",
+      ema: "EMA",
+      vol: "VOL",
+      rsi: "RSI",
+      adx: "ADX",
+      ao: "AO"
+    };
+
+    const key =
+      map[normalized];
+
+    if (key) {
+      setIndicator(
+        normalized,
+        !prefs.indicators[key]
+      );
+    }
+  }
+
+  function applySavedIndicators() {
+    prefs = readSettings();
+
+    syncEnabled();
+
+    movingSignature = "";
+
+    if (charts.price) {
+      rebuildMoving();
+    }
+
+    const chart = $("chart");
+
+    if (chart) {
+      chart.style.height =
+        prefs.height + "px";
+    }
+
+    if (rows.length) {
+      updateIndicators(true);
+    }
+
+    scheduleResize();
+  }
+
+  // =====================================
   // CREACIÓN DE GRÁFICAS
+  // =====================================
 
   function createCharts() {
-    if (!window.LightweightCharts || !$("chart")) {
+    if (
+      !window.LightweightCharts ||
+      !$("chart")
+    ) {
       put(
         "message",
         "No se pudo cargar Lightweight Charts."
       );
 
-      connection("Error de gráfica", C.red);
+      connection(
+        "Error de gráfica",
+        C.red
+      );
+
       return false;
     }
 
-    charts.price = LightweightCharts.createChart(
-      $("chart"),
-      chartOptions($("chart").clientHeight || 360)
-    );
+    charts.price =
+      LightweightCharts.createChart(
+        $("chart"),
+        chartOptions(
+          $("chart").clientHeight ||
+          360
+        )
+      );
 
-    series.price = charts.price.addCandlestickSeries({
-      upColor: C.green,
-      downColor: C.red,
-      wickUpColor: C.green,
-      wickDownColor: C.red,
-      borderVisible: false
-    });
+    series.price =
+      charts.price
+        .addCandlestickSeries({
+          upColor: C.green,
+          downColor: C.red,
+          wickUpColor: C.green,
+          wickDownColor: C.red,
+          borderVisible: false
+        });
 
     rebuildMoving();
 
-    for (const [name, id, height] of [
+    for (const [
+      name,
+      id,
+      height
+    ] of [
       ["volume", "volumeChart", 115],
       ["rsi", "rsiChart", 145],
-      ["adx", "adxChart", 145]
+      ["adx", "adxChart", 145],
+      ["ao", "aoChart", 145]
     ]) {
       if (!$(id)) continue;
 
-      charts[name] = LightweightCharts.createChart(
-        $(id),
-        chartOptions(height)
-      );
+      charts[name] =
+        LightweightCharts.createChart(
+          $(id),
+          chartOptions(height)
+        );
     }
 
     if (charts.volume) {
-      series.volume = charts.volume.addHistogramSeries({
-        priceFormat: {type: "volume"},
-        priceScaleId: ""
-      });
+      series.volume =
+        charts.volume
+          .addHistogramSeries({
+            priceFormat: {
+              type: "volume"
+            },
+            priceScaleId: ""
+          });
 
-      series.volume.priceScale().applyOptions({
-        scaleMargins: {
-          top: .12,
-          bottom: 0
-        }
-      });
+      series.volume
+        .priceScale()
+        .applyOptions({
+          scaleMargins: {
+            top: .12,
+            bottom: 0
+          }
+        });
     }
 
     if (charts.rsi) {
-      series.rsi = charts.rsi.addLineSeries({
-        color: C.purple,
-        lineWidth: 2,
-        priceLineVisible: false
-      });
+      series.rsi =
+        charts.rsi.addLineSeries({
+          color: C.purple,
+          lineWidth: 2,
+          priceLineVisible: false
+        });
 
-      for (const level of [30, 50, 70]) {
+      for (const level of [
+        30, 50, 70
+      ]) {
         series.rsi.createPriceLine({
           price: level,
           color: "#657399",
-          lineStyle: LightweightCharts.LineStyle.Dashed,
+          lineStyle:
+            LightweightCharts
+              .LineStyle.Dashed,
           axisLabelVisible: true
         });
       }
     }
 
     if (charts.adx) {
-      for (const [name, color] of [
+      for (const [
+        name,
+        color
+      ] of [
         ["adx", C.yellow],
         ["plus", C.green],
         ["minus", C.red]
       ]) {
-        series[name] = charts.adx.addLineSeries({
-          color,
-          lineWidth: 2,
-          priceLineVisible: false
-        });
+        series[name] =
+          charts.adx.addLineSeries({
+            color,
+            lineWidth: 2,
+            priceLineVisible: false
+          });
       }
     }
 
-    charts.price.timeScale()
+    if (charts.ao) {
+      series.ao =
+        charts.ao
+          .addHistogramSeries({
+            priceFormat: {
+              type: "price",
+              precision: 5,
+              minMove: .00001
+            },
+            priceScaleId: ""
+          });
+
+      series.ao.createPriceLine({
+        price: 0,
+        color: "#657399",
+        lineStyle:
+          LightweightCharts
+            .LineStyle.Dashed,
+        axisLabelVisible: true
+      });
+    }
+
+    charts.price
+      .timeScale()
       .subscribeVisibleLogicalRangeChange(
-        range => syncCharts(charts.price, range)
+        range =>
+          syncCharts(
+            charts.price,
+            range
+          )
       );
 
     enableTouch();
 
     if (window.ResizeObserver) {
-      resizeObserver = new ResizeObserver(
-        scheduleResize
-      );
+      resizeObserver =
+        new ResizeObserver(
+          scheduleResize
+        );
 
       for (const id of [
         "chart",
         "volumeChart",
         "rsiChart",
-        "adxChart"
+        "adxChart",
+        "aoChart"
       ]) {
         if ($(id)) {
-          resizeObserver.observe($(id));
+          resizeObserver.observe(
+            $(id)
+          );
         }
       }
     }
 
-    window.addEventListener("resize", scheduleResize);
+    window.addEventListener(
+      "resize",
+      scheduleResize
+    );
 
     try {
-      window.CryptolexuzFibonacci?.attach?.(
-        charts.price,
-        series.price,
-        {
-          getRows: () => rows,
-          getSelection: selection
-        }
-      );
+      window.CryptolexuzFibonacci
+        ?.attach?.(
+          charts.price,
+          series.price,
+          {
+            getRows: () => rows,
+            getSelection: selection
+          }
+        );
     } catch (error) {
-      console.warn("Fibonacci:", error);
+      console.warn(
+        "Fibonacci:",
+        error
+      );
     }
 
     attachVolumeProfile();
 
-    setTimeout(scheduleResize, 150);
+    setTimeout(
+      scheduleResize,
+      150
+    );
 
     return true;
   }
 
   function resetView() {
-    if (!charts.price || !rows.length) return;
+    if (
+      !charts.price ||
+      !rows.length
+    ) return;
 
     restore({
-      from: Math.max(0, rows.length - 50),
+      from: Math.max(
+        0,
+        rows.length - 50
+      ),
       to: rows.length + 3
     });
   }
 
-  // ESTRUCTURA DE MERCADO
+  // =====================================
+  // ESTRUCTURA DEL MERCADO
+  // =====================================
 
   function detectPivots(data) {
     const result = [];
 
-    for (let i = 4; i < data.length - 4; i++) {
-      const nearby = data.slice(i - 4, i + 5);
+    for (
+      let i = 4;
+      i < data.length - 4;
+      i++
+    ) {
+      const nearby =
+        data.slice(
+          i - 4,
+          i + 5
+        );
 
-      if (nearby.every((x, j) =>
-        j === 4 || x.high < data[i].high
-      )) {
+      if (
+        nearby.every(
+          (x, j) =>
+            j === 4 ||
+            x.high < data[i].high
+        )
+      ) {
         result.push({
           index: i,
           price: data[i].high,
@@ -1276,9 +2374,13 @@
         });
       }
 
-      if (nearby.every((x, j) =>
-        j === 4 || x.low > data[i].low
-      )) {
+      if (
+        nearby.every(
+          (x, j) =>
+            j === 4 ||
+            x.low > data[i].low
+        )
+      ) {
         result.push({
           index: i,
           price: data[i].low,
@@ -1293,11 +2395,23 @@
   function detectFVG(data) {
     const result = [];
 
-    for (let i = 2; i < data.length; i++) {
-      const bull = data[i].low > data[i - 2].high;
-      const bear = data[i].high < data[i - 2].low;
+    for (
+      let i = 2;
+      i < data.length;
+      i++
+    ) {
+      const bull =
+        data[i].low >
+        data[i - 2].high;
 
-      if (!bull && !bear) continue;
+      const bear =
+        data[i].high <
+        data[i - 2].low;
+
+      if (
+        !bull &&
+        !bear
+      ) continue;
 
       const top = bull
         ? data[i].low
@@ -1308,18 +2422,31 @@
         : data[i].high;
 
       if (
-        (top - bottom) / ((top + bottom) / 2) <
+        (top - bottom) /
+        ((top + bottom) / 2) <
         .00035
       ) continue;
 
-      let end = data.length - 1;
+      let end =
+        data.length - 1;
+
       let filled = false;
       let inverted = false;
 
-      for (let j = i + 1; j < data.length; j++) {
+      for (
+        let j = i + 1;
+        j < data.length;
+        j++
+      ) {
         if (
-          (bull && data[j].low <= bottom) ||
-          (bear && data[j].high >= top)
+          (
+            bull &&
+            data[j].low <= bottom
+          ) ||
+          (
+            bear &&
+            data[j].high >= top
+          )
         ) {
           end = j;
           filled = true;
@@ -1349,15 +2476,27 @@
   function detectSweeps(data) {
     const result = [];
 
-    for (let i = 20; i < data.length - 1; i++) {
-      const previous = data.slice(i - 20, i);
+    for (
+      let i = 20;
+      i < data.length - 1;
+      i++
+    ) {
+      const previous =
+        data.slice(
+          i - 20,
+          i
+        );
 
       const high = Math.max(
-        ...previous.map(x => x.high)
+        ...previous.map(
+          x => x.high
+        )
       );
 
       const low = Math.min(
-        ...previous.map(x => x.low)
+        ...previous.map(
+          x => x.low
+        )
       );
 
       if (
@@ -1393,85 +2532,126 @@
   function updateLevels() {
     if (!series.price) return;
 
-    const recent = pivots.slice(-18);
+    const recent =
+      pivots.slice(-18);
+
     const requested = [];
 
     if (enabled.has("support")) {
-      const p = recent.filter(
-        x => x.type === "low"
-      ).at(-1);
+      const p = recent
+        .filter(
+          x => x.type === "low"
+        )
+        .at(-1);
 
       if (p) {
         requested.push([
-          p.price, C.green, "Soporte"
+          p.price,
+          C.green,
+          "Soporte"
         ]);
       }
     }
 
-    if (enabled.has("resistance")) {
-      const p = recent.filter(
-        x => x.type === "high"
-      ).at(-1);
+    if (
+      enabled.has("resistance")
+    ) {
+      const p = recent
+        .filter(
+          x => x.type === "high"
+        )
+        .at(-1);
 
       if (p) {
         requested.push([
-          p.price, C.red, "Resistencia"
+          p.price,
+          C.red,
+          "Resistencia"
         ]);
       }
     }
 
-    if (enabled.has("liquidity")) {
-      for (const p of recent.filter(
-        x => x.type === "high"
-      ).slice(-2)) {
+    if (
+      enabled.has("liquidity")
+    ) {
+      for (const p of recent
+        .filter(
+          x => x.type === "high"
+        )
+        .slice(-2)) {
         requested.push([
-          p.price, C.red, "Máximo"
+          p.price,
+          C.red,
+          "Máximo"
         ]);
       }
 
-      for (const p of recent.filter(
-        x => x.type === "low"
-      ).slice(-2)) {
+      for (const p of recent
+        .filter(
+          x => x.type === "low"
+        )
+        .slice(-2)) {
         requested.push([
-          p.price, C.green, "Mínimo"
+          p.price,
+          C.green,
+          "Mínimo"
         ]);
       }
     }
 
-    const signature = JSON.stringify(requested);
+    const signature =
+      JSON.stringify(requested);
 
-    if (signature === lastLevelSignature) return;
+    if (
+      signature ===
+      lastLevelSignature
+    ) return;
 
-    lastLevelSignature = signature;
+    lastLevelSignature =
+      signature;
 
-    for (const line of levelLines) {
+    for (
+      const line of levelLines
+    ) {
       try {
-        series.price.removePriceLine(line);
+        series.price
+          .removePriceLine(line);
       } catch {}
     }
 
     levelLines.length = 0;
 
-    for (const [price, color, title] of requested) {
+    for (const [
+      price,
+      color,
+      title
+    ] of requested) {
       levelLines.push(
-        series.price.createPriceLine({
-          price,
-          color,
-          title,
-          lineWidth: 1,
-          lineStyle:
-            LightweightCharts.LineStyle.Dashed,
-          axisLabelVisible: true
-        })
+        series.price
+          .createPriceLine({
+            price,
+            color,
+            title,
+            lineWidth: 1,
+            lineStyle:
+              LightweightCharts
+                .LineStyle.Dashed,
+            axisLabelVisible: true
+          })
       );
     }
   }
 
-  // DIBUJAR FVG
+  // =====================================
+  // FVG / IFVG
+  // =====================================
 
   function drawZones() {
-    const canvas = $("zonesCanvas");
-    const area = $("priceChartArea");
+    const canvas =
+      $("zonesCanvas");
+
+    const area =
+      $("priceChartArea");
 
     if (
       !canvas ||
@@ -1480,98 +2660,170 @@
       !series.price
     ) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx =
+      canvas.getContext("2d");
+
     if (!ctx) return;
 
     resizeCanvas();
 
-    const width = area.clientWidth;
-    const height = area.clientHeight;
+    const width =
+      area.clientWidth;
 
-    ctx.clearRect(0, 0, width, height);
+    const height =
+      area.clientHeight;
+
+    ctx.clearRect(
+      0,
+      0,
+      width,
+      height
+    );
 
     if (
       !enabled.has("fvg") &&
       !enabled.has("ifvg")
     ) return;
 
-    const scale = charts.price.timeScale();
+    const scale =
+      charts.price.timeScale();
 
-    for (const zone of zones.slice(-25)) {
+    for (
+      const zone of
+      zones.slice(-25)
+    ) {
       if (!(
-        (!zone.filled && enabled.has("fvg")) ||
-        (zone.inverted && enabled.has("ifvg"))
+        (
+          !zone.filled &&
+          enabled.has("fvg")
+        ) ||
+        (
+          zone.inverted &&
+          enabled.has("ifvg")
+        )
       )) continue;
 
-      const x1 = scale.logicalToCoordinate(
-        zone.start
-      );
+      const x1 =
+        scale.logicalToCoordinate(
+          zone.start
+        );
 
-      const x2 = scale.logicalToCoordinate(
-        zone.end
-      );
+      const x2 =
+        scale.logicalToCoordinate(
+          zone.end
+        );
 
-      const y1 = series.price.priceToCoordinate(
-        zone.top
-      );
+      const y1 =
+        series.price
+          .priceToCoordinate(
+            zone.top
+          );
 
-      const y2 = series.price.priceToCoordinate(
-        zone.bottom
-      );
+      const y2 =
+        series.price
+          .priceToCoordinate(
+            zone.bottom
+          );
 
-      if (![x1, x2, y1, y2].every(Number.isFinite)) {
-        continue;
-      }
+      if (
+        ![
+          x1,
+          x2,
+          y1,
+          y2
+        ].every(Number.isFinite)
+      ) continue;
 
-      const left = Math.max(0, x1);
-      const right = Math.min(width - 70, x2);
-      const top = Math.max(0, Math.min(y1, y2));
-      const bottom = Math.min(
-        height,
-        Math.max(y1, y2)
-      );
+      const left =
+        Math.max(0, x1);
 
-      if (right <= left || bottom <= top) continue;
+      const right =
+        Math.min(
+          width - 70,
+          x2
+        );
 
-      ctx.fillStyle = zone.inverted
-        ? "rgba(255,225,90,.12)"
-        : zone.bull
-          ? "rgba(0,245,160,.09)"
-          : "rgba(255,71,108,.09)";
+      const top =
+        Math.max(
+          0,
+          Math.min(y1, y2)
+        );
+
+      const bottom =
+        Math.min(
+          height,
+          Math.max(y1, y2)
+        );
+
+      if (
+        right <= left ||
+        bottom <= top
+      ) continue;
+
+      ctx.fillStyle =
+        zone.inverted
+          ? "rgba(255,225,90,.12)"
+          : zone.bull
+            ? "rgba(0,245,160,.09)"
+            : "rgba(255,71,108,.09)";
 
       ctx.fillRect(
-        left, top,
+        left,
+        top,
         right - left,
         bottom - top
       );
 
-      ctx.strokeStyle = zone.inverted
-        ? "#ffe15a"
-        : zone.bull
-          ? "rgba(0,245,160,.4)"
-          : "rgba(255,71,108,.4)";
+      ctx.strokeStyle =
+        zone.inverted
+          ? "#ffe15a"
+          : zone.bull
+            ? "rgba(0,245,160,.4)"
+            : "rgba(255,71,108,.4)";
 
       ctx.strokeRect(
-        left, top,
+        left,
+        top,
         right - left,
         bottom - top
       );
     }
   }
 
+  // =====================================
   // ACTUALIZAR INDICADORES
+  // =====================================
 
-  function updateIndicators(force = false) {
-    if (!rows.length || !series.price) return;
+  function updateIndicators(
+    force = false
+  ) {
+    if (
+      !rows.length ||
+      !series.price
+    ) return;
 
-    const closes = rows.map(x => x.close);
+    const closes =
+      rows.map(x => x.close);
 
-    const ema21 = ema(closes, 21);
-    const ma55 = sma(closes, 55);
-    const rv = rsi(closes);
-    const av = adx(rows);
+    const ema21 =
+      ema(closes, 21);
 
-    updateMoving(closes, force);
+    const ma55 =
+      sma(closes, 55);
+
+    const rv =
+      rsi(closes);
+
+    const av =
+      adx(rows);
+
+    const ao =
+      awesomeOscillator(rows);
+
+    updateMoving(
+      closes,
+      force
+    );
 
     setLineStable(
       series.rsi,
@@ -1581,7 +2833,10 @@
       force
     );
 
-    for (const [name, values] of [
+    for (const [
+      name,
+      values
+    ] of [
       ["adx", av.adx],
       ["plus", av.plus],
       ["minus", av.minus]
@@ -1589,66 +2844,151 @@
       setLineStable(
         series[name],
         enabled.has("adx")
-          ? lineData(rows, values)
+          ? lineData(
+              rows,
+              values
+            )
           : [],
         force
       );
     }
 
-    const valid = closed(rows, selection().tf);
-    const lastClosed = valid.at(-1);
-
-    const index = rows.findIndex(
-      x => x.time === lastClosed?.time
+    setLineStable(
+      series.ao,
+      enabled.has("ao")
+        ? awesomeHistogram(
+            rows,
+            ao
+          )
+        : [],
+      force
     );
 
+    const valid =
+      closed(
+        rows,
+        selection().tf
+      );
+
+    const lastClosed =
+      valid.at(-1);
+
+    const index =
+      rows.findIndex(
+        x =>
+          x.time ===
+          lastClosed?.time
+      );
+
     if (index >= 0) {
-      put("ema21Value", fmt(ema21[index]));
-      put("ma55Value", fmt(ma55[index]));
-      put("rsiValue", fmt(rv[index], 1));
-      put("adxValue", fmt(av.adx[index], 1));
-      put("rsiChartValue", fmt(rv[index], 1));
-      put("adxChartValue", fmt(av.adx[index], 1));
+      put(
+        "ema21Value",
+        fmt(ema21[index])
+      );
+
+      put(
+        "ma55Value",
+        fmt(ma55[index])
+      );
+
+      put(
+        "rsiValue",
+        fmt(rv[index], 1)
+      );
+
+      put(
+        "adxValue",
+        fmt(
+          av.adx[index],
+          1
+        )
+      );
+
+      put(
+        "rsiChartValue",
+        fmt(rv[index], 1)
+      );
+
+      put(
+        "adxChartValue",
+        fmt(
+          av.adx[index],
+          1
+        )
+      );
+
+      put(
+        "aoValue",
+        fmt(ao[index], 5)
+      );
 
       const r = rv[index];
 
-      lastRSI = !Number.isFinite(r)
-        ? "RSI no disponible."
-        : r < 30
-          ? "RSI en sobreventa; rebote no confirmado."
-          : r > 70
-            ? "RSI en sobrecompra; caída no confirmada."
-            : r >= 50
-              ? "RSI con predominio comprador."
-              : "RSI con predominio vendedor.";
+      lastRSI =
+        !Number.isFinite(r)
+          ? "RSI no disponible."
+          : r < 30
+            ? "RSI en sobreventa; rebote no confirmado."
+            : r > 70
+              ? "RSI en sobrecompra; caída no confirmada."
+              : r >= 50
+                ? "RSI con predominio comprador."
+                : "RSI con predominio vendedor.";
 
-      put("rsiInterpretation", lastRSI);
+      put(
+        "rsiInterpretation",
+        lastRSI
+      );
 
-      const strength = av.adx[index];
+      const strength =
+        av.adx[index];
 
       put(
         "adxInterpretation",
         Number.isFinite(strength)
-          ? "ADX " + fmt(strength, 1) +
-            (strength >= 25
-              ? ". Tendencia con fuerza."
-              : ". Tendencia débil.")
+          ? "ADX " +
+            fmt(strength, 1) +
+            (
+              strength >= 25
+                ? ". Tendencia con fuerza."
+                : ". Tendencia débil."
+            )
           : "ADX no disponible."
       );
 
-      let trend = "Historial insuficiente";
+      put(
+        "aoInterpretation",
+        awesomeInterpretation(
+          ao.slice(
+            0,
+            index + 1
+          )
+        )
+      );
+
+      let trend =
+        "Historial insuficiente";
 
       if (
-        Number.isFinite(ema21[index]) &&
-        Number.isFinite(ma55[index])
+        Number.isFinite(
+          ema21[index]
+        ) &&
+        Number.isFinite(
+          ma55[index]
+        )
       ) {
-        trend = closes[index] > ema21[index] &&
-          ema21[index] > ma55[index]
-          ? "Sesgo alcista"
-          : closes[index] < ema21[index] &&
-            ema21[index] < ma55[index]
-            ? "Sesgo bajista"
-            : "Mercado mixto";
+        trend =
+          closes[index] >
+            ema21[index] &&
+          ema21[index] >
+            ma55[index]
+            ? "Sesgo alcista"
+            : closes[index] <
+                ema21[index] &&
+              ema21[index] <
+                ma55[index]
+              ? "Sesgo bajista"
+              : "Mercado mixto";
       }
 
       put(
@@ -1657,55 +2997,81 @@
       );
     }
 
-    const last = valid.at(-1);
-    const previous = valid.slice(-21, -1);
+    const last =
+      valid.at(-1);
 
-    if (last && previous.length === 20) {
-      const average = previous.reduce(
-        (sum, x) => sum + x.volume, 0
-      ) / 20;
+    const previous =
+      valid.slice(-21, -1);
+
+    if (
+      last &&
+      previous.length === 20
+    ) {
+      const average =
+        previous.reduce(
+          (sum, x) =>
+            sum + x.volume,
+          0
+        ) / 20;
 
       put(
         "volumeInterpretation",
         average > 0
           ? "Volumen de última vela cerrada: " +
-            fmt(last.volume / average, 2) +
+            fmt(
+              last.volume /
+              average,
+              2
+            ) +
             " veces el promedio."
           : "Volumen insuficiente."
       );
     }
 
-    pivots = detectPivots(rows);
-    zones = detectFVG(rows);
-    sweeps = detectSweeps(rows);
+    pivots =
+      detectPivots(rows);
+
+    zones =
+      detectFVG(rows);
+
+    sweeps =
+      detectSweeps(rows);
 
     updateLevels();
 
-    const markers = enabled.has("sweeps")
-      ? sweeps : [];
+    const markers =
+      enabled.has("sweeps")
+        ? sweeps
+        : [];
 
-    const signature = JSON.stringify(markers);
+    const signature =
+      JSON.stringify(markers);
 
-    if (signature !== lastMarkerSignature) {
-      series.price.setMarkers(markers);
-      lastMarkerSignature = signature;
+    if (
+      signature !==
+      lastMarkerSignature
+    ) {
+      series.price
+        .setMarkers(markers);
+
+      lastMarkerSignature =
+        signature;
     }
 
-    if ($("rsiSection")) {
-      $("rsiSection").hidden = !enabled.has("rsi");
-    }
-
-    if ($("adxSection")) {
-      $("adxSection").hidden = !enabled.has("adx");
-    }
-
+    updatePanelVisibility();
     scheduleZoneDraw();
   }
 
-  // API
+  // =====================================
+  // API DEL PROXY
+  // =====================================
 
-  async function getJSON(url, timeout = 12000) {
-    const controller = new AbortController();
+  async function getJSON(
+    url,
+    timeout = 12000
+  ) {
+    const controller =
+      new AbortController();
 
     const timer = setTimeout(
       () => controller.abort(),
@@ -1713,13 +3079,18 @@
     );
 
     try {
-      const response = await fetch(url, {
-        signal: controller.signal,
-        cache: "no-store"
-      });
+      const response =
+        await fetch(url, {
+          signal:
+            controller.signal,
+          cache: "no-store"
+        });
 
       if (!response.ok) {
-        throw Error("HTTP " + response.status);
+        throw Error(
+          "HTTP " +
+          response.status
+        );
       }
 
       return await response.json();
@@ -1728,66 +3099,107 @@
     }
   }
 
-  function candleURL(s, limit = 300) {
+  function candleURL(
+    s,
+    limit = 300
+  ) {
     return (
       "/api/exchange/" +
-      encodeURIComponent(s.exchange) +
+      encodeURIComponent(
+        s.exchange
+      ) +
       "/klines/" +
-      encodeURIComponent(s.symbol) +
-      "?market=" + encodeURIComponent(s.market) +
-      "&interval=" + encodeURIComponent(s.tf) +
-      "&limit=" + limit
+      encodeURIComponent(
+        s.symbol
+      ) +
+      "?market=" +
+      encodeURIComponent(
+        s.market
+      ) +
+      "&interval=" +
+      encodeURIComponent(
+        s.tf
+      ) +
+      "&limit=" +
+      limit
     );
   }
 
   function tickerURL(s) {
     return (
       "/api/exchange/" +
-      encodeURIComponent(s.exchange) +
+      encodeURIComponent(
+        s.exchange
+      ) +
       "/ticker/" +
-      encodeURIComponent(s.symbol) +
-      "?market=" + encodeURIComponent(s.market)
+      encodeURIComponent(
+        s.symbol
+      ) +
+      "?market=" +
+      encodeURIComponent(
+        s.market
+      )
     );
   }
 
-  // VELAS SIN PARPADEO
+  // =====================================
+  // ACTUALIZACIÓN DE VELAS
+  // =====================================
 
   function applyCandles(data, s) {
-    const changed = activeKey !== key(s);
+    const changed =
+      activeKey !== key(s);
 
     const type = changed
       ? "rebuild"
-      : classifyChange(rows, data);
+      : classifyChange(
+          rows,
+          data
+        );
 
     if (type === "none") {
-      put("status", "Velas actualizadas");
+      put(
+        "status",
+        "Velas actualizadas"
+      );
+
       return;
     }
 
-    const previousRange = changed
-      ? null
-      : visible();
+    const previousRange =
+      changed
+        ? null
+        : visible();
 
-    const last = data.at(-1);
+    const last =
+      data.at(-1);
 
     rows = data;
     activeKey = key(s);
 
     if (
       type === "last" ||
-      type === "append" ||
-      type === "shift"
+      type === "append"
     ) {
       series.price.update(last);
-      series.volume?.update(volumeBar(last));
+
+      series.volume?.update(
+        volumeBar(last)
+      );
     } else {
-      series.price.setData(rows);
+      series.price.setData(
+        rows
+      );
+
       series.volume?.setData(
         rows.map(volumeBar)
       );
     }
 
-    const force = type === "rebuild";
+    const force =
+      type === "rebuild" ||
+      type === "shift" ||
+      changed;
 
     updateIndicators(force);
     updateModules(force);
@@ -1795,13 +3207,16 @@
     if (changed) {
       resetView();
     } else if (
-      type === "rebuild" &&
+      force &&
       previousRange
     ) {
       restore(previousRange);
     }
 
-    put("chartTitle", s.symbol + " · " + s.tf);
+    put(
+      "chartTitle",
+      s.symbol + " · " + s.tf
+    );
 
     put(
       "volumeLabel",
@@ -1816,7 +3231,10 @@
   }
 
   async function refresh() {
-    if (chartBusy || !series.price) return;
+    if (
+      chartBusy ||
+      !series.price
+    ) return;
 
     chartBusy = true;
 
@@ -1824,28 +3242,53 @@
     const s = selection();
 
     try {
+      put(
+        "status",
+        "Cargando " +
+        s.symbol +
+        " · " +
+        s.tf
+      );
+
       const data = normalize(
-        await getJSON(candleURL(s))
+        await getJSON(
+          candleURL(s)
+        )
       );
 
       if (
         id !== generation ||
-        key(s) !== key(selection())
+        key(s) !==
+          key(selection())
       ) return;
 
       if (!data.length) {
-        throw Error("Sin velas válidas");
+        throw Error(
+          "Sin velas válidas"
+        );
       }
 
-      applyCandles(data, s);
+      applyCandles(
+        data,
+        s
+      );
 
-      put("status", "Velas actualizadas");
+      put(
+        "status",
+        "Velas actualizadas"
+      );
+
       put("message", "");
-
-      monitor();
     } catch (error) {
-      if (id === generation) {
-        put("status", "Error: " + error.message);
+      if (
+        id === generation
+      ) {
+        put(
+          "status",
+          "Error: " +
+          error.message
+        );
+
         put(
           "message",
           "Comprueba la conexión con el servidor."
@@ -1854,20 +3297,35 @@
     } finally {
       chartBusy = false;
 
-      if (id !== generation) {
-        queueMicrotask(refresh);
+      if (
+        id !== generation
+      ) {
+        queueMicrotask(
+          refresh
+        );
       }
     }
   }
 
+  // =====================================
   // TICKER
+  // =====================================
 
   function tickerData(raw) {
-    let data = raw?.data ?? raw;
+    let data =
+      raw?.data ?? raw;
 
-    if (Array.isArray(data)) data = data[0];
-    if (data?.data) data = data.data;
-    if (Array.isArray(data)) data = data[0];
+    if (
+      Array.isArray(data)
+    ) data = data[0];
+
+    if (
+      data?.data
+    ) data = data.data;
+
+    if (
+      Array.isArray(data)
+    ) data = data[0];
 
     return data || {};
   }
@@ -1882,12 +3340,16 @@
 
     try {
       const data = tickerData(
-        await getJSON(tickerURL(s), 8000)
+        await getJSON(
+          tickerURL(s),
+          8000
+        )
       );
 
       if (
         id !== generation ||
-        key(s) !== key(selection())
+        key(s) !==
+          key(selection())
       ) return;
 
       const price = Number(
@@ -1915,90 +3377,136 @@
         price > 0 &&
         open > 0
       ) {
-        change = (price / open - 1) * 100;
+        change =
+          (price / open - 1) *
+          100;
       }
 
       if (
         price > 0 &&
-        Date.now() - lastWS > 7000
+        Date.now() - lastWS >
+          7000
       ) {
-        put("price", fmt(price));
+        put(
+          "price",
+          fmt(price)
+        );
 
         connection(
-          s.exchange.toUpperCase() + " · REST",
+          s.exchange.toUpperCase() +
+          " · REST",
           C.yellow
         );
       }
 
-      put("high", fmt(
-        data.highPrice ??
-        data.high24h ??
-        data.high ??
-        data.h
-      ));
+      put(
+        "high",
+        fmt(
+          data.highPrice ??
+          data.high24h ??
+          data.high ??
+          data.h
+        )
+      );
 
-      put("low", fmt(
-        data.lowPrice ??
-        data.low24h ??
-        data.low ??
-        data.l
-      ));
+      put(
+        "low",
+        fmt(
+          data.lowPrice ??
+          data.low24h ??
+          data.low ??
+          data.l
+        )
+      );
 
-      put("open", fmt(open));
+      put(
+        "open",
+        fmt(open)
+      );
 
-      put("volume", fmt(
-        data.volume ??
-        data.volume24h ??
-        data.vol ??
-        data.v,
-        0
-      ));
+      put(
+        "volume",
+        fmt(
+          data.volume ??
+          data.volume24h ??
+          data.vol ??
+          data.v,
+          0
+        )
+      );
 
       put(
         "change",
         Number.isFinite(change)
-          ? (change >= 0 ? "+" : "") +
-            fmt(change) + "%"
+          ? (
+              change >= 0
+                ? "+"
+                : ""
+            ) +
+            fmt(change) +
+            "%"
           : "—"
       );
 
-      $("change")?.classList.toggle(
-        "negative",
-        change < 0
+      $("change")
+        ?.classList.toggle(
+          "negative",
+          change < 0
+        );
+
+      put(
+        "bid",
+        fmt(
+          data.bidPrice ??
+          data.bid ??
+          data.bestBid
+        )
       );
 
-      put("bid", fmt(
-        data.bidPrice ??
-        data.bid ??
-        data.bestBid
-      ));
-
-      put("ask", fmt(
-        data.askPrice ??
-        data.ask ??
-        data.bestAsk
-      ));
+      put(
+        "ask",
+        fmt(
+          data.askPrice ??
+          data.ask ??
+          data.bestAsk
+        )
+      );
 
       put(
         "updated",
-        new Date().toLocaleTimeString("es-MX")
+        new Date()
+          .toLocaleTimeString(
+            "es-MX"
+          )
       );
     } catch (error) {
-      console.warn("Ticker:", error.message);
+      console.warn(
+        "Ticker:",
+        error.message
+      );
     } finally {
       tickerBusy = false;
 
-      if (id !== generation) {
-        queueMicrotask(refreshTicker);
+      if (
+        id !== generation
+      ) {
+        queueMicrotask(
+          refreshTicker
+        );
       }
     }
   }
 
+  // =====================================
   // WEBSOCKET
+  // =====================================
 
   function disconnect() {
     socketId++;
-    clearTimeout(reconnectTimer);
+
+    clearTimeout(
+      reconnectTimer
+    );
 
     if (socket) {
       const old = socket;
@@ -2021,42 +3529,63 @@
     const id = socketId;
     const s = selection();
 
-    const protocol = location.protocol === "https:"
-      ? "wss:"
-      : "ws:";
+    const protocol =
+      location.protocol === "https:"
+        ? "wss:"
+        : "ws:";
 
-    const url = protocol + "//" + location.host +
+    const url =
+      protocol +
+      "//" +
+      location.host +
       "/ws?exchange=" +
-      encodeURIComponent(s.exchange) +
+      encodeURIComponent(
+        s.exchange
+      ) +
       "&market=" +
-      encodeURIComponent(s.market) +
+      encodeURIComponent(
+        s.market
+      ) +
       "&symbol=" +
-      encodeURIComponent(s.symbol);
+      encodeURIComponent(
+        s.symbol
+      );
 
     connection(
-      s.exchange.toUpperCase() + " · conectando"
+      s.exchange.toUpperCase() +
+      " · conectando"
     );
 
     try {
-      socket = new WebSocket(url);
+      socket = new WebSocket(
+        url
+      );
     } catch {
       scheduleReconnect(id);
       return;
     }
 
     socket.onopen = () => {
-      if (id === socketId) {
-        connection("Esperando precios");
+      if (
+        id === socketId
+      ) {
+        connection(
+          "Esperando precios"
+        );
       }
     };
 
     socket.onmessage = event => {
-      if (id !== socketId) return;
+      if (
+        id !== socketId
+      ) return;
 
       let data;
 
       try {
-        data = JSON.parse(event.data);
+        data = JSON.parse(
+          event.data
+        );
       } catch {
         return;
       }
@@ -2068,35 +3597,50 @@
         data.exchange !== s.exchange
       ) return;
 
-      const price = Number(data.price);
+      const price =
+        Number(data.price);
 
-      if (!Number.isFinite(price) || price <= 0) {
-        return;
-      }
+      if (
+        !Number.isFinite(price) ||
+        price <= 0
+      ) return;
 
-      put("price", fmt(price));
+      put(
+        "price",
+        fmt(price)
+      );
 
       put(
         "updated",
-        new Date().toLocaleTimeString("es-MX")
+        new Date()
+          .toLocaleTimeString(
+            "es-MX"
+          )
       );
 
       lastWS = Date.now();
 
       connection(
-        s.exchange.toUpperCase() + " · en vivo",
+        s.exchange.toUpperCase() +
+        " · en vivo",
         C.green
       );
     };
 
     socket.onerror = () => {
-      if (id === socketId) {
-        connection("Conexión interrumpida");
+      if (
+        id === socketId
+      ) {
+        connection(
+          "Conexión interrumpida"
+        );
       }
     };
 
     socket.onclose = () => {
-      if (id !== socketId) return;
+      if (
+        id !== socketId
+      ) return;
 
       socket = null;
       scheduleReconnect(id);
@@ -2104,57 +3648,128 @@
   }
 
   function scheduleReconnect(id) {
-    clearTimeout(reconnectTimer);
+    clearTimeout(
+      reconnectTimer
+    );
 
-    reconnectTimer = setTimeout(() => {
-      if (
-        id === socketId &&
-        !document.hidden
-      ) connect();
-    }, 4000);
+    reconnectTimer = setTimeout(
+      () => {
+        if (
+          id === socketId &&
+          !document.hidden
+        ) connect();
+      },
+      4000
+    );
   }
 
-  // ANÁLISIS
+  // =====================================
+  // ANÁLISIS TÉCNICO
+  // =====================================
 
   function metric(data, tf) {
-    const candles = closed(data, tf);
+    const candles =
+      closed(data, tf);
 
-    if (candles.length < 60) return null;
+    if (
+      candles.length < 60
+    ) return null;
 
-    const closes = candles.map(x => x.close);
-    const last = candles.at(-1);
+    const closes =
+      candles.map(x => x.close);
 
-    const e = ema(closes, 21).at(-1);
-    const m = sma(closes, 55).at(-1);
-    const rv = rsi(closes).at(-1);
-    const ad = adx(candles);
+    const last =
+      candles.at(-1);
 
-    const strength = ad.adx.at(-1);
-    const plus = ad.plus.at(-1);
-    const minus = ad.minus.at(-1);
+    const e =
+      ema(closes, 21).at(-1);
 
-    if (![e, m, rv, strength, plus, minus]
-      .every(Number.isFinite)) return null;
+    const m =
+      sma(closes, 55).at(-1);
+
+    const rv =
+      rsi(closes).at(-1);
+
+    const ad =
+      adx(candles);
+
+    const strength =
+      ad.adx.at(-1);
+
+    const plus =
+      ad.plus.at(-1);
+
+    const minus =
+      ad.minus.at(-1);
+
+    const ao =
+      awesomeOscillator(
+        candles
+      );
+
+    const aoNow =
+      ao.at(-1);
+
+    const aoPrevious =
+      ao.at(-2);
+
+    if (
+      ![
+        e,
+        m,
+        rv,
+        strength,
+        plus,
+        minus
+      ].every(Number.isFinite)
+    ) return null;
 
     let bull = 0;
     let bear = 0;
 
-    if (last.close > e) bull++;
-    if (last.close < e) bear++;
+    if (
+      last.close > e
+    ) bull++;
 
-    if (e > m) bull++;
-    if (e < m) bear++;
+    if (
+      last.close < e
+    ) bear++;
 
-    if (rv >= 55) bull++;
-    if (rv <= 45) bear++;
+    if (
+      e > m
+    ) bull++;
 
-    if (plus > minus) bull++;
-    if (minus > plus) bear++;
+    if (
+      e < m
+    ) bear++;
 
-    const previous = candles.slice(-7, -1);
+    if (
+      rv >= 55
+    ) bull++;
 
-    const average = candles.slice(-21, -1)
-      .reduce((sum, x) => sum + x.volume, 0) / 20;
+    if (
+      rv <= 45
+    ) bear++;
+
+    if (
+      plus > minus
+    ) bull++;
+
+    if (
+      minus > plus
+    ) bear++;
+
+    const previous =
+      candles.slice(-7, -1);
+
+    const average =
+      candles
+        .slice(-21, -1)
+        .reduce(
+          (sum, x) =>
+            sum + x.volume,
+          0
+        ) / 20;
 
     return {
       bull,
@@ -2163,37 +3778,63 @@
       plus,
       minus,
       rsi: rv,
+      ao: aoNow,
+      aoPrevious,
+      aoBull:
+        Number.isFinite(aoNow) &&
+        Number.isFinite(aoPrevious) &&
+        aoNow > 0 &&
+        aoNow > aoPrevious,
+      aoBear:
+        Number.isFinite(aoNow) &&
+        Number.isFinite(aoPrevious) &&
+        aoNow < 0 &&
+        aoNow < aoPrevious,
       volRatio: average
         ? last.volume / average
         : 0,
       close: last.close,
       closedTime: last.time,
       atr: atr(candles),
-      breakHigh: last.close >
-        Math.max(...previous.map(x => x.high)),
-      breakLow: last.close <
-        Math.min(...previous.map(x => x.low))
+      breakHigh:
+        last.close >
+        Math.max(
+          ...previous.map(
+            x => x.high
+          )
+        ),
+      breakLow:
+        last.close <
+        Math.min(
+          ...previous.map(
+            x => x.low
+          )
+        )
     };
   }
 
   function analyze(data, tf) {
-    const m = metric(data, tf);
+    const m =
+      metric(data, tf);
 
     if (!m) {
       return {
         state: "SIN DATOS",
         direction: "neutral",
-        detail: "Historial insuficiente.",
+        detail:
+          "Historial insuficiente.",
         metrics: "—",
         price: null
       };
     }
 
     const bullish =
-      m.bull >= 3 && m.bull > m.bear;
+      m.bull >= 3 &&
+      m.bull > m.bear;
 
     const bearish =
-      m.bear >= 3 && m.bear > m.bull;
+      m.bear >= 3 &&
+      m.bear > m.bull;
 
     const opportunity =
       m.bull === 4 &&
@@ -2205,6 +3846,13 @@
           m.rsi > 30
           ? "Posible SHORT"
           : "Sin entrada confirmada";
+
+    const aoText =
+      m.aoBull
+        ? "AO alcista"
+        : m.aoBear
+          ? "AO bajista"
+          : "AO sin confirmación";
 
     return {
       state: bullish
@@ -2219,19 +3867,36 @@
           ? "bearish"
           : "neutral",
 
-      detail: opportunity +
+      detail:
+        opportunity +
+        ". " +
+        aoText +
         ". Requiere confirmación.",
 
-      metrics: "RSI " + fmt(m.rsi, 1) +
-        " · ADX " + fmt(m.adx, 1),
+      metrics:
+        "RSI " +
+        fmt(m.rsi, 1) +
+        " · ADX " +
+        fmt(m.adx, 1),
 
       price: m.close
     };
   }
 
-  async function monitor() {
+  // =====================================
+  // MONITOR 5m Y 15m
+  // =====================================
+
+  async function monitor(
+    force = false
+  ) {
     if (monitorBusy) return;
-    if (Date.now() - monitorLast < 60000) return;
+
+    if (
+      !force &&
+      Date.now() - monitorLast <
+        60000
+    ) return;
 
     monitorBusy = true;
     monitorLast = Date.now();
@@ -2240,81 +3905,184 @@
     const id = generation;
 
     try {
-      const frames = await Promise.all(
-        ["5m", "15m"].map(async tf =>
-          normalize(
-            await getJSON(
-              candleURL({...s, tf})
-            )
-          )
-        )
+      put(
+        "engineState",
+        "ANALIZANDO"
       );
 
-      if (id !== generation) return;
+      const frames =
+        await Promise.allSettled(
+          ["5m", "15m"].map(
+            async tf =>
+              normalize(
+                await getJSON(
+                  candleURL({
+                    ...s,
+                    tf
+                  })
+                )
+              )
+          )
+        );
 
-      for (let i = 0; i < 2; i++) {
-        const tf = i === 0 ? "5m" : "15m";
-        const suffix = i === 0 ? "5" : "15";
+      if (
+        id !== generation
+      ) return;
 
-        const result = analyze(frames[i], tf);
+      let success = 0;
 
-        put("state" + suffix, result.state);
-        put("detail" + suffix, result.detail);
-        put("metrics" + suffix, result.metrics);
+      for (
+        let i = 0;
+        i < 2;
+        i++
+      ) {
+        const tf =
+          i === 0
+            ? "5m"
+            : "15m";
 
-        const element = $("state" + suffix);
+        const suffix =
+          i === 0
+            ? "5"
+            : "15";
+
+        const item =
+          frames[i];
+
+        const result =
+          item.status ===
+          "fulfilled"
+            ? analyze(
+                item.value,
+                tf
+              )
+            : {
+                state:
+                  "SIN CONEXIÓN",
+                direction:
+                  "neutral",
+                detail:
+                  "No se pudieron cargar velas.",
+                metrics: "—"
+              };
+
+        if (
+          item.status ===
+          "fulfilled"
+        ) success++;
+
+        put(
+          "state" + suffix,
+          result.state
+        );
+
+        put(
+          "detail" + suffix,
+          result.detail
+        );
+
+        put(
+          "metrics" + suffix,
+          result.metrics
+        );
+
+        const element =
+          $("state" + suffix);
 
         if (element) {
           element.className =
-            "state " + result.direction;
+            "state " +
+            result.direction;
 
-          const heading = element
-            .closest(".signal-card")
-            ?.querySelector("h3");
+          const heading =
+            element
+              .closest(
+                ".signal-card"
+              )
+              ?.querySelector(
+                "h3"
+              );
 
           if (heading) {
             heading.textContent =
-              s.symbol + " / " + tf;
+              s.symbol +
+              " / " +
+              tf;
           }
         }
       }
 
-      put("engineState", "ANALIZANDO");
+      put(
+        "engineState",
+        success
+          ? "ANALIZANDO"
+          : "SIN CONEXIÓN"
+      );
     } catch (error) {
-      if (id === generation) {
-        put("engineState", "SIN CONEXIÓN");
+      if (
+        id === generation
+      ) {
+        put(
+          "engineState",
+          "SIN CONEXIÓN"
+        );
       }
 
-      console.warn("Monitor:", error.message);
+      console.warn(
+        "Monitor:",
+        error.message
+      );
     } finally {
       monitorBusy = false;
+
+      if (
+        id !== generation &&
+        !document.hidden
+      ) {
+        queueMicrotask(
+          () => monitor(true)
+        );
+      }
     }
   }
 
+  // =====================================
   // ESCÁNER
+  // =====================================
 
   function scannerUI() {
     if ($("clScanner")) return;
 
-    const host = $("clScannerHost") ||
+    const host =
+      $("clScannerHost") ||
       $("clScreenScanner");
 
     if (!host) return;
 
-    const section = document.createElement("section");
+    const section =
+      document.createElement(
+        "section"
+      );
 
     section.id = "clScanner";
-    section.className = "cl-module";
+    section.className =
+      "cl-module";
 
     section.innerHTML = `
       <h2>📡 Escáner CRYPTOLEXUZ PRO</h2>
-      <p id="clScanStatus">Esperando análisis...</p>
+
+      <p id="clScanStatus">
+        Esperando análisis...
+      </p>
 
       <div class="chart-controls">
-        <button id="clScanNow" type="button">
+        <button id="clScanNow"
+          type="button">
           ↻ Escanear
         </button>
-        <button id="clNotify" type="button">
+
+        <button id="clNotify"
+          type="button">
           🔔 Activar avisos
         </button>
       </div>
@@ -2336,94 +4104,138 @@
               <th>Confirmaciones</th>
             </tr>
           </thead>
+
           <tbody id="clScanBody">
             <tr>
-              <td colspan="6">Iniciando...</td>
+              <td colspan="6">
+                Iniciando...
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <p id="clScanErrors" class="cl-notice"></p>
+      <p id="clScanErrors"
+        class="cl-notice"></p>
     `;
 
     host.appendChild(section);
 
-    $("clScanNow")?.addEventListener(
-      "click",
-      () => scan(true)
-    );
+    $("clScanNow")
+      ?.addEventListener(
+        "click",
+        () => scan(true)
+      );
 
-    $("clNotify")?.addEventListener(
-      "click",
-      async () => {
-        if (!("Notification" in window)) {
-          alert("Notificaciones no disponibles.");
-          return;
+    $("clNotify")
+      ?.addEventListener(
+        "click",
+        async () => {
+          if (
+            !("Notification" in window)
+          ) {
+            alert(
+              "Notificaciones no disponibles."
+            );
+            return;
+          }
+
+          const permission =
+            await Notification
+              .requestPermission();
+
+          put(
+            "clNotify",
+            permission === "granted"
+              ? "🔔 Avisos activos"
+              : "🔕 Sin permiso"
+          );
         }
-
-        const permission =
-          await Notification.requestPermission();
-
-        put(
-          "clNotify",
-          permission === "granted"
-            ? "🔔 Avisos activos"
-            : "🔕 Sin permiso"
-        );
-      }
-    );
+      );
   }
 
   function markets() {
     const s = selection();
 
-    return ASSETS.map(symbol => ({
-      symbol,
-      exchange: [GOLD, OIL].includes(symbol)
-        ? "bingx"
-        : s.exchange,
-      market: [GOLD, OIL].includes(symbol)
-        ? "perpetual"
-        : s.market,
-      label: symbol === GOLD
-        ? "GOLD (XAU)"
-        : symbol === OIL
-          ? "OIL WTI"
-          : symbol.replace("-", "/")
-    }));
+    return ASSETS.map(
+      symbol => ({
+        symbol,
+
+        exchange:
+          [GOLD, OIL].includes(
+            symbol
+          )
+            ? "bingx"
+            : s.exchange,
+
+        market:
+          [GOLD, OIL].includes(
+            symbol
+          )
+            ? "perpetual"
+            : s.market,
+
+        label:
+          symbol === GOLD
+            ? "GOLD (XAU)"
+            : symbol === OIL
+              ? "OIL WTI"
+              : symbol.replace(
+                  "-",
+                  "/"
+                )
+      })
+    );
   }
 
   async function frames(market) {
     const result = {};
 
     for (const tf of TF) {
-      const s = {...market, tf};
+      const s = {
+        ...market,
+        tf
+      };
+
       const k = key(s);
 
-      const ttl = SEC[tf] >= 3600
-        ? 180000
-        : SEC[tf] >= 900
-          ? 90000
-          : 50000;
+      const ttl =
+        SEC[tf] >= 3600
+          ? 180000
+          : SEC[tf] >= 900
+            ? 90000
+            : 50000;
 
-      const cached = cache.get(k);
+      const cached =
+        cache.get(k);
 
       if (
         cached &&
-        Date.now() - cached.at < ttl
+        Date.now() - cached.at <
+          ttl
       ) {
-        result[tf] = cached.data;
+        result[tf] =
+          cached.data;
+
         continue;
       }
 
       const data = normalize(
-        await getJSON(candleURL(s, 300))
+        await getJSON(
+          candleURL(
+            s,
+            300
+          )
+        )
       );
 
-      if (closed(data, tf).length < 60) {
+      if (
+        closed(data, tf).length <
+        60
+      ) {
         throw Error(
-          tf + ": historial insuficiente"
+          tf +
+          ": historial insuficiente"
         );
       }
 
@@ -2438,14 +4250,18 @@
     return result;
   }
 
-  function rank(market, framesData) {
+  function rank(
+    market,
+    framesData
+  ) {
     const metrics = {};
 
     for (const tf of TF) {
-      metrics[tf] = metric(
-        framesData[tf] || [],
-        tf
-      );
+      metrics[tf] =
+        metric(
+          framesData[tf] || [],
+          tf
+        );
     }
 
     if (
@@ -2477,27 +4293,39 @@
     let available = 0;
 
     for (const tf of TF) {
-      const m = metrics[tf];
+      const m =
+        metrics[tf];
 
       if (!m) continue;
 
       available++;
-      bull += weights[tf] * m.bull / 4;
-      bear += weights[tf] * m.bear / 4;
+
+      bull +=
+        weights[tf] *
+        m.bull / 4;
+
+      bear +=
+        weights[tf] *
+        m.bear / 4;
     }
 
-    const direction = bull === bear
-      ? "NEUTRAL"
-      : bull > bear
-        ? "LONG"
-        : "SHORT";
+    const direction =
+      bull === bear
+        ? "NEUTRAL"
+        : bull > bear
+          ? "LONG"
+          : "SHORT";
 
-    const fast = metrics["1m"];
+    const fast =
+      metrics["1m"];
 
     const aligned = [
-      "1m", "5m", "15m"
+      "1m",
+      "5m",
+      "15m"
     ].filter(tf => {
-      const m = metrics[tf];
+      const m =
+        metrics[tf];
 
       return direction === "LONG"
         ? m.bull >= 3
@@ -2507,91 +4335,156 @@
     }).length;
 
     let score = Math.round(
-      Math.max(bull, bear)
+      Math.max(
+        bull,
+        bear
+      )
     );
 
-    score += aligned === 3
-      ? 8
-      : aligned === 2
-        ? 4
-        : 0;
+    score +=
+      aligned === 3
+        ? 8
+        : aligned === 2
+          ? 4
+          : 0;
 
-    score += fast.adx >= 25
-      ? 5
-      : fast.adx >= 20
-        ? 2
-        : 0;
+    score +=
+      fast.adx >= 25
+        ? 5
+        : fast.adx >= 20
+          ? 2
+          : 0;
 
-    if (fast.volRatio >= 1.3) {
+    if (
+      fast.volRatio >= 1.3
+    ) {
       score += 5;
     }
 
     if (
-      (direction === "LONG" && fast.breakHigh) ||
-      (direction === "SHORT" && fast.breakLow)
+      (
+        direction === "LONG" &&
+        fast.breakHigh
+      ) ||
+      (
+        direction === "SHORT" &&
+        fast.breakLow
+      )
     ) {
       score += 4;
     }
 
-    score = Math.min(100, score);
+    // AO añade confirmación, pero
+    // no crea señales por sí solo.
+
+    if (
+      (
+        direction === "LONG" &&
+        fast.aoBull
+      ) ||
+      (
+        direction === "SHORT" &&
+        fast.aoBear
+      )
+    ) {
+      score += 3;
+    }
+
+    score = Math.min(
+      100,
+      score
+    );
 
     const confirmed =
       direction !== "NEUTRAL" &&
       aligned === 3 &&
       fast.adx >= 20 &&
       score >= 65 &&
-      (direction === "LONG"
-        ? fast.rsi < 75
-        : fast.rsi > 25);
+      (
+        direction === "LONG"
+          ? fast.rsi < 75
+          : fast.rsi > 25
+      );
 
     return {
       market,
       score,
       direction,
+
       state: confirmed
         ? "CONFIRMADA"
         : score >= 55
           ? "EN OBSERVACIÓN"
           : "SIN ENTRADA",
+
       confirmations:
-        aligned + "/3 rápidas · " +
-        available + "/7 marcos",
-      closedTime: fast.closedTime,
-      price: fast.close,
-      atr: fast.atr
+        aligned +
+        "/3 rápidas · " +
+        available +
+        "/7 marcos",
+
+      closedTime:
+        fast.closedTime,
+
+      price:
+        fast.close,
+
+      atr:
+        fast.atr
     };
   }
 
-  // HISTORIAL DE SEÑALES
+  // =====================================
+  // HISTORIAL
+  // =====================================
 
   try {
     const saved = JSON.parse(
-      localStorage.getItem(HISTORY_KEY) || "[]"
+      localStorage.getItem(
+        HISTORY_KEY
+      ) || "[]"
     );
 
-    if (Array.isArray(saved)) {
-      history = saved.slice(0, 300);
+    if (
+      Array.isArray(saved)
+    ) {
+      history =
+        saved.slice(0, 300);
     }
   } catch (error) {
-    console.warn("Historial:", error);
+    console.warn(
+      "Historial:",
+      error
+    );
   }
 
   function saveHistory() {
     try {
       localStorage.setItem(
         HISTORY_KEY,
-        JSON.stringify(history.slice(0, 300))
+        JSON.stringify(
+          history.slice(
+            0,
+            300
+          )
+        )
       );
     } catch (error) {
-      console.warn("Guardar historial:", error);
+      console.warn(
+        "Guardar historial:",
+        error
+      );
     }
   }
 
   function addSignal(result) {
     if (
-      result.state !== "CONFIRMADA" ||
+      result.state !==
+        "CONFIRMADA" ||
       !result.closedTime ||
-      !Number.isFinite(result.atr) ||
+      !Number.isFinite(
+        result.atr
+      ) ||
       result.atr <= 0
     ) return false;
 
@@ -2603,38 +4496,61 @@
       result.closedTime
     ].join("|");
 
-    if (history.some(x => x.id === id)) {
-      return false;
-    }
+    if (
+      history.some(
+        x => x.id === id
+      )
+    ) return false;
 
-    const entry = result.price;
-    const distance = result.atr;
-    const side = result.direction;
+    const entry =
+      result.price;
+
+    const distance =
+      result.atr;
+
+    const side =
+      result.direction;
 
     history.unshift({
       id,
-      symbol: result.market.symbol,
-      exchange: result.market.exchange,
-      market: result.market.market,
+      symbol:
+        result.market.symbol,
+      exchange:
+        result.market.exchange,
+      market:
+        result.market.market,
       tf: "1m",
       direction: side,
-      created: result.closedTime,
+      created:
+        result.closedTime,
       entry,
-      stop: side === "LONG"
-        ? entry - distance
-        : entry + distance,
-      target: side === "LONG"
-        ? entry + 2 * distance
-        : entry - 2 * distance,
+
+      stop:
+        side === "LONG"
+          ? entry - distance
+          : entry + distance,
+
+      target:
+        side === "LONG"
+          ? entry + 2 * distance
+          : entry - 2 * distance,
+
       state: "PENDIENTE",
       activated: null,
       ended: null,
+
       reason:
-        "Alineación multitemporal + ADX + RSI",
-      lastChecked: result.closedTime
+        "Alineación multitemporal + ADX + RSI + AO",
+
+      lastChecked:
+        result.closedTime
     });
 
-    history = history.slice(0, 300);
+    history =
+      history.slice(
+        0,
+        300
+      );
 
     saveHistory();
     renderHistory();
@@ -2642,56 +4558,100 @@
     return true;
   }
 
-  function evaluateSignal(signal, data) {
+  function evaluateSignal(
+    signal,
+    data
+  ) {
     if (![
       "PENDIENTE",
       "ACTIVADA"
-    ].includes(signal.state)) return false;
+    ].includes(
+      signal.state
+    )) return false;
 
     let changed = false;
 
-    for (const candle of closed(data, signal.tf)) {
+    for (
+      const candle of
+      closed(
+        data,
+        signal.tf
+      )
+    ) {
       if (
-        candle.time <= signal.lastChecked ||
-        candle.time <= signal.created
+        candle.time <=
+          signal.lastChecked ||
+        candle.time <=
+          signal.created
       ) continue;
 
-      signal.lastChecked = candle.time;
+      signal.lastChecked =
+        candle.time;
+
       changed = true;
 
-      if (signal.state === "PENDIENTE") {
+      if (
+        signal.state ===
+        "PENDIENTE"
+      ) {
         if (!(
-          candle.low <= signal.entry &&
-          candle.high >= signal.entry
+          candle.low <=
+            signal.entry &&
+          candle.high >=
+            signal.entry
         )) continue;
 
-        signal.state = "ACTIVADA";
-        signal.activated = candle.time;
+        signal.state =
+          "ACTIVADA";
+
+        signal.activated =
+          candle.time;
       }
 
-      const stop = signal.direction === "LONG"
-        ? candle.low <= signal.stop
-        : candle.high >= signal.stop;
+      const stop =
+        signal.direction ===
+        "LONG"
+          ? candle.low <=
+            signal.stop
+          : candle.high >=
+            signal.stop;
 
-      const target = signal.direction === "LONG"
-        ? candle.high >= signal.target
-        : candle.low <= signal.target;
+      const target =
+        signal.direction ===
+        "LONG"
+          ? candle.high >=
+            signal.target
+          : candle.low <=
+            signal.target;
 
-      if (stop && target) {
-        signal.state = "NO VERIFICABLE";
-        signal.ended = candle.time;
+      if (
+        stop &&
+        target
+      ) {
+        signal.state =
+          "NO VERIFICABLE";
+
+        signal.ended =
+          candle.time;
+
         break;
       }
 
-      if (stop || target) {
+      if (
+        stop ||
+        target
+      ) {
         signal.state =
-          candle.time === signal.activated
+          candle.time ===
+          signal.activated
             ? "NO VERIFICABLE"
             : target
               ? "OBJETIVO"
               : "STOP";
 
-        signal.ended = candle.time;
+        signal.ended =
+          candle.time;
+
         break;
       }
     }
@@ -2700,55 +4660,104 @@
   }
 
   async function verifySignals() {
-    if (verifyBusy) return;
+    if (
+      verifyBusy
+    ) return;
 
     verifyBusy = true;
 
     try {
-      const pending = history.filter(x =>
-        ["PENDIENTE", "ACTIVADA"].includes(
-          x.state
-        )
-      );
+      const pending =
+        history.filter(
+          x => [
+            "PENDIENTE",
+            "ACTIVADA"
+          ].includes(
+            x.state
+          )
+        );
 
-      const groups = new Map();
+      const groups =
+        new Map();
 
-      for (const signal of pending) {
-        const k = key(signal);
+      for (
+        const signal of
+        pending
+      ) {
+        const k =
+          key(signal);
 
-        if (!groups.has(k)) {
-          groups.set(k, []);
+        if (
+          !groups.has(k)
+        ) {
+          groups.set(
+            k,
+            []
+          );
         }
 
-        groups.get(k).push(signal);
+        groups.get(k)
+          .push(signal);
       }
 
       let dirty = false;
 
-      for (const group of groups.values()) {
-        const first = group[0];
+      for (
+        const group of
+        groups.values()
+      ) {
+        const first =
+          group[0];
 
         try {
-          const data = normalize(
-            await getJSON(candleURL(first, 300))
-          );
+          const data =
+            normalize(
+              await getJSON(
+                candleURL(
+                  first,
+                  300
+                )
+              )
+            );
 
-          const valid = closed(data, first.tf);
+          const valid =
+            closed(
+              data,
+              first.tf
+            );
 
-          if (!valid.length) continue;
+          if (
+            !valid.length
+          ) continue;
 
-          for (const item of group) {
+          for (
+            const item of
+            group
+          ) {
             if (
               item.lastChecked <
-              valid[0].time - (SEC[item.tf] || 60)
+              valid[0].time -
+              (
+                SEC[item.tf] ||
+                60
+              )
             ) {
-              item.state = "NO VERIFICABLE";
-              item.ended = now();
+              item.state =
+                "NO VERIFICABLE";
+
+              item.ended =
+                now();
+
               dirty = true;
               continue;
             }
 
-            if (evaluateSignal(item, data)) {
+            if (
+              evaluateSignal(
+                item,
+                data
+              )
+            ) {
               dirty = true;
             }
           }
@@ -2770,65 +4779,121 @@
   }
 
   function renderHistory() {
-    const wins = history.filter(
-      x => x.state === "OBJETIVO"
-    ).length;
+    const wins =
+      history.filter(
+        x =>
+          x.state ===
+          "OBJETIVO"
+      ).length;
 
-    const losses = history.filter(
-      x => x.state === "STOP"
-    ).length;
+    const losses =
+      history.filter(
+        x =>
+          x.state ===
+          "STOP"
+      ).length;
 
-    put("clTotalSignals", history.length);
-    put("clTargetsHit", wins);
-    put("clStopsHit", losses);
+    put(
+      "clTotalSignals",
+      history.length
+    );
+
+    put(
+      "clTargetsHit",
+      wins
+    );
+
+    put(
+      "clStopsHit",
+      losses
+    );
 
     put(
       "clWinRate",
       wins + losses
         ? fmt(
-            wins / (wins + losses) * 100,
+            wins /
+            (wins + losses) *
+            100,
             1
           ) + "%"
         : "—"
     );
 
-    const body = $("signalLog");
+    const body =
+      $("signalLog");
+
     if (!body) return;
 
     body.replaceChildren();
 
-    if (!history.length) {
-      const tr = document.createElement("tr");
-      const td = document.createElement("td");
+    if (
+      !history.length
+    ) {
+      const tr =
+        document.createElement(
+          "tr"
+        );
+
+      const td =
+        document.createElement(
+          "td"
+        );
 
       td.colSpan = 7;
+
       td.textContent =
         "Todavía no hay señales registradas.";
 
       tr.append(td);
       body.append(tr);
+
       return;
     }
 
-    for (const signal of history.slice(0, 30)) {
-      const tr = document.createElement("tr");
+    for (
+      const signal of
+      history.slice(0, 30)
+    ) {
+      const tr =
+        document.createElement(
+          "tr"
+        );
 
       const cells = [
-        new Date(signal.created * 1000)
-          .toLocaleString("es-MX"),
+        new Date(
+          signal.created *
+          1000
+        ).toLocaleString(
+          "es-MX"
+        ),
+
         signal.tf,
         signal.symbol,
         signal.direction,
         fmt(signal.entry),
+
         signal.reason +
-          " · TP " + fmt(signal.target) +
-          " · SL " + fmt(signal.stop),
+        " · TP " +
+        fmt(signal.target) +
+        " · SL " +
+        fmt(signal.stop),
+
         signal.state
       ];
 
-      for (const value of cells) {
-        const td = document.createElement("td");
-        td.textContent = value;
+      for (
+        const value of
+        cells
+      ) {
+        const td =
+          document.createElement(
+            "td"
+          );
+
+        td.textContent =
+          value;
+
         tr.append(td);
       }
 
@@ -2838,9 +4903,11 @@
 
   function notifySignal(result) {
     if (
-      result.state !== "CONFIRMADA" ||
+      result.state !==
+        "CONFIRMADA" ||
       !("Notification" in window) ||
-      Notification.permission !== "granted"
+      Notification.permission !==
+        "granted"
     ) return;
 
     try {
@@ -2857,28 +4924,43 @@
             fmt(result.price),
 
           tag:
-            result.market.symbol + "|" +
-            result.direction + "|" +
+            result.market.symbol +
+            "|" +
+            result.direction +
+            "|" +
             result.closedTime
         }
       );
     } catch (error) {
-      console.warn("Notificación:", error);
+      console.warn(
+        "Notificación:",
+        error
+      );
     }
   }
 
-  async function scan(force = false) {
-    if (scanBusy || document.hidden) return;
+  async function scan(
+    force = false
+  ) {
+    if (
+      scanBusy ||
+      document.hidden
+    ) return;
 
     if (
       !force &&
-      Date.now() - scanLast < 55000
+      Date.now() - scanLast <
+        55000
     ) return;
 
     scanBusy = true;
 
-    const id = scanGeneration;
-    const items = markets();
+    const id =
+      scanGeneration;
+
+    const items =
+      markets();
+
     const results = [];
     const errors = [];
 
@@ -2890,16 +4972,26 @@
     let cursor = 0;
 
     async function worker() {
-      while (cursor < items.length) {
-        const market = items[cursor++];
+      while (
+        cursor < items.length
+      ) {
+        const market =
+          items[cursor++];
 
         try {
           results.push(
-            rank(market, await frames(market))
+            rank(
+              market,
+              await frames(
+                market
+              )
+            )
           );
         } catch (error) {
           errors.push(
-            market.label + ": " + error.message
+            market.label +
+            ": " +
+            error.message
           );
         }
       }
@@ -2911,35 +5003,53 @@
         worker()
       ]);
 
-      if (id !== scanGeneration) return;
+      if (
+        id !== scanGeneration
+      ) return;
 
       results.sort(
-        (a, b) => b.score - a.score
+        (a, b) =>
+          b.score - a.score
       );
 
-      const body = $("clScanBody");
+      const body =
+        $("clScanBody");
 
       if (body) {
         body.replaceChildren();
 
         for (
-          const [index, result]
-          of results.entries()
+          const [
+            index,
+            result
+          ] of results.entries()
         ) {
-          const tr = document.createElement("tr");
+          const tr =
+            document.createElement(
+              "tr"
+            );
 
-          for (const value of [
-            index + 1,
-            result.market.label,
-            result.direction,
-            result.score + "/100",
-            result.state,
-            result.confirmations
-          ]) {
-            const td = document.createElement("td");
+          for (
+            const value of [
+              index + 1,
+              result.market.label,
+              result.direction,
+              result.score +
+                "/100",
+              result.state,
+              result.confirmations
+            ]
+          ) {
+            const td =
+              document.createElement(
+                "td"
+              );
 
-            td.textContent = value;
-            td.style.padding = "9px 6px";
+            td.textContent =
+              value;
+
+            td.style.padding =
+              "9px 6px";
 
             tr.append(td);
           }
@@ -2947,11 +5057,21 @@
           body.append(tr);
         }
 
-        if (!results.length) {
-          const tr = document.createElement("tr");
-          const td = document.createElement("td");
+        if (
+          !results.length
+        ) {
+          const tr =
+            document.createElement(
+              "tr"
+            );
+
+          const td =
+            document.createElement(
+              "td"
+            );
 
           td.colSpan = 6;
+
           td.textContent =
             "Sin resultados disponibles.";
 
@@ -2963,14 +5083,20 @@
       put(
         "clScanErrors",
         errors.length
-          ? "Sin datos: " + errors.join(" · ")
+          ? "Sin datos: " +
+            errors.join(
+              " · "
+            )
           : ""
       );
 
       put(
         "clScanStatus",
         "Última revisión: " +
-        new Date().toLocaleTimeString("es-MX") +
+        new Date()
+          .toLocaleTimeString(
+            "es-MX"
+          ) +
         " · " +
         results.length +
         "/" +
@@ -2978,11 +5104,19 @@
         " activos"
       );
 
-      scanLast = Date.now();
+      scanLast =
+        Date.now();
 
-      for (const result of results) {
-        if (addSignal(result)) {
-          notifySignal(result);
+      for (
+        const result of
+        results
+      ) {
+        if (
+          addSignal(result)
+        ) {
+          notifySignal(
+            result
+          );
         }
       }
 
@@ -2994,12 +5128,16 @@
         id !== scanGeneration &&
         !document.hidden
       ) {
-        queueMicrotask(() => scan(true));
+        queueMicrotask(
+          () => scan(true)
+        );
       }
     }
   }
 
+  // =====================================
   // CAMBIOS DE MERCADO
+  // =====================================
 
   function clearMarket() {
     generation++;
@@ -3007,6 +5145,7 @@
 
     scanLast = 0;
     monitorLast = 0;
+
     activeKey = "";
 
     rows = [];
@@ -3015,44 +5154,73 @@
     sweeps = [];
 
     lastWS = 0;
+
     lastLevelSignature = "";
     lastMarkerSignature = "";
 
     series.price?.setData([]);
     series.volume?.setData([]);
 
-    if (series.volume) {
-      seriesState.delete(series.volume);
+    if (
+      series.volume
+    ) {
+      seriesState.delete(
+        series.volume
+      );
     }
 
-    for (const line of Object.values(moving)) {
+    for (
+      const line of
+      Object.values(moving)
+    ) {
       line.setData([]);
-      seriesState.delete(line);
+
+      seriesState.delete(
+        line
+      );
     }
 
-    for (const name of [
-      "rsi", "adx", "plus", "minus"
-    ]) {
+    for (
+      const name of [
+        "rsi",
+        "adx",
+        "plus",
+        "minus",
+        "ao"
+      ]
+    ) {
       series[name]?.setData([]);
 
-      if (series[name]) {
-        seriesState.delete(series[name]);
+      if (
+        series[name]
+      ) {
+        seriesState.delete(
+          series[name]
+        );
       }
     }
 
-    for (const line of levelLines) {
+    for (
+      const line of
+      levelLines
+    ) {
       try {
-        series.price?.removePriceLine(line);
+        series.price
+          ?.removePriceLine(
+            line
+          );
       } catch {}
     }
 
     levelLines.length = 0;
 
-    series.price?.setMarkers([]);
+    series.price
+      ?.setMarkers([]);
 
     updateModules(true);
 
     put("price", "—");
+
     put(
       "message",
       "Cargando nuevo mercado..."
@@ -3061,134 +5229,148 @@
     scheduleZoneDraw();
   }
 
-  // AJUSTES
+  function updateTimeframeButtons() {
+    const tf =
+      $("interval")?.value ||
+      "15m";
 
-  function updateButtons() {
     document.querySelectorAll(
-      "[data-indicator]"
+      "[data-tf]"
     ).forEach(button => {
-      const on = enabled.has(
-        button.dataset.indicator
-      );
+      const active =
+        button.dataset.tf === tf;
 
       button.classList.toggle(
-        "active", on
+        "active",
+        active
       );
 
       button.setAttribute(
         "aria-pressed",
-        String(on)
+        String(active)
       );
     });
   }
 
-  function applySavedIndicators() {
-    const s = settings();
+  function marketChanged() {
+    syncCommodity();
+    updateTimeframeButtons();
 
-    const map = {
-      RSI: "rsi",
-      ADX: "adx",
-      VOL: "volume",
-      FVG: "fvg",
-      IFVG: "ifvg"
-    };
+    clearMarket();
 
-    if (s.indicators) {
-      for (const [name, value] of
-        Object.entries(s.indicators)) {
-        const indicator = map[name];
+    connect();
+    refresh();
+    refreshTicker();
 
-        if (!indicator) continue;
-
-        if (value) {
-          enabled.add(indicator);
-        } else {
-          enabled.delete(indicator);
-        }
-      }
-    }
-
-    const signature = JSON.stringify(
-      movingConfigurations()
-    );
-
-    if (signature !== movingSignature) {
-      movingSignature = "";
-      rebuildMoving();
-
-      for (const line of Object.values(moving)) {
-        seriesState.delete(line);
-      }
-    }
-
-    updateButtons();
-
-    if (rows.length) {
-      updateIndicators(true);
-    }
+    monitor(true);
+    scan(true);
 
     scheduleResize();
   }
 
+  // =====================================
   // EVENTOS
+  // =====================================
 
   function events() {
     document.querySelectorAll(
       "[data-indicator]"
     ).forEach(button => {
-      button.addEventListener("click", () => {
-        const name = button.dataset.indicator;
-
-        if (enabled.has(name)) {
-          enabled.delete(name);
-        } else {
-          enabled.add(name);
+      button.addEventListener(
+        "click",
+        () => {
+          toggleIndicator(
+            button.dataset.indicator
+          );
         }
-
-        updateButtons();
-
-        if (rows.length) {
-          updateIndicators(true);
-        }
-      });
+      );
     });
 
-    $("refresh")?.addEventListener(
-      "click",
-      () => {
-        refresh();
-        refreshTicker();
-      }
-    );
+    // Los botones de temporalidad
+    // actualizan el selector real.
 
-    $("chartReset")?.addEventListener(
-      "click",
-      resetView
-    );
+    document.querySelectorAll(
+      "[data-tf]"
+    ).forEach(button => {
+      button.addEventListener(
+        "click",
+        () => {
+          const interval =
+            $("interval");
 
-    $("rsiSpeak")?.addEventListener(
-      "click",
-      () => {
-        if (!("speechSynthesis" in window)) {
-          return;
+          if (!interval) return;
+
+          const next =
+            button.dataset.tf;
+
+          if (
+            !SEC[next] ||
+            interval.value === next
+          ) return;
+
+          interval.value = next;
+
+          interval.dispatchEvent(
+            new Event(
+              "change",
+              {
+                bubbles: true
+              }
+            )
+          );
         }
+      );
+    });
 
-        speechSynthesis.cancel();
+    $("refresh")
+      ?.addEventListener(
+        "click",
+        () => {
+          refresh();
+          refreshTicker();
+          monitor(true);
+        }
+      );
 
-        const utterance =
-          new SpeechSynthesisUtterance(lastRSI);
+    $("chartReset")
+      ?.addEventListener(
+        "click",
+        resetView
+      );
 
-        utterance.lang = "es-MX";
+    $("rsiSpeak")
+      ?.addEventListener(
+        "click",
+        () => {
+          if (
+            !(
+              "speechSynthesis" in
+              window
+            )
+          ) return;
 
-        speechSynthesis.speak(utterance);
-      }
-    );
+          speechSynthesis.cancel();
+
+          const utterance =
+            new SpeechSynthesisUtterance(
+              lastRSI
+            );
+
+          utterance.lang =
+            "es-MX";
+
+          speechSynthesis.speak(
+            utterance
+          );
+        }
+      );
 
     if (
       $("rsiSpeak") &&
       "speechSynthesis" in window
     ) {
-      $("rsiSpeak").disabled = false;
+      $("rsiSpeak").disabled =
+        false;
     }
 
     for (const id of [
@@ -3197,25 +5379,24 @@
       "exchange",
       "market"
     ]) {
-      $(id)?.addEventListener("change", () => {
-        syncCommodity();
-        clearMarket();
-        connect();
-        refresh();
-        refreshTicker();
-        scan(true);
-      });
+      $(id)?.addEventListener(
+        "change",
+        marketChanged
+      );
     }
 
     document.addEventListener(
       "visibilitychange",
       () => {
-        if (document.hidden) {
+        if (
+          document.hidden
+        ) {
           disconnect();
         } else {
           connect();
           refresh();
           refreshTicker();
+          monitor(true);
           scan(true);
         }
       }
@@ -3224,11 +5405,20 @@
     window.addEventListener(
       "cryptolexuz:screen-change",
       event => {
-        if (event.detail?.screen === "charts") {
-          setTimeout(scheduleResize, 120);
+        if (
+          event.detail?.screen ===
+          "charts"
+        ) {
+          setTimeout(
+            scheduleResize,
+            120
+          );
         }
 
-        if (event.detail?.screen === "results") {
+        if (
+          event.detail?.screen ===
+          "results"
+        ) {
           renderHistory();
         }
       }
@@ -3242,76 +5432,173 @@
     window.addEventListener(
       "cryptolexuz:volume-profile-ready",
       () => {
-        volumeProfileAttached = false;
+        volumeProfileAttached =
+          false;
+
         attachVolumeProfile();
         updateModules(true);
       }
     );
 
+    updateTimeframeButtons();
     updateButtons();
   }
 
+  // =====================================
+  // API PÚBLICA DE INDICADORES
+  // =====================================
+
+  window.CryptolexuzIndicators = {
+    getSettings: () =>
+      readSettings(),
+
+    getEnabled: () =>
+      [...enabled],
+
+    setIndicator,
+
+    toggleIndicator,
+
+    refresh: () => {
+      applySavedIndicators();
+      refresh();
+    },
+
+    awesomeOscillator,
+
+    sma,
+
+    ema,
+
+    rsi,
+
+    adx
+  };
+
+  // =====================================
   // INICIO
+  // =====================================
 
   function init() {
     syncCommodity();
+
     scannerUI();
     renderHistory();
 
     events();
     applySavedIndicators();
 
-    if (!createCharts()) return;
+    if (
+      !createCharts()
+    ) return;
 
     connect();
+
     refresh();
     refreshTicker();
+
+    monitor(true);
     scan(true);
 
-    chartTimer = setInterval(() => {
-      if (!document.hidden) {
-        refresh();
-      }
-    }, 15000);
+    chartTimer = setInterval(
+      () => {
+        if (
+          !document.hidden
+        ) {
+          refresh();
+        }
+      },
+      15000
+    );
 
-    tickerTimer = setInterval(() => {
-      if (!document.hidden) {
-        refreshTicker();
-      }
-    }, 10000);
+    tickerTimer = setInterval(
+      () => {
+        if (
+          !document.hidden
+        ) {
+          refreshTicker();
+        }
+      },
+      10000
+    );
 
-    scanTimer = setInterval(() => {
-      if (!document.hidden) {
-        scan();
-      }
-    }, 60000);
+    monitorTimer = setInterval(
+      () => {
+        if (
+          !document.hidden
+        ) {
+          monitor();
+        }
+      },
+      60000
+    );
 
-    verifyTimer = setInterval(() => {
-      if (!document.hidden) {
-        verifySignals().catch(console.warn);
-      }
-    }, 60000);
+    scanTimer = setInterval(
+      () => {
+        if (
+          !document.hidden
+        ) {
+          scan();
+        }
+      },
+      60000
+    );
+
+    verifyTimer = setInterval(
+      () => {
+        if (
+          !document.hidden
+        ) {
+          verifySignals()
+            .catch(
+              console.warn
+            );
+        }
+      },
+      60000
+    );
 
     window.addEventListener(
       "beforeunload",
       () => {
         disconnect();
 
-        clearInterval(chartTimer);
-        clearInterval(tickerTimer);
-        clearInterval(scanTimer);
-        clearInterval(verifyTimer);
+        clearInterval(
+          chartTimer
+        );
 
-        resizeObserver?.disconnect();
+        clearInterval(
+          tickerTimer
+        );
+
+        clearInterval(
+          monitorTimer
+        );
+
+        clearInterval(
+          scanTimer
+        );
+
+        clearInterval(
+          verifyTimer
+        );
+
+        resizeObserver
+          ?.disconnect();
       }
     );
   }
 
-  if (document.readyState === "loading") {
+  if (
+    document.readyState ===
+    "loading"
+  ) {
     document.addEventListener(
       "DOMContentLoaded",
       init,
-      {once: true}
+      {
+        once: true
+      }
     );
   } else {
     init();
