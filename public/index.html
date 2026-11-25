@@ -1,63 +1,366 @@
+
 <!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#08090c">
+<meta name="theme-color" content="#000000">
 <meta name="description" content="CRYPTOLEXUZ PRO: mercados, gráficas, indicadores, escáner y resultados informativos.">
 <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
-<!-- CRYPTOLEXUZ PRO — INDEX.HTML V31 COMPLETO — CONTROLES Y GRÁFICA -->
+<!-- CRYPTOLEXUZ PRO — INDEX.HTML V32 COMPLETO -->
 <link rel="stylesheet" href="styles.css?v=23">
+
 <style>
-[hidden]{display:none!important}.cl-screen{display:none;min-width:0}.cl-screen.cl-active{display:block}
-#priceChartArea{position:relative;isolation:isolate;background:#000!important}
-#chart{background:#000!important}#priceChartArea canvas{max-width:none}#chart,#volumeChart,#rsiChart,#adxChart,#aoChart,#squeezeChart{width:100%;min-width:0;position:relative;overflow:hidden}
-#chart{height:360px}#volumeChart{height:115px}#rsiChart,#adxChart,#aoChart,#squeezeChart{height:145px}
-#zonesCanvas{position:absolute;inset:0;pointer-events:none!important}
-.cl-tool-content,.cl-module,#clRangeBoxesHost,#clFibonacciHost{min-width:0}
-.cl-screen-title{margin-bottom:14px}.cl-screen-title h1{margin-bottom:5px}
-.cl-market-row{display:flex;align-items:center;min-width:0}
-.cl-market-row .cl-favorite{flex-shrink:0;cursor:pointer;border:0;background:transparent;color:#aebcdd;font-size:18px;padding:8px}
+[hidden]{display:none!important}
+*{box-sizing:border-box}
+html{background:#000}
+body{min-width:0}
+.cl-screen{display:none;min-width:0}
+.cl-screen.cl-active{display:block}
+
+#priceChartArea{
+ position:relative;
+ isolation:isolate;
+ background:#000!important;
+}
+#chart,
+#volumeChart,
+#rsiChart,
+#adxChart,
+#aoChart,
+#squeezeChart{
+ width:100%;
+ min-width:0;
+ position:relative;
+ overflow:hidden;
+ background:#000!important;
+}
+#chart{height:360px}
+#volumeChart{height:115px}
+#rsiChart,#adxChart,#aoChart,#squeezeChart{height:145px}
+#priceChartArea canvas{max-width:none}
+#zonesCanvas{
+ position:absolute;
+ inset:0;
+ pointer-events:none!important;
+}
+.cl-tool-content,
+.cl-module,
+#clRangeBoxesHost,
+#clFibonacciHost{min-width:0}
+
+.cl-screen-title{margin-bottom:14px}
+.cl-screen-title h1{margin-bottom:5px}
+
+.cl-market-row{
+ display:flex;
+ align-items:center;
+ min-width:0;
+}
+.cl-market-row .cl-favorite{
+ flex-shrink:0;
+ cursor:pointer;
+ border:0;
+ background:transparent;
+ color:#aebcdd;
+ font-size:18px;
+ padding:8px;
+}
 .cl-market-row .cl-favorite.is-favorite{color:#ffce52}
-.cl-market-row .cl-market-open{flex:1;min-width:0;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.8fr);align-items:center;gap:8px;text-align:left;border:0;background:transparent;color:inherit;padding:10px 2px;cursor:pointer}
-.cl-market-row .cl-market-price{text-align:right;overflow-wrap:anywhere}.cl-market-row .cl-market-change{text-align:center}
+.cl-market-row .cl-market-open{
+ flex:1;
+ min-width:0;
+ display:grid;
+ grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.8fr);
+ align-items:center;
+ gap:8px;
+ text-align:left;
+ border:0;
+ background:transparent;
+ color:inherit;
+ padding:10px 2px;
+ cursor:pointer;
+}
+.cl-market-row .cl-market-price{
+ text-align:right;
+ overflow-wrap:anywhere;
+}
+.cl-market-row .cl-market-change{text-align:center}
 .cl-market-row .cl-asset-label strong{overflow-wrap:anywhere}
-.cl-chart-control-stack{display:flex;flex-direction:column;gap:8px;margin:12px 0}
-.cl-control-label{font-size:11px;color:#b7c3e1;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
-.cl-timeframes,.cl-indicator-strip,.cl-pattern-strip{display:flex;gap:6px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scrollbar-width:thin;padding:5px 0 9px;touch-action:pan-x;min-width:0}
-.cl-timeframes button,.cl-indicator-strip button,.cl-pattern-strip button{flex:0 0 auto;min-height:34px;padding:7px 11px;border:1px solid #34364c;border-radius:8px;background:#171a25;color:#e6e9ff;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer}
-.cl-timeframes button.active,.cl-indicator-strip button.active,.cl-indicator-strip button[aria-pressed="true"],.cl-pattern-strip button[aria-pressed="true"]{background:#48216c;color:#fff;border-color:#c477ff}
-.cl-pattern-strip button:disabled{opacity:.48;cursor:not-allowed}.cl-pattern-strip [data-pattern="fallingwedge"]{border-color:#9e6aff}
-.cl-chart-gear{position:relative;z-index:2;cursor:pointer}
-#aoSection{margin-top:14px;padding:10px 0;border-top:1px solid #292d3b}#aoInterpretation{color:#9fa2b0;font-size:11px;line-height:1.6}
-.cl-results-note{color:#aebcdd;font-size:12px;line-height:1.6}
-.cl-settings-overlay{position:fixed;inset:0;z-index:20000;background:rgba(0,0,0,.78);display:flex;align-items:center;justify-content:center;padding:14px;box-sizing:border-box;backdrop-filter:blur(5px)}
-.cl-settings-sheet{width:min(100%,560px);max-height:min(88dvh,780px);overflow-y:auto;overscroll-behavior:contain;background:#121522;color:#f2f4ff;border:1px solid #44405f;border-radius:18px;padding:18px;box-sizing:border-box;box-shadow:0 24px 75px rgba(0,0,0,.65)}
-.cl-settings-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
-.cl-settings-head button{background:#252b3d;color:white;border:1px solid #3b4157;border-radius:9px;padding:9px 15px;cursor:pointer;font-size:17px}
-.cl-settings-row,.cl-settings-indicator{display:block;width:100%;text-align:left;background:#1b2131;color:#f1f3ff;border:1px solid #343b52;border-radius:10px;padding:14px;margin:7px 0;cursor:pointer}
-.cl-settings-indicator{display:flex;align-items:center;justify-content:space-between;gap:12px}
-.cl-settings-indicator-status{color:#b2a1e8;font-size:12px}.cl-settings-indicator.is-unavailable{opacity:.65}
-.cl-settings-save{display:block;width:100%;padding:13px;border:0;border-radius:10px;background:#8845ed;color:white;font-weight:700;margin-top:16px;cursor:pointer}
-.cl-settings-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-.cl-settings-tile{min-height:85px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#1b2131;color:#f1f3ff;border:1px solid #343b52;border-radius:12px;cursor:pointer}
-.cl-settings-tile span{font-size:23px}.cl-settings-check{display:flex;align-items:center;gap:10px;padding:12px 4px}
-.cl-settings-check input{accent-color:#a56cff;width:17px;height:17px}
-.cl-ma-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.8fr) minmax(0,.8fr) 46px;gap:8px;align-items:center}
-.cl-ma-grid input[type=number],.cl-ma-grid select{width:100%;min-width:0;box-sizing:border-box;padding:9px 4px;background:#22283a;color:white;border:1px solid #46506b;border-radius:7px}
-.cl-ma-grid input[type=color]{width:42px;height:38px;padding:2px;background:transparent;border:0}
-.cl-ma-label{display:flex;align-items:center;gap:5px;font-size:12px}.cl-ma-label input{accent-color:#a56cff}
-.cl-settings-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:15px}.cl-settings-actions button{flex:1;min-width:90px;padding:10px;border:1px solid #46506b;background:#22283a;color:white;border-radius:8px;cursor:pointer}
-.cl-settings-hint,.cl-settings-disabled-note{font-size:12px;color:#aebcdd;line-height:1.6}
+
+.cl-chart-control-stack{
+ display:flex;
+ flex-direction:column;
+ gap:9px;
+ margin:12px 0;
+ width:100%;
+ min-width:0;
+}
+.cl-control-row{
+ display:flex;
+ flex-direction:column;
+ gap:4px;
+ min-width:0;
+ width:100%;
+}
+.cl-control-label{
+ font-size:11px;
+ color:#b7c3e1;
+ font-weight:700;
+ letter-spacing:.05em;
+ text-transform:uppercase;
+}
+.cl-timeframes,
+.cl-indicator-strip,
+.cl-pattern-strip{
+ display:flex;
+ gap:6px;
+ flex-wrap:nowrap;
+ overflow-x:auto;
+ overflow-y:hidden;
+ overscroll-behavior-x:contain;
+ -webkit-overflow-scrolling:touch;
+ scrollbar-width:thin;
+ padding:5px 0 9px;
+ touch-action:pan-x;
+ min-width:0;
+ width:100%;
+}
+.cl-timeframes button,
+.cl-indicator-strip button,
+.cl-pattern-strip button{
+ flex:0 0 auto;
+ min-height:34px;
+ padding:7px 11px;
+ border:1px solid #34364c;
+ border-radius:8px;
+ background:#171a25;
+ color:#e6e9ff;
+ font-size:12px;
+ font-weight:600;
+ white-space:nowrap;
+ cursor:pointer;
+}
+.cl-timeframes button.active,
+.cl-timeframes button[aria-pressed="true"],
+.cl-indicator-strip button.active,
+.cl-indicator-strip button[aria-pressed="true"],
+.cl-pattern-strip button[aria-pressed="true"]{
+ background:#48216c;
+ color:#fff;
+ border-color:#c477ff;
+}
+.cl-pattern-strip button:disabled{
+ opacity:.48;
+ cursor:not-allowed;
+}
+.cl-pattern-strip [data-pattern="fallingwedge"]{
+ border-color:#9e6aff;
+}
+.cl-chart-gear{
+ position:relative;
+ z-index:2;
+ cursor:pointer;
+}
+#aoSection{
+ margin-top:14px;
+ padding:10px 0;
+ border-top:1px solid #292d3b;
+}
+#aoInterpretation{
+ color:#9fa2b0;
+ font-size:11px;
+ line-height:1.6;
+}
+.cl-results-note{
+ color:#aebcdd;
+ font-size:12px;
+ line-height:1.6;
+}
+
+.cl-settings-overlay{
+ position:fixed;
+ inset:0;
+ z-index:20000;
+ background:rgba(0,0,0,.78);
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ padding:14px;
+ backdrop-filter:blur(5px);
+}
+.cl-settings-sheet{
+ width:min(100%,560px);
+ max-height:min(88dvh,780px);
+ overflow-y:auto;
+ overscroll-behavior:contain;
+ background:#121522;
+ color:#f2f4ff;
+ border:1px solid #44405f;
+ border-radius:18px;
+ padding:18px;
+ box-shadow:0 24px 75px rgba(0,0,0,.65);
+}
+.cl-settings-head{
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ margin-bottom:12px;
+}
+.cl-settings-head button{
+ background:#252b3d;
+ color:white;
+ border:1px solid #3b4157;
+ border-radius:9px;
+ padding:9px 15px;
+ cursor:pointer;
+ font-size:17px;
+}
+.cl-settings-row,
+.cl-settings-indicator{
+ display:block;
+ width:100%;
+ text-align:left;
+ background:#1b2131;
+ color:#f1f3ff;
+ border:1px solid #343b52;
+ border-radius:10px;
+ padding:14px;
+ margin:7px 0;
+ cursor:pointer;
+}
+.cl-settings-indicator{
+ display:flex;
+ align-items:center;
+ justify-content:space-between;
+ gap:12px;
+}
+.cl-settings-indicator-status{
+ color:#b2a1e8;
+ font-size:12px;
+}
+.cl-settings-indicator.is-unavailable{opacity:.65}
+.cl-settings-save{
+ display:block;
+ width:100%;
+ padding:13px;
+ border:0;
+ border-radius:10px;
+ background:#8845ed;
+ color:white;
+ font-weight:700;
+ margin-top:16px;
+ cursor:pointer;
+}
+.cl-settings-grid{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:10px;
+}
+.cl-settings-tile{
+ min-height:85px;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:center;
+ gap:8px;
+ background:#1b2131;
+ color:#f1f3ff;
+ border:1px solid #343b52;
+ border-radius:12px;
+ cursor:pointer;
+}
+.cl-settings-tile span{font-size:23px}
+.cl-settings-check{
+ display:flex;
+ align-items:center;
+ gap:10px;
+ padding:12px 4px;
+}
+.cl-settings-check input{
+ accent-color:#a56cff;
+ width:17px;
+ height:17px;
+}
+.cl-ma-grid{
+ display:grid;
+ grid-template-columns:minmax(0,1.1fr) minmax(0,.8fr) minmax(0,.8fr) 46px;
+ gap:8px;
+ align-items:center;
+}
+.cl-ma-grid input[type=number],
+.cl-ma-grid select{
+ width:100%;
+ min-width:0;
+ padding:9px 4px;
+ background:#22283a;
+ color:white;
+ border:1px solid #46506b;
+ border-radius:7px;
+}
+.cl-ma-grid input[type=color]{
+ width:42px;
+ height:38px;
+ padding:2px;
+ background:transparent;
+ border:0;
+}
+.cl-ma-label{
+ display:flex;
+ align-items:center;
+ gap:5px;
+ font-size:12px;
+}
+.cl-ma-label input{accent-color:#a56cff}
+.cl-settings-actions{
+ display:flex;
+ flex-wrap:wrap;
+ gap:8px;
+ margin-top:15px;
+}
+.cl-settings-actions button{
+ flex:1;
+ min-width:90px;
+ padding:10px;
+ border:1px solid #46506b;
+ background:#22283a;
+ color:white;
+ border-radius:8px;
+ cursor:pointer;
+}
+.cl-settings-hint,
+.cl-settings-disabled-note{
+ font-size:12px;
+ color:#aebcdd;
+ line-height:1.6;
+}
 body.cl-settings-open{overflow:hidden}
-@media(max-width:420px){.cl-settings-overlay{padding:10px}.cl-settings-sheet{padding:14px;max-height:90dvh;border-radius:15px}.cl-ma-grid{grid-template-columns:minmax(0,1fr) 60px 62px 42px;gap:5px}.cl-ma-grid input[type=color]{width:38px}.cl-ma-label{font-size:11px}}
+
+@media(max-width:420px){
+ .cl-settings-overlay{padding:10px}
+ .cl-settings-sheet{
+  padding:14px;
+  max-height:90dvh;
+  border-radius:15px;
+ }
+ .cl-ma-grid{
+  grid-template-columns:minmax(0,1fr) 60px 62px 42px;
+  gap:5px;
+ }
+ .cl-ma-grid input[type=color]{width:38px}
+ .cl-ma-label{font-size:11px}
+}
 </style>
+
 <script defer src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
 <script defer src="fibonacci.js?v=8"></script>
 <script defer src="patterns.js?v=2"></script>
 <script defer src="patterns-bridge.js?v=1"></script>
-<script defer src="app.js?v=23"></script>
-<script defer src="controls-fix.js?v=2"></script>
+
+<!-- MOTOR PRINCIPAL ACTUALIZADO -->
+<script defer src="app.js?v=24"></script>
+
+<!-- CONTROLES: SE UTILIZAN LOS DEL INDEX, SIN DUPLICAR FILAS -->
 <script defer src="liquidity.js?v=12"></script>
 <script defer src="trade-plans.js?v=4"></script>
 <script defer src="scalping-rapido.js?v=2"></script>
@@ -66,150 +369,1847 @@ body.cl-settings-open{overflow:hidden}
 <script defer src="mercado-pro.js?v=3"></script>
 <script defer src="mercados-live.js?v=2"></script>
 </head>
+
 <body>
-<header class="app-header"><button id="menuToggle" class="menu-toggle" type="button" aria-label="Abrir herramientas" aria-controls="sidebar" aria-expanded="false">☰</button><div class="brand"><img class="logo-3d" src="file_00000000600881fb8ee48d81ba77b640.png" alt="CRYPTOLEXUZ PRO"></div><span id="connection" class="connection" role="status">● Conectando...</span></header>
+
+<header class="app-header">
+ <button id="menuToggle" class="menu-toggle" type="button"
+ aria-label="Abrir herramientas" aria-controls="sidebar"
+ aria-expanded="false">☰</button>
+
+ <div class="brand">
+  <img class="logo-3d"
+  src="file_00000000600881fb8ee48d81ba77b640.png"
+  alt="CRYPTOLEXUZ PRO">
+ </div>
+
+ <span id="connection" class="connection" role="status">
+ ● Conectando...
+ </span>
+</header>
+
 <aside id="sidebar" class="sidebar" aria-label="Herramientas">
-<div class="sidebar-head"><strong>Herramientas</strong><button id="menuClose" type="button" aria-label="Cerrar menú">✕</button></div>
-<nav class="side-nav">
-<a href="#clScreenMarkets" data-screen="markets">📋 Mercados</a>
-<a href="#chartSection" data-screen="charts">📈 Gráficas</a>
-<a href="#clRangeBoxesTools" data-screen="charts">🟪 Cajas moradas</a>
-<a href="#clFibonacciTools" data-screen="charts">📐 Fibonacci</a>
-<a href="#clPatternsPanel" data-screen="charts">🧩 Patrones</a>
-<a href="#liquiditySection" data-screen="charts">🌡️ Liquidez</a>
-<a href="#orderbookSection" data-screen="charts">📚 Libro de órdenes</a>
-<a href="#clScannerHost" data-screen="scanner">📡 Escáner</a>
-<a href="#clQuickScalp" data-screen="scanner">⚡ Scalping</a>
-<a href="#historySection" data-screen="results">📊 Resultados</a>
-</nav>
-<div id="patternStatus" role="status">Cargando patrones...</div>
-<label class="switch-row">Mostrar mapa <input id="liquidityMapToggle" type="checkbox" checked disabled></label>
+ <div class="sidebar-head">
+  <strong>Herramientas</strong>
+  <button id="menuClose" type="button" aria-label="Cerrar menú">✕</button>
+ </div>
+
+ <nav class="side-nav">
+  <a href="#clScreenMarkets" data-screen="markets">📋 Mercados</a>
+  <a href="#chartSection" data-screen="charts">📈 Gráficas</a>
+  <a href="#clRangeBoxesTools" data-screen="charts">🟪 Cajas moradas</a>
+  <a href="#clFibonacciTools" data-screen="charts">📐 Fibonacci</a>
+  <a href="#clPatternsPanel" data-screen="charts">🧩 Patrones</a>
+  <a href="#liquiditySection" data-screen="charts">🌡️ Liquidez</a>
+  <a href="#orderbookSection" data-screen="charts">📚 Libro de órdenes</a>
+  <a href="#clScannerHost" data-screen="scanner">📡 Escáner</a>
+  <a href="#clQuickScalp" data-screen="scanner">⚡ Scalping</a>
+  <a href="#historySection" data-screen="results">📊 Resultados</a>
+ </nav>
+
+ <div id="patternStatus" role="status">Cargando patrones...</div>
+
+ <label class="switch-row">
+  Mostrar mapa
+  <input id="liquidityMapToggle" type="checkbox" checked disabled>
+ </label>
 </aside>
-<button id="menuBackdrop" class="menu-backdrop" type="button" aria-label="Cerrar menú" hidden></button>
+
+<button id="menuBackdrop" class="menu-backdrop"
+type="button" aria-label="Cerrar menú" hidden></button>
+
 <main class="app-container">
-<div id="clScreenMarkets" class="cl-screen cl-active" data-cl-screen="markets">
-<div class="cl-screen-title"><h1>Mercados</h1><p>Activos, precios y variaciones del mercado.</p></div>
-<input id="clMarketSearch" class="cl-search" type="search" placeholder="Buscar BTC, ETH, GOLD..." aria-label="Buscar activo">
-<div class="cl-market-filters"><button class="cl-chip active" type="button" data-market-filter="all">Todos</button><button class="cl-chip" type="button" data-market-filter="favorites">★ Favoritos</button><button class="cl-chip" type="button" data-market-filter="perpetual">Futuros</button><button class="cl-chip" type="button" data-market-filter="spot">Spot</button><button class="cl-chip" type="button" data-market-filter="commodities">Oro / Petróleo</button></div>
-<div class="cl-market-head"><span>Nombre / Vol.</span><span style="text-align:right">Último precio</span><span style="text-align:center">Var. 24h</span></div>
-<div id="clMarketList"></div><p id="clMarketListStatus" class="cl-notice" role="status">Consultando precios de mercado...</p>
+
+<!-- ========================= -->
+<!-- MERCADOS -->
+<!-- ========================= -->
+
+<div id="clScreenMarkets" class="cl-screen cl-active"
+data-cl-screen="markets">
+
+ <div class="cl-screen-title">
+  <h1>Mercados</h1>
+  <p>Activos, precios y variaciones del mercado.</p>
+ </div>
+
+ <input id="clMarketSearch" class="cl-search" type="search"
+ placeholder="Buscar BTC, ETH, GOLD..."
+ aria-label="Buscar activo">
+
+ <div class="cl-market-filters">
+  <button class="cl-chip active" type="button" data-market-filter="all">Todos</button>
+  <button class="cl-chip" type="button" data-market-filter="favorites">★ Favoritos</button>
+  <button class="cl-chip" type="button" data-market-filter="perpetual">Futuros</button>
+  <button class="cl-chip" type="button" data-market-filter="spot">Spot</button>
+  <button class="cl-chip" type="button" data-market-filter="commodities">Oro / Petróleo</button>
+ </div>
+
+ <div class="cl-market-head">
+  <span>Nombre / Vol.</span>
+  <span style="text-align:right">Último precio</span>
+  <span style="text-align:center">Var. 24h</span>
+ </div>
+
+ <div id="clMarketList"></div>
+
+ <p id="clMarketListStatus" class="cl-notice" role="status">
+ Consultando precios de mercado...
+ </p>
 </div>
-<div id="clScreenCharts" class="cl-screen" data-cl-screen="charts">
-<section class="market-card"><div class="market-top"><div class="selectors-row">
-<label class="compact-field">Activo<select id="symbol"><option value="BTC-USDT">BTC/USDT</option><option value="ETH-USDT">ETH/USDT</option><option value="BNB-USDT">BNB/USDT</option><option value="SOL-USDT">SOL/USDT</option><option value="XRP-USDT">XRP/USDT</option><option value="DOGE-USDT">DOGE/USDT</option><option value="NCCOGOLD2USD-USDT">GOLD (XAU)</option><option value="NCCO1OILWTI2USD-USDT">OIL WTI</option></select></label>
-<label class="compact-field">Temporalidad<select id="interval"><option value="1m">1 minuto</option><option value="3m">3 minutos</option><option value="5m">5 minutos</option><option value="15m" selected>15 minutos</option><option value="30m">30 minutos</option><option value="1h">1 hora</option><option value="2h">2 horas</option><option value="4h">4 horas</option><option value="6h">6 horas</option><option value="8h">8 horas</option><option value="12h">12 horas</option><option value="1d">1 día</option><option value="3d">3 días</option><option value="1w">1 semana</option><option value="1M">1 mes</option></select></label>
-</div><div class="market-price"><strong id="price">—</strong><span id="change">—</span></div><div class="market-bottom"><div><span>Máximo 24h</span><strong id="high">—</strong></div><div><span>Mínimo 24h</span><strong id="low">—</strong></div><div><span>Apertura</span><strong id="open">—</strong></div><div><span>Volumen 24h</span><strong id="volume">—</strong></div></div></div></section>
-<section id="chartSection" class="chart-card">
-<div class="chart-heading"><div><h2 id="chartTitle">BTC-USDT · 15m</h2><small>VELAS · MEDIAS · VOLUMEN · INDICADORES</small></div><button id="clChartSettings" class="cl-chart-gear" type="button" aria-label="Ajustes del gráfico">⚙</button></div>
-<div class="cl-chart-tabs"><button class="cl-chip active" type="button" data-chart-view="graph">Gráfico</button><button class="cl-chip" type="button" data-chart-view="coin">Info de la moneda</button><button class="cl-chip" type="button" data-chart-view="info">Información</button></div>
-<div id="clGraphContent">
-<div class="cl-chart-control-stack" id="clTradingControlRows">
-<div class="cl-control-row"><span class="cl-control-label">Temporalidades</span><div class="cl-timeframes">
-<button class="cl-chip" type="button" data-tf="1m">1m</button><button class="cl-chip" type="button" data-tf="3m">3m</button><button class="cl-chip" type="button" data-tf="5m">5m</button><button class="cl-chip active" type="button" data-tf="15m">15m</button><button class="cl-chip" type="button" data-tf="30m">30m</button><button class="cl-chip" type="button" data-tf="1h">1h</button><button class="cl-chip" type="button" data-tf="2h">2h</button><button class="cl-chip" type="button" data-tf="4h">4h</button><button class="cl-chip" type="button" data-tf="6h">6h</button><button class="cl-chip" type="button" data-tf="8h">8h</button><button class="cl-chip" type="button" data-tf="12h">12h</button><button class="cl-chip" type="button" data-tf="1d">1d</button><button class="cl-chip" type="button" data-tf="3d">3d</button><button class="cl-chip" type="button" data-tf="1w">1w</button><button class="cl-chip" type="button" data-tf="1M">1M</button>
-</div></div>
-<div class="cl-control-row"><span class="cl-control-label">Indicadores</span><div id="indicatorButtons" class="indicator-buttons cl-indicator-strip">
-<button type="button" data-indicator="ema21" aria-pressed="true">EMA 21</button><button type="button" data-indicator="ma55" aria-pressed="true">MA 55</button><button type="button" data-indicator="ma100" aria-pressed="false">MA 100</button><button type="button" data-indicator="ma200" aria-pressed="false">MA 200</button><button type="button" data-indicator="rsi" aria-pressed="true">RSI</button><button type="button" data-indicator="adx" aria-pressed="false">ADX</button><button type="button" data-indicator="ao" aria-pressed="false">AO</button><button type="button" data-indicator="fvg" aria-pressed="true">FVG</button><button type="button" data-indicator="ifvg" aria-pressed="false">IFVG</button><button type="button" data-indicator="liquidity" aria-pressed="false">Liquidez</button><button type="button" data-indicator="sweeps" aria-pressed="false">Barridos</button><button type="button" data-indicator="support" aria-pressed="false">Soportes</button><button type="button" data-indicator="resistance" aria-pressed="false">Resistencias</button>
-</div></div>
-<div class="cl-control-row"><span class="cl-control-label">Patrones automáticos</span><div id="patternButtons" class="indicator-buttons cl-pattern-strip">
-<button type="button" data-pattern="fallingwedge" disabled>Cuña descendente</button><button type="button" data-pattern="divergences" disabled>Divergencias RSI</button><button type="button" data-pattern="squeeze" disabled>Squeeze</button><button type="button" data-pattern="orderblocks" disabled>Order Blocks</button><button type="button" data-pattern="impulses" disabled>Ondas 1-2-3</button><button type="button" data-pattern="abc" disabled>ABC</button><button type="button" data-pattern="abcde" disabled>ABCDE</button><button type="button" data-pattern="zigzag" disabled>Zig-Zag</button><button type="button" data-pattern="flat" disabled>Flat</button><button type="button" data-pattern="diagonal" disabled>Diagonal</button><button type="button" data-pattern="doubletop" disabled>Doble techo</button><button type="button" data-pattern="doublebottom" disabled>Doble suelo</button><button type="button" data-pattern="headshoulders" disabled>HCH</button><button type="button" data-pattern="inversehs" disabled>HCH invertido</button><button type="button" data-pattern="risingwedge" disabled>Cuña ascendente</button><button type="button" data-pattern="triple" disabled>Triple techo/suelo</button>
-</div></div></div>
-<div class="chart-controls"><button id="refresh" type="button">↻ Actualizar</button><button id="chartReset" type="button">⟲ Restablecer</button><span id="chartTouchStatus" class="chart-control-note">Desliza las velas y utiliza dos dedos para el zoom.</span></div>
-<div id="priceChartArea" class="chart-area"><div id="chart"></div><canvas id="zonesCanvas" aria-hidden="true"></canvas></div>
-<div class="volume-section"><div class="volume-heading"><strong>Volumen</strong><span id="volumeLabel">BTC</span></div><div id="volumeChart"></div><p id="volumeInterpretation">Esperando volumen...</p></div>
-<div id="rsiSection" class="oscillator-section"><div class="oscillator-heading"><strong>RSI 14</strong><span id="rsiChartValue">—</span></div><div id="rsiChart"></div><p id="rsiInterpretation">Esperando RSI...</p><button id="rsiSpeak" type="button" disabled>🔊 Escuchar RSI</button></div>
-<div id="adxSection" class="oscillator-section" hidden><div class="oscillator-heading"><strong>ADX 14 / +DI / −DI</strong><span id="adxChartValue">—</span></div><div id="adxChart"></div><p id="adxInterpretation">Esperando ADX...</p></div>
-<div id="aoSection" class="oscillator-section" hidden><div class="oscillator-heading"><strong>Awesome Oscillator (AO)</strong><span id="aoValue">—</span></div><div id="aoChart"></div><p id="aoInterpretation">Esperando cálculo del AO...</p></div>
-<div id="squeezeSection" class="oscillator-section" hidden><strong>Squeeze Momentum</strong><span id="squeezeValue">—</span><div id="squeezeChart"></div></div>
-<p id="message" role="status">Cargando datos...</p>
-</div>
-<div id="clCoinContent" hidden><p>Información del activo seleccionado.</p></div><div id="clInfoContent" hidden><p>Información del mercado.</p></div>
-<details id="clFibonacciTools" class="cl-tool-panel"><summary>📐 Fibonacci</summary><div id="clFibonacciHost" class="cl-tool-content"><div id="fibFallback">Cargando Fibonacci...</div></div></details>
-<details id="clRangeBoxesTools" class="cl-tool-panel" open><summary>🟪 Cajas moradas</summary><div id="clRangeBoxesHost" class="cl-tool-content"><p class="cl-notice">Cajas moradas ajustables. Activa el modo edición para moverlas o cambiar sus bordes.</p><div id="clRangeBoxesControls"></div></div></details>
+
+<!-- ========================= -->
+<!-- GRÁFICAS -->
+<!-- ========================= -->
+
+<div id="clScreenCharts" class="cl-screen"
+data-cl-screen="charts">
+
+<section class="market-card">
+ <div class="market-top">
+  <div class="selectors-row">
+
+   <label class="compact-field">
+    Activo
+    <select id="symbol">
+     <option value="BTC-USDT">BTC/USDT</option>
+     <option value="ETH-USDT">ETH/USDT</option>
+     <option value="BNB-USDT">BNB/USDT</option>
+     <option value="SOL-USDT">SOL/USDT</option>
+     <option value="XRP-USDT">XRP/USDT</option>
+     <option value="DOGE-USDT">DOGE/USDT</option>
+     <option value="NCCOGOLD2USD-USDT">GOLD (XAU)</option>
+     <option value="NCCO1OILWTI2USD-USDT">OIL WTI</option>
+    </select>
+   </label>
+
+   <label class="compact-field">
+    Temporalidad
+    <select id="interval">
+     <option value="1m">1 minuto</option>
+     <option value="3m">3 minutos</option>
+     <option value="5m">5 minutos</option>
+     <option value="15m" selected>15 minutos</option>
+     <option value="30m">30 minutos</option>
+     <option value="1h">1 hora</option>
+     <option value="2h">2 horas</option>
+     <option value="4h">4 horas</option>
+     <option value="6h">6 horas</option>
+     <option value="8h">8 horas</option>
+     <option value="12h">12 horas</option>
+     <option value="1d">1 día</option>
+     <option value="3d">3 días</option>
+     <option value="1w">1 semana</option>
+     <option value="1M">1 mes</option>
+    </select>
+   </label>
+
+  </div>
+
+  <div class="market-price">
+   <strong id="price">—</strong>
+   <span id="change">—</span>
+  </div>
+
+  <div class="market-bottom">
+   <div><span>Máximo 24h</span><strong id="high">—</strong></div>
+   <div><span>Mínimo 24h</span><strong id="low">—</strong></div>
+   <div><span>Apertura</span><strong id="open">—</strong></div>
+   <div><span>Volumen 24h</span><strong id="volume">—</strong></div>
+  </div>
+ </div>
 </section>
-<section id="clPatternsPanel" class="cl-module"><h2>🧩 Patrones detectados</h2><div id="clPatternsReadout"><p>Esperando patrones...</p></div></section>
-<section id="clMercadoProHost" class="cl-module"><h2>📊 Mercado PRO</h2><div id="clMercadoProStatus">Cargando mercado...</div></section>
-<section id="liquiditySection" class="liquidity-card"><h2>🌡️ Mapa de liquidez</h2><div id="liquidityMap">Conectando...</div><p class="cl-notice">Profundidad de órdenes. No representa liquidaciones reales.</p></section>
-<section class="indicator-summary"><h2>Indicadores técnicos</h2><div class="indicator-values"><div><span>EMA 21</span><strong id="ema21Value">—</strong></div><div><span>MA 55</span><strong id="ma55Value">—</strong></div><div><span>RSI 14</span><strong id="rsiValue">—</strong></div><div><span>ADX 14</span><strong id="adxValue">—</strong></div></div><p id="indicatorReadout">Esperando cálculos...</p></section>
-<section id="orderbookSection" class="cl-module"><div class="cl-book-tabs"><button class="cl-chip active" type="button" data-book="book">Libro de órdenes</button><button class="cl-chip" type="button" data-book="trades">Trades</button><button class="cl-chip" type="button" data-book="depth">Profundidad</button></div><div class="cl-book-bar"><span>B —%</span><span>—% S</span></div><div id="clBookView">Esperando profundidad real...</div><div id="clBookAlternate" hidden role="status"></div><p>Bid: <strong id="bid">—</strong></p><p>Ask: <strong id="ask">—</strong></p><p id="status">Comprobando conexión...</p><small>Actualizado: <strong id="updated">—</strong></small></section>
-<div class="cl-long-short"><button id="clLongInfo" type="button">▲ LONG</button><button id="clShortInfo" type="button">▼ SHORT</button></div><p class="cl-notice">Botones informativos. No ejecutan órdenes.</p>
-<section id="settingsSection" class="market-settings"><h2>⚙ Ajustes de mercado</h2><div class="cl-extra-select"><label>Exchange<select id="exchange"><option value="bingx">BingX</option><option value="binance">Binance</option><option value="bybit">Bybit</option><option value="okx">OKX</option></select></label><label>Mercado<select id="market"><option value="perpetual">Perpetuos</option><option value="spot">Spot</option></select></label></div></section>
+
+<section id="chartSection" class="chart-card">
+
+ <div class="chart-heading">
+  <div>
+   <h2 id="chartTitle">BTC-USDT · 15m</h2>
+   <small>VELAS · MEDIAS · VOLUMEN · INDICADORES</small>
+  </div>
+
+  <button id="clChartSettings" class="cl-chart-gear"
+  type="button" aria-label="Ajustes del gráfico">⚙</button>
+ </div>
+
+ <div class="cl-chart-tabs">
+  <button class="cl-chip active" type="button" data-chart-view="graph">Gráfico</button>
+  <button class="cl-chip" type="button" data-chart-view="coin">Info de la moneda</button>
+  <button class="cl-chip" type="button" data-chart-view="info">Información</button>
+ </div>
+
+ <div id="clGraphContent">
+
+  <!-- FILA UNO: TEMPORALIDADES -->
+  <div class="cl-chart-control-stack" id="clTradingControlRows">
+
+   <div class="cl-control-row">
+    <span class="cl-control-label">Temporalidades</span>
+    <div class="cl-timeframes" id="clMainTimeframes">
+     <button type="button" data-tf="1m">1m</button>
+     <button type="button" data-tf="3m">3m</button>
+     <button type="button" data-tf="5m">5m</button>
+     <button class="active" type="button" data-tf="15m">15m</button>
+     <button type="button" data-tf="30m">30m</button>
+     <button type="button" data-tf="1h">1h</button>
+     <button type="button" data-tf="2h">2h</button>
+     <button type="button" data-tf="4h">4h</button>
+     <button type="button" data-tf="6h">6h</button>
+     <button type="button" data-tf="8h">8h</button>
+     <button type="button" data-tf="12h">12h</button>
+     <button type="button" data-tf="1d">1d</button>
+     <button type="button" data-tf="3d">3d</button>
+     <button type="button" data-tf="1w">1w</button>
+     <button type="button" data-tf="1M">1M</button>
+    </div>
+   </div>
+
+   <!-- FILA DOS: INDICADORES -->
+   <div class="cl-control-row">
+    <span class="cl-control-label">Indicadores</span>
+    <div id="indicatorButtons" class="indicator-buttons cl-indicator-strip">
+     <button type="button" data-indicator="ema21" aria-pressed="true">EMA 21</button>
+     <button type="button" data-indicator="ma55" aria-pressed="true">MA 55</button>
+     <button type="button" data-indicator="ma100" aria-pressed="false">MA 100</button>
+     <button type="button" data-indicator="ma200" aria-pressed="false">MA 200</button>
+     <button type="button" data-indicator="rsi" aria-pressed="true">RSI</button>
+     <button type="button" data-indicator="adx" aria-pressed="false">ADX</button>
+     <button type="button" data-indicator="ao" aria-pressed="false">AO</button>
+     <button type="button" data-indicator="fvg" aria-pressed="true">FVG</button>
+     <button type="button" data-indicator="ifvg" aria-pressed="false">IFVG</button>
+     <button type="button" data-indicator="liquidity" aria-pressed="false">Liquidez</button>
+     <button type="button" data-indicator="sweeps" aria-pressed="false">Barridos</button>
+     <button type="button" data-indicator="support" aria-pressed="false">Soportes</button>
+     <button type="button" data-indicator="resistance" aria-pressed="false">Resistencias</button>
+    </div>
+   </div>
+
+   <!-- FILA TRES: PATRONES -->
+   <div class="cl-control-row">
+    <span class="cl-control-label">Patrones automáticos</span>
+    <div id="patternButtons" class="indicator-buttons cl-pattern-strip">
+     <button type="button" data-pattern="fallingwedge" disabled>Cuña descendente</button>
+     <button type="button" data-pattern="divergences" disabled>Divergencias RSI</button>
+     <button type="button" data-pattern="squeeze" disabled>Squeeze</button>
+     <button type="button" data-pattern="orderblocks" disabled>Order Blocks</button>
+     <button type="button" data-pattern="impulses" disabled>Ondas 1-2-3</button>
+     <button type="button" data-pattern="abc" disabled>ABC</button>
+     <button type="button" data-pattern="abcde" disabled>ABCDE</button>
+     <button type="button" data-pattern="zigzag" disabled>Zig-Zag</button>
+     <button type="button" data-pattern="flat" disabled>Flat</button>
+     <button type="button" data-pattern="diagonal" disabled>Diagonal</button>
+     <button type="button" data-pattern="doubletop" disabled>Doble techo</button>
+     <button type="button" data-pattern="doublebottom" disabled>Doble suelo</button>
+     <button type="button" data-pattern="headshoulders" disabled>HCH</button>
+     <button type="button" data-pattern="inversehs" disabled>HCH invertido</button>
+     <button type="button" data-pattern="risingwedge" disabled>Cuña ascendente</button>
+     <button type="button" data-pattern="triple" disabled>Triple techo/suelo</button>
+    </div>
+   </div>
+
+  </div>
+
+  <div class="chart-controls">
+   <button id="refresh" type="button">↻ Actualizar</button>
+   <button id="chartReset" type="button">⟲ Restablecer</button>
+   <span id="chartTouchStatus" class="chart-control-note">
+    Desliza las velas y utiliza dos dedos para el zoom.
+   </span>
+  </div>
+
+  <div id="priceChartArea" class="chart-area">
+   <div id="chart"></div>
+   <canvas id="zonesCanvas" aria-hidden="true"></canvas>
+  </div>
+
+  <div class="volume-section">
+   <div class="volume-heading">
+    <strong>Volumen</strong>
+    <span id="volumeLabel">BTC</span>
+   </div>
+   <div id="volumeChart"></div>
+   <p id="volumeInterpretation">Esperando volumen...</p>
+  </div>
+
+  <div id="rsiSection" class="oscillator-section">
+   <div class="oscillator-heading">
+    <strong>RSI 14</strong>
+    <span id="rsiChartValue">—</span>
+   </div>
+   <div id="rsiChart"></div>
+   <p id="rsiInterpretation">Esperando RSI...</p>
+   <button id="rsiSpeak" type="button" disabled>🔊 Escuchar RSI</button>
+  </div>
+
+  <div id="adxSection" class="oscillator-section" hidden>
+   <div class="oscillator-heading">
+    <strong>ADX 14 / +DI / −DI</strong>
+    <span id="adxChartValue">—</span>
+   </div>
+   <div id="adxChart"></div>
+   <p id="adxInterpretation">Esperando ADX...</p>
+  </div>
+
+  <div id="aoSection" class="oscillator-section" hidden>
+   <div class="oscillator-heading">
+    <strong>Awesome Oscillator (AO)</strong>
+    <span id="aoValue">—</span>
+   </div>
+   <div id="aoChart"></div>
+   <p id="aoInterpretation">Esperando cálculo del AO...</p>
+  </div>
+
+  <div id="squeezeSection" class="oscillator-section" hidden>
+   <strong>Squeeze Momentum</strong>
+   <span id="squeezeValue">—</span>
+   <div id="squeezeChart"></div>
+  </div>
+
+  <p id="message" role="status">Cargando datos...</p>
+
+ </div>
+
+ <div id="clCoinContent" hidden>
+  <p>Información del activo seleccionado.</p>
+ </div>
+
+ <div id="clInfoContent" hidden>
+  <p>Información del mercado.</p>
+ </div>
+
+ <details id="clFibonacciTools" class="cl-tool-panel">
+  <summary>📐 Fibonacci</summary>
+  <div id="clFibonacciHost" class="cl-tool-content">
+   <div id="fibFallback">Cargando Fibonacci...</div>
+  </div>
+ </details>
+
+ <details id="clRangeBoxesTools" class="cl-tool-panel" open>
+  <summary>🟪 Cajas moradas</summary>
+  <div id="clRangeBoxesHost" class="cl-tool-content">
+   <p class="cl-notice">
+    Cajas moradas ajustables. Activa el modo edición para moverlas o cambiar sus bordes.
+   </p>
+   <div id="clRangeBoxesControls"></div>
+  </div>
+ </details>
+
+</section>
+
+<section id="clPatternsPanel" class="cl-module">
+ <h2>🧩 Patrones detectados</h2>
+ <div id="clPatternsReadout">
+  <p>Esperando patrones...</p>
+ </div>
+</section>
+
+<section id="clMercadoProHost" class="cl-module">
+ <h2>📊 Mercado PRO</h2>
+ <div id="clMercadoProStatus">Cargando mercado...</div>
+</section>
+
+<section id="liquiditySection" class="liquidity-card">
+ <h2>🌡️ Mapa de liquidez</h2>
+ <div id="liquidityMap">Conectando...</div>
+ <p class="cl-notice">
+  Profundidad de órdenes. No representa liquidaciones reales.
+ </p>
+</section>
+
+<section class="indicator-summary">
+ <h2>Indicadores técnicos</h2>
+ <div class="indicator-values">
+  <div><span>EMA 21</span><strong id="ema21Value">—</strong></div>
+  <div><span>MA 55</span><strong id="ma55Value">—</strong></div>
+  <div><span>RSI 14</span><strong id="rsiValue">—</strong></div>
+  <div><span>ADX 14</span><strong id="adxValue">—</strong></div>
+ </div>
+ <p id="indicatorReadout">Esperando cálculos...</p>
+</section>
+
+<section id="orderbookSection" class="cl-module">
+ <div class="cl-book-tabs">
+  <button class="cl-chip active" type="button" data-book="book">Libro de órdenes</button>
+  <button class="cl-chip" type="button" data-book="trades">Trades</button>
+  <button class="cl-chip" type="button" data-book="depth">Profundidad</button>
+ </div>
+
+ <div class="cl-book-bar">
+  <span>B —%</span>
+  <span>—% S</span>
+ </div>
+
+ <div id="clBookView">Esperando profundidad real...</div>
+ <div id="clBookAlternate" hidden role="status"></div>
+
+ <p>Bid: <strong id="bid">—</strong></p>
+ <p>Ask: <strong id="ask">—</strong></p>
+ <p id="status">Comprobando conexión...</p>
+ <small>Actualizado: <strong id="updated">—</strong></small>
+</section>
+
+<div class="cl-long-short">
+ <button id="clLongInfo" type="button">▲ LONG</button>
+ <button id="clShortInfo" type="button">▼ SHORT</button>
 </div>
-<div id="clScreenScanner" class="cl-screen" data-cl-screen="scanner"><div class="cl-screen-title"><h1>📡 Escáner de mercado</h1><p>Señales LONG y SHORT y análisis multitemporal.</p></div><div id="clScannerHost"></div><section id="clTradePlansHost" class="cl-module"><h2>🎯 Planes LONG y SHORT</h2><div class="cl-trade-pair"><article class="cl-trade-card long"><h3>▲ LONG</h3><p>Entrada: <strong>Esperando análisis</strong></p><p>Stop: —</p><p>Objetivo: —</p></article><article class="cl-trade-card short"><h3>▼ SHORT</h3><p>Entrada: <strong>Esperando análisis</strong></p><p>Stop: —</p><p>Objetivo: —</p></article></div></section><section id="clQuickScalp" class="cl-module"><h2>⚡ Scalping rápido</h2><div id="clQuickScalpHost"><div class="cl-module-placeholder">Cargando scalping...</div></div></section><section id="signalsSection" class="signals-section"><h2>Monitor de señales <span id="engineState">INICIANDO</span></h2><div class="signal-grid"><article class="signal-card"><h3>BTC-USDT / 5m</h3><strong id="state5">Esperando datos</strong><p id="detail5">—</p><small id="metrics5">—</small></article><article class="signal-card"><h3>BTC-USDT / 15m</h3><strong id="state15">Esperando datos</strong><p id="detail15">—</p><small id="metrics15">—</small></article></div></section></div>
-<div id="clScreenResults" class="cl-screen" data-cl-screen="results"><div class="cl-screen-title"><h1>📊 Resultados y efectividad</h1><p>Historial y estadísticas de señales verificadas.</p></div><section id="clResultsStats" class="cl-module"><h2>Resumen de efectividad</h2><div class="cl-stats"><div class="cl-stat"><span>Señales</span><strong id="clTotalSignals">—</strong></div><div class="cl-stat"><span>Objetivos</span><strong id="clTargetsHit">—</strong></div><div class="cl-stat"><span>Stops</span><strong id="clStopsHit">—</strong></div><div class="cl-stat"><span>Efectividad</span><strong id="clWinRate">—</strong></div></div><p class="cl-results-note">Los resultados deben proceder de señales verificadas. No equivalen a operaciones ejecutadas.</p></section><section id="clScalpingResults" class="cl-module"><h2>⚡ Resultados de scalping</h2><div class="table-wrap"><table><thead><tr><th>Activo</th><th>Evaluadas</th><th>TP 50%</th><th>TP 100%</th><th>TP 200%</th><th>Stop</th><th>Aciertos</th></tr></thead><tbody id="clScalpingResultsBody"><tr><td colspan="7">Esperando resultados verificables...</td></tr></tbody></table></div></section><section id="historySection" class="history-section"><h2>Historial de señales</h2><div class="table-wrap"><table><thead><tr><th>Hora</th><th>TF</th><th>Activo</th><th>Señal</th><th>Precio</th><th>Motivo</th><th>Estado</th></tr></thead><tbody id="signalLog"><tr><td colspan="7">Sin señales registradas.</td></tr></tbody></table></div></section></div>
-<footer class="cl-notice">CRYPTOLEXUZ PRO · Análisis informativo. No ejecuta operaciones ni garantiza resultados.</footer>
+
+<p class="cl-notice">
+ Botones informativos. No ejecutan órdenes.
+</p>
+
+<section id="settingsSection" class="market-settings">
+ <h2>⚙ Ajustes de mercado</h2>
+ <div class="cl-extra-select">
+  <label>
+   Exchange
+   <select id="exchange">
+    <option value="bingx">BingX</option>
+    <option value="binance">Binance</option>
+    <option value="bybit">Bybit</option>
+    <option value="okx">OKX</option>
+   </select>
+  </label>
+  <label>
+   Mercado
+   <select id="market">
+    <option value="perpetual">Perpetuos</option>
+    <option value="spot">Spot</option>
+   </select>
+  </label>
+ </div>
+</section>
+
+</div>
+
+<!-- ========================= -->
+<!-- ESCÁNER -->
+<!-- ========================= -->
+
+<div id="clScreenScanner" class="cl-screen"
+data-cl-screen="scanner">
+
+ <div class="cl-screen-title">
+  <h1>📡 Escáner de mercado</h1>
+  <p>Señales LONG y SHORT y análisis multitemporal.</p>
+ </div>
+
+ <div id="clScannerHost"></div>
+
+ <section id="clTradePlansHost" class="cl-module">
+  <h2>🎯 Planes LONG y SHORT</h2>
+
+  <div class="cl-trade-pair">
+   <article class="cl-trade-card long">
+    <h3>▲ LONG</h3>
+    <p>Entrada: <strong>Esperando análisis</strong></p>
+    <p>Stop: —</p>
+    <p>Objetivo: —</p>
+   </article>
+
+   <article class="cl-trade-card short">
+    <h3>▼ SHORT</h3>
+    <p>Entrada: <strong>Esperando análisis</strong></p>
+    <p>Stop: —</p>
+    <p>Objetivo: —</p>
+   </article>
+  </div>
+ </section>
+
+ <section id="clQuickScalp" class="cl-module">
+  <h2>⚡ Scalping rápido</h2>
+  <div id="clQuickScalpHost">
+   <div class="cl-module-placeholder">Cargando scalping...</div>
+  </div>
+ </section>
+
+ <section id="signalsSection" class="signals-section">
+  <h2>
+   Monitor de señales
+   <span id="engineState">INICIANDO</span>
+  </h2>
+
+  <div class="signal-grid">
+   <article class="signal-card">
+    <h3>BTC-USDT / 5m</h3>
+    <strong id="state5">Esperando datos</strong>
+    <p id="detail5">—</p>
+    <small id="metrics5">—</small>
+   </article>
+
+   <article class="signal-card">
+    <h3>BTC-USDT / 15m</h3>
+    <strong id="state15">Esperando datos</strong>
+    <p id="detail15">—</p>
+    <small id="metrics15">—</small>
+   </article>
+  </div>
+ </section>
+
+</div>
+
+<!-- ========================= -->
+<!-- RESULTADOS -->
+<!-- ========================= -->
+
+<div id="clScreenResults" class="cl-screen"
+data-cl-screen="results">
+
+ <div class="cl-screen-title">
+  <h1>📊 Resultados y efectividad</h1>
+  <p>Historial y estadísticas de señales verificadas.</p>
+ </div>
+
+ <section id="clResultsStats" class="cl-module">
+  <h2>Resumen de efectividad</h2>
+
+  <div class="cl-stats">
+   <div class="cl-stat">
+    <span>Señales</span>
+    <strong id="clTotalSignals">—</strong>
+   </div>
+   <div class="cl-stat">
+    <span>Objetivos</span>
+    <strong id="clTargetsHit">—</strong>
+   </div>
+   <div class="cl-stat">
+    <span>Stops</span>
+    <strong id="clStopsHit">—</strong>
+   </div>
+   <div class="cl-stat">
+    <span>Efectividad</span>
+    <strong id="clWinRate">—</strong>
+   </div>
+  </div>
+
+  <p class="cl-results-note">
+   Los resultados deben proceder de señales verificadas.
+   No equivalen a operaciones ejecutadas.
+  </p>
+ </section>
+
+ <section id="clScalpingResults" class="cl-module">
+  <h2>⚡ Resultados de scalping</h2>
+  <div class="table-wrap">
+   <table>
+    <thead>
+     <tr>
+      <th>Activo</th>
+      <th>Evaluadas</th>
+      <th>TP 50%</th>
+      <th>TP 100%</th>
+      <th>TP 200%</th>
+      <th>Stop</th>
+      <th>Aciertos</th>
+     </tr>
+    </thead>
+    <tbody id="clScalpingResultsBody">
+     <tr>
+      <td colspan="7">Esperando resultados verificables...</td>
+     </tr>
+    </tbody>
+   </table>
+  </div>
+ </section>
+
+ <section id="historySection" class="history-section">
+  <h2>Historial de señales</h2>
+  <div class="table-wrap">
+   <table>
+    <thead>
+     <tr>
+      <th>Hora</th>
+      <th>TF</th>
+      <th>Activo</th>
+      <th>Señal</th>
+      <th>Precio</th>
+      <th>Motivo</th>
+      <th>Estado</th>
+     </tr>
+    </thead>
+    <tbody id="signalLog">
+     <tr>
+      <td colspan="7">Sin señales registradas.</td>
+     </tr>
+    </tbody>
+   </table>
+  </div>
+ </section>
+
+</div>
+
+<footer class="cl-notice">
+ CRYPTOLEXUZ PRO · Análisis informativo.
+ No ejecuta operaciones ni garantiza resultados.
+</footer>
+
 </main>
-<nav class="cl-bottom-nav" aria-label="Navegación principal"><button class="cl-nav-button active" type="button" data-cl-tab="markets" aria-pressed="true"><span class="cl-nav-icon">📋</span>Mercados</button><button class="cl-nav-button" type="button" data-cl-tab="charts" aria-pressed="false"><span class="cl-nav-icon">📈</span>Gráficas</button><button class="cl-nav-button" type="button" data-cl-tab="scanner" aria-pressed="false"><span class="cl-nav-icon">📡</span>Escáner</button><button class="cl-nav-button" type="button" data-cl-tab="results" aria-pressed="false"><span class="cl-nav-icon">📊</span>Resultados</button></nav>
-<div id="clSettingsOverlay" class="cl-settings-overlay" hidden><div class="cl-settings-sheet" role="dialog" aria-modal="true" aria-labelledby="clSettingsTitle" tabindex="-1"><div class="cl-settings-head"><button id="clSettingsBack" type="button" aria-label="Volver">‹</button><button id="clSettingsClose" type="button" aria-label="Cerrar ajustes">✕</button></div><div id="clSettingsContent"></div></div></div>
+
+<!-- NAVEGACIÓN INFERIOR -->
+
+<nav class="cl-bottom-nav" aria-label="Navegación principal">
+ <button class="cl-nav-button active" type="button"
+ data-cl-tab="markets" aria-pressed="true">
+  <span class="cl-nav-icon">📋</span>Mercados
+ </button>
+
+ <button class="cl-nav-button" type="button"
+ data-cl-tab="charts" aria-pressed="false">
+  <span class="cl-nav-icon">📈</span>Gráficas
+ </button>
+
+ <button class="cl-nav-button" type="button"
+ data-cl-tab="scanner" aria-pressed="false">
+  <span class="cl-nav-icon">📡</span>Escáner
+ </button>
+
+ <button class="cl-nav-button" type="button"
+ data-cl-tab="results" aria-pressed="false">
+  <span class="cl-nav-icon">📊</span>Resultados
+ </button>
+</nav>
+
+<!-- VENTANA DE CONFIGURACIÓN -->
+
+<div id="clSettingsOverlay" class="cl-settings-overlay" hidden>
+ <div class="cl-settings-sheet" role="dialog"
+ aria-modal="true" aria-labelledby="clSettingsTitle"
+ tabindex="-1">
+
+  <div class="cl-settings-head">
+   <button id="clSettingsBack" type="button" aria-label="Volver">‹</button>
+   <button id="clSettingsClose" type="button" aria-label="Cerrar ajustes">✕</button>
+  </div>
+
+  <div id="clSettingsContent"></div>
+ </div>
+</div>
+
 <script>
-(() => {
 "use strict";
-/* CRYPTOLEXUZ PRO — CONTROLADOR INDEX V30 */
-if(window.__CL_INDEX_V30__)return;
-window.__CL_INDEX_V30__=true;
+
+/*
+ CRYPTOLEXUZ PRO
+ INDEX CONTROLLER V32
+
+ - Navegación móvil
+ - Mercados y favoritos
+ - Temporalidades sincronizadas
+ - Ajustes de indicadores
+ - Paneles RSI / ADX / AO
+ - Compatibilidad con APP.JS V24
+ - Sin generación de filas duplicadas
+*/
+
+(() => {
+
+if(window.__CL_INDEX_V32__)return;
+window.__CL_INDEX_V32__=true;
+
 const $=id=>document.getElementById(id);
 const qa=s=>Array.from(document.querySelectorAll(s));
+
 const SETTINGS_KEY="cryptolexuz-chart-settings-v1";
+
 const assets=[
-{id:"BTC-USDT",name:"BTCUSDT",icon:"₿"},{id:"ETH-USDT",name:"ETHUSDT",icon:"Ξ"},
-{id:"BNB-USDT",name:"BNBUSDT",icon:"⬡"},{id:"SOL-USDT",name:"SOLUSDT",icon:"◎"},
-{id:"XRP-USDT",name:"XRPUSDT",icon:"✕"},{id:"DOGE-USDT",name:"DOGEUSDT",icon:"Ð"},
-{id:"NCCOGOLD2USD-USDT",name:"GOLD (XAU)",icon:"◆",commodity:true},
-{id:"NCCO1OILWTI2USD-USDT",name:"OIL WTI",icon:"◉",commodity:true}
+ {id:"BTC-USDT",name:"BTCUSDT",icon:"₿"},
+ {id:"ETH-USDT",name:"ETHUSDT",icon:"Ξ"},
+ {id:"BNB-USDT",name:"BNBUSDT",icon:"⬡"},
+ {id:"SOL-USDT",name:"SOLUSDT",icon:"◎"},
+ {id:"XRP-USDT",name:"XRPUSDT",icon:"✕"},
+ {id:"DOGE-USDT",name:"DOGEUSDT",icon:"Ð"},
+ {id:"NCCOGOLD2USD-USDT",name:"GOLD (XAU)",icon:"◆",commodity:true},
+ {id:"NCCO1OILWTI2USD-USDT",name:"OIL WTI",icon:"◉",commodity:true}
 ];
-let screen="markets",marketFilter="all",organizing=false,queued=false,chartResizeQueued=false;
+
+let screen="markets";
+let marketFilter="all";
+let organizing=false;
+let queued=false;
+let chartResizeQueued=false;
 let favorites=[];
-try{const f=JSON.parse(localStorage.getItem("cl-favorites")||"[]");if(Array.isArray(f))favorites=f.filter(x=>typeof x==="string");}catch{}
-function saveFavorites(){try{localStorage.setItem("cl-favorites",JSON.stringify(favorites));}catch{}}
-function refreshCharts(){if(chartResizeQueued)return;chartResizeQueued=true;requestAnimationFrame(()=>{chartResizeQueued=false;if(screen!=="charts"||$("clGraphContent")?.hidden)return;window.CryptolexuzChart?.resize?.();window.CryptolexuzRangeBoxes?.redraw?.();window.CryptolexuzFibonacci?.redraw?.();window.CryptolexuzVolumeProfile?.redraw?.();});}
-function setOpen(open){$("sidebar")?.classList.toggle("is-open",open);if($("menuBackdrop"))$("menuBackdrop").hidden=!open;$("menuToggle")?.setAttribute("aria-expanded",String(open));document.body.classList.toggle("menu-open",open);}
-function activateTab(tab,target){if(!["markets","charts","scanner","results"].includes(tab))return;const changed=screen!==tab;screen=tab;qa("[data-cl-screen]").forEach(e=>e.classList.toggle("cl-active",e.dataset.clScreen===tab));qa("[data-cl-tab]").forEach(e=>{const active=e.dataset.clTab===tab;e.classList.toggle("active",active);e.setAttribute("aria-pressed",String(active));});setOpen(false);requestAnimationFrame(()=>{if(target&&$(target))$(target).scrollIntoView({block:"start"});else window.scrollTo({top:0,behavior:"auto"});if(tab==="charts"&&changed)refreshCharts();});window.dispatchEvent(new CustomEvent("cryptolexuz:screen-change",{detail:{screen:tab}}));}
-window.CryptolexuzNavigation={activateTab,getScreen:()=>screen};
-$("menuToggle")?.addEventListener("click",()=>setOpen(!$("sidebar")?.classList.contains("is-open")));
+
+try{
+ const f=JSON.parse(localStorage.getItem("cl-favorites")||"[]");
+ if(Array.isArray(f)){
+  favorites=f.filter(x=>typeof x==="string");
+ }
+}catch{}
+
+function saveFavorites(){
+ try{
+  localStorage.setItem("cl-favorites",JSON.stringify(favorites));
+ }catch{}
+}
+
+function refreshCharts(){
+ if(chartResizeQueued)return;
+ chartResizeQueued=true;
+
+ requestAnimationFrame(()=>{
+  chartResizeQueued=false;
+
+  if(screen!=="charts"||$("clGraphContent")?.hidden)return;
+
+  window.CryptolexuzChart?.resize?.();
+  window.CryptolexuzRangeBoxes?.redraw?.();
+  window.CryptolexuzFibonacci?.redraw?.();
+  window.CryptolexuzVolumeProfile?.redraw?.();
+ });
+}
+
+function setOpen(open){
+ $("sidebar")?.classList.toggle("is-open",open);
+
+ if($("menuBackdrop")){
+  $("menuBackdrop").hidden=!open;
+ }
+
+ $("menuToggle")?.setAttribute("aria-expanded",String(open));
+
+ document.body.classList.toggle("menu-open",open);
+}
+
+function activateTab(tab,target){
+ if(!["markets","charts","scanner","results"].includes(tab))return;
+
+ const changed=screen!==tab;
+ screen=tab;
+
+ qa("[data-cl-screen]").forEach(e=>{
+  e.classList.toggle("cl-active",e.dataset.clScreen===tab);
+ });
+
+ qa("[data-cl-tab]").forEach(e=>{
+  const active=e.dataset.clTab===tab;
+  e.classList.toggle("active",active);
+  e.setAttribute("aria-pressed",String(active));
+ });
+
+ setOpen(false);
+
+ requestAnimationFrame(()=>{
+  if(target&&$(target)){
+   $(target).scrollIntoView({block:"start"});
+  }else{
+   window.scrollTo({top:0,behavior:"auto"});
+  }
+
+  if(tab==="charts"&&changed){
+   refreshCharts();
+  }
+ });
+
+ window.dispatchEvent(new CustomEvent(
+  "cryptolexuz:screen-change",
+  {detail:{screen:tab}}
+ ));
+}
+
+window.CryptolexuzNavigation={
+ activateTab,
+ getScreen:()=>screen
+};
+
+$("menuToggle")?.addEventListener("click",()=>{
+ setOpen(!$("sidebar")?.classList.contains("is-open"));
+});
+
 $("menuClose")?.addEventListener("click",()=>setOpen(false));
 $("menuBackdrop")?.addEventListener("click",()=>setOpen(false));
-qa("[data-cl-tab]").forEach(b=>b.addEventListener("click",()=>activateTab(b.dataset.clTab)));
-qa(".side-nav a").forEach(link=>link.addEventListener("click",e=>{e.preventDefault();const target=link.getAttribute("href")?.slice(1);if($(target)?.tagName==="DETAILS")$(target).open=true;activateTab(link.dataset.screen,target);}));
-function move(id,hostId){const e=$(id),h=$(hostId);if(e&&h&&e!==h&&!h.contains(e)&&!e.contains(h))h.appendChild(e);}
-function organizeModules(){if(organizing)return;organizing=true;try{move("clScanner","clScannerHost");move("fibToolbar","clFibonacciHost");move("fibPanel","clFibonacciHost");for(const id of ["clQuickScalpPanel","clQuickScalpSection","clScalpingRapido","clQuickScalpDashboard"]){if($(id)){move(id,"clQuickScalpHost");break;}}for(const id of ["rangeBoxesToolbar","rangeBoxesPanel","clRangeToolbar","clRangePanel","clRangeControls"])move(id,"clRangeBoxesControls");move("clPatternResults","clPatternsReadout");for(const id of ["clMarketTrend","clMarketVolumeProfile","clMarketDepth"])move(id,"clMercadoProHost");move("clAuditV4","clScreenResults");}finally{organizing=false;}}
-function scheduleOrganize(){if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;organizeModules();});}
-function selectAsset(asset){const symbol=$("symbol"),market=$("market"),exchange=$("exchange");if(!symbol)return;if(asset.commodity){if(exchange&&exchange.value!=="bingx"){exchange.value="bingx";exchange.dispatchEvent(new Event("change",{bubbles:true}));}if(market&&market.value!=="perpetual"){market.value="perpetual";market.dispatchEvent(new Event("change",{bubbles:true}));}}else if(market&&["spot","perpetual"].includes(marketFilter)&&market.value!==marketFilter){market.value=marketFilter;market.dispatchEvent(new Event("change",{bubbles:true}));}symbol.value=asset.id;symbol.dispatchEvent(new Event("change",{bubbles:true}));activateTab("charts");}
-function renderMarkets(){const host=$("clMarketList");if(!host)return;const term=($("clMarketSearch")?.value||"").trim().toLowerCase();const fragment=document.createDocumentFragment();let count=0;for(const asset of assets){if(!asset.name.toLowerCase().includes(term)&&!asset.id.toLowerCase().includes(term))continue;if(marketFilter==="favorites"&&!favorites.includes(asset.id))continue;if(marketFilter==="commodities"&&!asset.commodity)continue;if(["spot","perpetual"].includes(marketFilter)&&asset.commodity)continue;const row=document.createElement("div");row.className="cl-market-row";row.dataset.symbol=asset.id;const star=document.createElement("button");star.type="button";star.className="cl-favorite";const favorite=favorites.includes(asset.id);star.classList.toggle("is-favorite",favorite);star.textContent=favorite?"★":"☆";star.setAttribute("aria-label",(favorite?"Quitar de":"Agregar a")+" favoritos: "+asset.name);star.addEventListener("click",()=>{favorites=favorites.includes(asset.id)?favorites.filter(x=>x!==asset.id):[...favorites,asset.id];saveFavorites();renderMarkets();});const open=document.createElement("button");open.type="button";open.className="cl-market-open";open.setAttribute("aria-label","Abrir gráfica de "+asset.name);const name=document.createElement("span");name.className="cl-asset-name";const icon=document.createElement("span");icon.className="cl-asset-icon";icon.textContent=asset.icon;const label=document.createElement("span");label.className="cl-asset-label";const strong=document.createElement("strong");strong.textContent=asset.name;const small=document.createElement("small");small.textContent=asset.commodity?"Commodities · Futuros":marketFilter==="spot"?"Spot":marketFilter==="perpetual"?"Perpetuos":"Perpetuos / Spot";label.append(strong,small);name.append(icon,label);const price=document.createElement("span");price.className="cl-market-price";price.textContent="—";const change=document.createElement("span");change.className="cl-market-change";change.textContent="—%";open.append(name,price,change);open.addEventListener("click",()=>selectAsset(asset));row.append(star,open);fragment.appendChild(row);count++;}host.replaceChildren(fragment);if($("clMarketListStatus"))$("clMarketListStatus").textContent=count?"Consultando precios reales de mercado...":"No se encontraron activos.";window.dispatchEvent(new CustomEvent("cryptolexuz:markets-rendered",{detail:{filter:marketFilter,count}}));}
+
+qa("[data-cl-tab]").forEach(b=>{
+ b.addEventListener("click",()=>activateTab(b.dataset.clTab));
+});
+
+qa(".side-nav a").forEach(link=>{
+ link.addEventListener("click",e=>{
+  e.preventDefault();
+
+  const target=link.getAttribute("href")?.slice(1);
+
+  if($(target)?.tagName==="DETAILS"){
+   $(target).open=true;
+  }
+
+  activateTab(link.dataset.screen,target);
+ });
+});
+
+function move(id,hostId){
+ const e=$(id);
+ const h=$(hostId);
+
+ if(e&&h&&e!==h&&!h.contains(e)&&!e.contains(h)){
+  h.appendChild(e);
+ }
+}
+
+function organizeModules(){
+ if(organizing)return;
+
+ organizing=true;
+
+ try{
+  move("clScanner","clScannerHost");
+
+  move("fibToolbar","clFibonacciHost");
+  move("fibPanel","clFibonacciHost");
+
+  for(const id of [
+   "clQuickScalpPanel",
+   "clQuickScalpSection",
+   "clScalpingRapido",
+   "clQuickScalpDashboard"
+  ]){
+   if($(id)){
+    move(id,"clQuickScalpHost");
+    break;
+   }
+  }
+
+  for(const id of [
+   "rangeBoxesToolbar",
+   "rangeBoxesPanel",
+   "clRangeToolbar",
+   "clRangePanel",
+   "clRangeControls"
+  ]){
+   move(id,"clRangeBoxesControls");
+  }
+
+  move("clPatternResults","clPatternsReadout");
+
+  for(const id of [
+   "clMarketTrend",
+   "clMarketVolumeProfile",
+   "clMarketDepth"
+  ]){
+   move(id,"clMercadoProHost");
+  }
+
+  move("clAuditV4","clScreenResults");
+
+ }finally{
+  organizing=false;
+ }
+}
+
+function scheduleOrganize(){
+ if(queued)return;
+
+ queued=true;
+
+ requestAnimationFrame(()=>{
+  queued=false;
+  organizeModules();
+ });
+}
+
+function selectAsset(asset){
+ const symbol=$("symbol");
+ const market=$("market");
+ const exchange=$("exchange");
+
+ if(!symbol)return;
+
+ if(asset.commodity){
+  if(exchange&&exchange.value!=="bingx"){
+   exchange.value="bingx";
+   exchange.dispatchEvent(new Event("change",{bubbles:true}));
+  }
+
+  if(market&&market.value!=="perpetual"){
+   market.value="perpetual";
+   market.dispatchEvent(new Event("change",{bubbles:true}));
+  }
+
+ }else if(
+  market&&
+  ["spot","perpetual"].includes(marketFilter)&&
+  market.value!==marketFilter
+ ){
+  market.value=marketFilter;
+  market.dispatchEvent(new Event("change",{bubbles:true}));
+ }
+
+ symbol.value=asset.id;
+ symbol.dispatchEvent(new Event("change",{bubbles:true}));
+
+ activateTab("charts");
+}
+
+function renderMarkets(){
+ const host=$("clMarketList");
+ if(!host)return;
+
+ const term=($("clMarketSearch")?.value||"").trim().toLowerCase();
+ const fragment=document.createDocumentFragment();
+
+ let count=0;
+
+ for(const asset of assets){
+
+  if(
+   !asset.name.toLowerCase().includes(term)&&
+   !asset.id.toLowerCase().includes(term)
+  )continue;
+
+  if(marketFilter==="favorites"&&!favorites.includes(asset.id))continue;
+  if(marketFilter==="commodities"&&!asset.commodity)continue;
+
+  if(
+   ["spot","perpetual"].includes(marketFilter)&&
+   asset.commodity
+  )continue;
+
+  const row=document.createElement("div");
+  row.className="cl-market-row";
+  row.dataset.symbol=asset.id;
+
+  const star=document.createElement("button");
+  star.type="button";
+  star.className="cl-favorite";
+
+  const favorite=favorites.includes(asset.id);
+
+  star.classList.toggle("is-favorite",favorite);
+  star.textContent=favorite?"★":"☆";
+
+  star.setAttribute(
+   "aria-label",
+   (favorite?"Quitar de":"Agregar a")+" favoritos: "+asset.name
+  );
+
+  star.addEventListener("click",()=>{
+   favorites=favorites.includes(asset.id)
+    ?favorites.filter(x=>x!==asset.id)
+    :[...favorites,asset.id];
+
+   saveFavorites();
+   renderMarkets();
+  });
+
+  const open=document.createElement("button");
+  open.type="button";
+  open.className="cl-market-open";
+
+  open.setAttribute("aria-label","Abrir gráfica de "+asset.name);
+
+  const name=document.createElement("span");
+  name.className="cl-asset-name";
+
+  const icon=document.createElement("span");
+  icon.className="cl-asset-icon";
+  icon.textContent=asset.icon;
+
+  const label=document.createElement("span");
+  label.className="cl-asset-label";
+
+  const strong=document.createElement("strong");
+  strong.textContent=asset.name;
+
+  const small=document.createElement("small");
+
+  small.textContent=asset.commodity
+   ?"Commodities · Futuros"
+   :marketFilter==="spot"
+    ?"Spot"
+    :marketFilter==="perpetual"
+     ?"Perpetuos"
+     :"Perpetuos / Spot";
+
+  label.append(strong,small);
+  name.append(icon,label);
+
+  const price=document.createElement("span");
+  price.className="cl-market-price";
+  price.textContent="—";
+
+  const change=document.createElement("span");
+  change.className="cl-market-change";
+  change.textContent="—%";
+
+  open.append(name,price,change);
+  open.addEventListener("click",()=>selectAsset(asset));
+
+  row.append(star,open);
+  fragment.appendChild(row);
+
+  count++;
+ }
+
+ host.replaceChildren(fragment);
+
+ if($("clMarketListStatus")){
+  $("clMarketListStatus").textContent=count
+   ?"Consultando precios reales de mercado..."
+   :"No se encontraron activos.";
+ }
+
+ window.dispatchEvent(new CustomEvent(
+  "cryptolexuz:markets-rendered",
+  {detail:{filter:marketFilter,count}}
+ ));
+}
+
 $("clMarketSearch")?.addEventListener("input",renderMarkets);
-qa("[data-market-filter]").forEach(b=>b.addEventListener("click",()=>{marketFilter=b.dataset.marketFilter;qa("[data-market-filter]").forEach(x=>x.classList.toggle("active",x===b));renderMarkets();}));
-function syncTimeframes(){const interval=$("interval");if(!interval)return;qa("[data-tf]").forEach(b=>{const active=b.dataset.tf===interval.value;b.classList.toggle("active",active);b.setAttribute("aria-pressed",String(active));});}
+
+qa("[data-market-filter]").forEach(b=>{
+ b.addEventListener("click",()=>{
+  marketFilter=b.dataset.marketFilter;
+
+  qa("[data-market-filter]").forEach(x=>{
+   x.classList.toggle("active",x===b);
+  });
+
+  renderMarkets();
+ });
+});
+
+/* TEMPORALIDADES */
+
+function syncTimeframes(){
+ const interval=$("interval");
+ if(!interval)return;
+
+ qa("#clMainTimeframes [data-tf]").forEach(b=>{
+  const active=b.dataset.tf===interval.value;
+  b.classList.toggle("active",active);
+  b.setAttribute("aria-pressed",String(active));
+ });
+
+ if($("chartTitle")){
+  $("chartTitle").textContent=
+   ($("symbol")?.value||"BTC-USDT")+" · "+interval.value;
+ }
+}
+
+/*
+ APP.JS V24 gestiona los cambios del selector #interval.
+ Los botones visuales utilizan el selector como fuente de verdad.
+*/
+
 $("interval")?.addEventListener("change",syncTimeframes);
-qa("[data-chart-view]").forEach(b=>b.addEventListener("click",()=>{qa("[data-chart-view]").forEach(x=>x.classList.toggle("active",x===b));const v=b.dataset.chartView;$("clGraphContent").hidden=v!=="graph";$("clCoinContent").hidden=v!=="coin";$("clInfoContent").hidden=v!=="info";if(v==="graph")refreshCharts();}));
-qa("[data-book]").forEach(b=>b.addEventListener("click",()=>{const type=b.dataset.book;qa("[data-book]").forEach(x=>x.classList.toggle("active",x===b));if($("clBookView"))$("clBookView").hidden=type!=="book";if($("clBookAlternate")){$("clBookAlternate").hidden=type==="book";$("clBookAlternate").textContent=type==="trades"?"Trades: pendiente de integrar un flujo de operaciones ejecutadas.":type==="depth"?"Profundidad: consulta el libro de órdenes para ver los niveles disponibles.":"";}window.dispatchEvent(new CustomEvent("cryptolexuz:book-view",{detail:{view:type}}));}));
-for(const id of ["clLongInfo","clShortInfo"])$(id)?.addEventListener("click",()=>activateTab("scanner","clTradePlansHost"));
-const defaultMA=[{period:55,color:"#ff9a35",width:2,enabled:true},{period:100,color:"#ff476c",width:3,enabled:false},{period:200,color:"#36c5ff",width:2,enabled:false}];
-const defaultEMA=[{period:21,color:"#bb52ff",width:2,enabled:true}];
-const availableIndicators=new Set(["MA","EMA","VOL","RSI","ADX","AO","FVG","IFVG"]);
+
+qa("[data-chart-view]").forEach(b=>{
+ b.addEventListener("click",()=>{
+  qa("[data-chart-view]").forEach(x=>{
+   x.classList.toggle("active",x===b);
+  });
+
+  const v=b.dataset.chartView;
+
+  $("clGraphContent").hidden=v!=="graph";
+  $("clCoinContent").hidden=v!=="coin";
+  $("clInfoContent").hidden=v!=="info";
+
+  if(v==="graph")refreshCharts();
+ });
+});
+
+qa("[data-book]").forEach(b=>{
+ b.addEventListener("click",()=>{
+  const type=b.dataset.book;
+
+  qa("[data-book]").forEach(x=>{
+   x.classList.toggle("active",x===b);
+  });
+
+  if($("clBookView")){
+   $("clBookView").hidden=type!=="book";
+  }
+
+  if($("clBookAlternate")){
+   $("clBookAlternate").hidden=type==="book";
+
+   $("clBookAlternate").textContent=
+    type==="trades"
+     ?"Trades: pendiente de integrar un flujo de operaciones ejecutadas."
+     :type==="depth"
+      ?"Profundidad: consulta el libro de órdenes para ver los niveles disponibles."
+      :"";
+  }
+
+  window.dispatchEvent(new CustomEvent(
+   "cryptolexuz:book-view",
+   {detail:{view:type}}
+  ));
+ });
+});
+
+for(const id of ["clLongInfo","clShortInfo"]){
+ $(id)?.addEventListener("click",()=>{
+  activateTab("scanner","clTradePlansHost");
+ });
+}
+
+/* CONFIGURACIÓN */
+
+const defaultMA=[
+ {period:55,color:"#ff9a35",width:2,enabled:true},
+ {period:100,color:"#ff476c",width:3,enabled:false},
+ {period:200,color:"#36c5ff",width:2,enabled:false}
+];
+
+const defaultEMA=[
+ {period:21,color:"#bb52ff",width:2,enabled:true}
+];
+
+const availableIndicators=new Set([
+ "MA","EMA","VOL","RSI","ADX","AO","FVG","IFVG"
+]);
+
 const cloneLines=lines=>lines.map(x=>({...x}));
-function normalizeLines(lines,fallback){if(!Array.isArray(lines)||!lines.length)return cloneLines(fallback);return lines.slice(0,12).map(line=>({period:Math.max(1,Math.min(1000,Math.round(Number(line.period)||21))),color:/^#[0-9a-f]{6}$/i.test(line.color)?line.color:"#bb52ff",width:Math.max(1,Math.min(5,Number(line.width)||2)),enabled:line.enabled!==false}));}
-let prefs={maLines:cloneLines(defaultMA),emaLines:cloneLines(defaultEMA),height:360,options:{countdown:true,multiperiod:true,bidask:false},indicators:{MA:true,EMA:true,VOL:true,RSI:true,ADX:false,AO:false,FVG:true,IFVG:false}};
-try{const saved=JSON.parse(localStorage.getItem(SETTINGS_KEY)||"null");if(saved&&typeof saved==="object"&&!Array.isArray(saved)){const legacy=Array.isArray(saved.lines)?saved.lines:[];const ma=Array.isArray(saved.maLines)?saved.maLines:legacy.filter(x=>Number(x.period)!==21);const ema=Array.isArray(saved.emaLines)?saved.emaLines:legacy.filter(x=>Number(x.period)===21);prefs={...prefs,...saved,maLines:normalizeLines(ma,defaultMA),emaLines:normalizeLines(ema,defaultEMA),options:{...prefs.options,...(saved.options||{})},indicators:{...prefs.indicators,...(saved.indicators||{})}};}}catch(e){console.warn("Configuración anterior:",e);}
-function persist(){try{localStorage.setItem(SETTINGS_KEY,JSON.stringify(prefs));}catch(e){console.warn("Guardar ajustes:",e);}}
-function notify(){window.dispatchEvent(new CustomEvent("cryptolexuz:indicator-settings-change",{detail:{settings:prefs}}));}
-function syncIndicatorButtons(){const map={rsi:"RSI",adx:"ADX",ao:"AO",fvg:"FVG",ifvg:"IFVG",liquidity:"liquidity",sweeps:"sweeps",support:"support",resistance:"resistance"};qa("[data-indicator]").forEach(b=>{const id=b.dataset.indicator;let active;if(/^ma\d+$/.test(id))active=prefs.maLines.some(x=>Number(x.period)===Number(id.slice(2))&&x.enabled);else if(/^ema\d+$/.test(id))active=prefs.emaLines.some(x=>Number(x.period)===Number(id.slice(3))&&x.enabled);else{const key=map[id];if(!key||typeof prefs.indicators[key]!=="boolean")return;active=prefs.indicators[key];}b.classList.toggle("active",!!active);b.setAttribute("aria-pressed",String(!!active));});}
-function syncPanels(){for(const [name,id] of [["RSI","rsiSection"],["ADX","adxSection"],["AO","aoSection"]])if($(id))$(id).hidden=!Boolean(prefs.indicators[name]);const volume=$("volumeChart")?.closest(".volume-section");if(volume)volume.hidden=prefs.indicators.VOL===false;syncIndicatorButtons();refreshCharts();}
-/* El controlador de app.js es el único encargado de los clics [data-indicator] y [data-tf]. */
-const overlay=$("clSettingsOverlay"),content=$("clSettingsContent");let settingsPage="main",editName="MA",lastFocus=null;
-function el(tag,text){const e=document.createElement(tag);if(text!==undefined)e.textContent=String(text);return e;}
-function button(text,callback,cls="cl-settings-row"){const b=el("button",text);b.type="button";b.className=cls;b.addEventListener("click",callback);return b;}
-function checkbox(text,checked,callback){const label=el("label");label.className="cl-settings-check";const input=el("input");input.type="checkbox";input.checked=checked;input.addEventListener("change",()=>callback(input.checked));label.append(input,document.createTextNode(text));return label;}
-function openSettings(page="main"){if(!overlay||!content)return;if(overlay.hidden)lastFocus=document.activeElement;settingsPage=page;overlay.hidden=false;document.body.classList.add("cl-settings-open");content.replaceChildren();$("clSettingsBack").hidden=page==="main";if(page==="main")settingsMain();else if(page==="indicators")settingsIndicators();else if(page==="edit")settingsEdit();else settingsOther();const heading=content.querySelector("h2");if(heading)heading.id="clSettingsTitle";const sheet=overlay.querySelector(".cl-settings-sheet");if(sheet){sheet.scrollTop=0;sheet.focus({preventScroll:true});}}
-function closeSettings(){if(overlay)overlay.hidden=true;document.body.classList.remove("cl-settings-open");persist();notify();if(lastFocus&&typeof lastFocus.focus==="function")lastFocus.focus({preventScroll:true});lastFocus=null;}
-function settingsMain(){content.append(el("h2","Configuración del gráfico"));const grid=el("div");grid.className="cl-settings-grid";for(const [name,icon,page] of [["Indicadores","▧","indicators"],["Dibujo","✎","drawing"],["Interfaz","⚙","interface"],["Guía de velas","▣","guide"]]){const tile=button(name,()=>openSettings(page),"cl-settings-tile");tile.prepend(el("span",icon));grid.append(tile);}content.append(grid,el("h3","Visualización del gráfico"));for(const [name,key] of [["Cuenta regresiva","countdown"],["Cambios multiperíodo","multiperiod"],["Precios de compra y venta","bidask"]])content.append(checkbox(name,Boolean(prefs.options[key]),value=>{prefs.options[key]=value;persist();notify();}));content.append(el("h3","Altura de la gráfica"));const range=el("input");range.type="range";range.min="240";range.max="600";range.step="20";range.value=prefs.height;range.style.width="100%";const heightText=el("p",String(prefs.height)+" px");heightText.className="cl-settings-hint";range.addEventListener("input",()=>heightText.textContent=range.value+" px");range.addEventListener("change",()=>{prefs.height=Number(range.value);if($("chart"))$("chart").style.height=prefs.height+"px";persist();notify();refreshCharts();});content.append(range,heightText,button("Guardar",closeSettings,"cl-settings-save"));}
-function settingsIndicators(){content.append(el("h2","Indicadores"),el("h3","Principal"));for(const name of ["MA","EMA","BOLL","SAR","AVL","LSR","FVG","IFVG"])indicatorRow(name);content.append(el("h3","Subimagen"));for(const name of ["VOL","MACD","KDJ","RSI","WR","CCI","SKDJ","ADX","AO","Squeeze"])indicatorRow(name);content.append(el("p","Los indicadores no integrados aparecen como pendientes y no activan cálculos inexistentes."));}
-function indicatorRow(name){const available=availableIndicators.has(name),active=Boolean(prefs.indicators[name]);const row=button(name,()=>{editName=name;openSettings("edit");},"cl-settings-indicator");const label=el("span",name);label.className="cl-settings-indicator-name";const status=el("span",available?(active?"Activo ›":"Configurar ›"):"Pendiente");status.className="cl-settings-indicator-status";row.replaceChildren(label,status);row.classList.toggle("is-unavailable",!available);if(!available){row.disabled=true;row.title="Indicador pendiente de implementación";}content.append(row);}
-function settingsEdit(){content.append(el("h2",editName));if(editName==="MA"||editName==="EMA"){const isEMA=editName==="EMA",key=isEMA?"emaLines":"maLines",defaults=isEMA?defaultEMA:defaultMA,lines=prefs[key],grid=el("div");grid.className="cl-ma-grid";for(const title of ["Línea","Valor","Ancho","Color"])grid.append(el("small",title));lines.forEach((line,index)=>{const label=el("label",editName+(index+1));label.className="cl-ma-label";const enabled=el("input");enabled.type="checkbox";enabled.checked=Boolean(line.enabled);enabled.addEventListener("change",()=>{line.enabled=enabled.checked;persist();notify();});label.prepend(enabled);const period=el("input");period.type="number";period.min="1";period.max="1000";period.value=line.period;period.addEventListener("change",()=>{line.period=Math.max(1,Math.min(1000,Math.round(Number(period.value)||21)));period.value=line.period;persist();notify();});const width=el("select");for(const v of [1,2,3,4,5]){const o=el("option",v+" px");o.value=v;width.append(o);}width.value=String(line.width);width.addEventListener("change",()=>{line.width=Number(width.value);persist();notify();});const color=el("input");color.type="color";color.value=/^#[0-9a-f]{6}$/i.test(line.color)?line.color:"#bb52ff";color.addEventListener("change",()=>{line.color=color.value;persist();notify();});grid.append(label,period,width,color);});content.append(grid);const actions=el("div");actions.className="cl-settings-actions";actions.append(button("Restablecer",()=>{prefs[key]=cloneLines(defaults);persist();notify();openSettings("edit");}),button("Agregar",()=>{if(prefs[key].length>=12)return;prefs[key].push({period:isEMA?9:50,color:isEMA?"#bb52ff":"#479eff",width:2,enabled:true});persist();notify();openSettings("edit");}),button("Eliminar",()=>{if(prefs[key].length>1)prefs[key].pop();persist();notify();openSettings("edit");}));content.append(actions);const hint=el("p","Cada línea tiene período, grosor, color e interruptor independiente.");hint.className="cl-settings-hint";content.append(hint);}else if(availableIndicators.has(editName)){content.append(checkbox("Mostrar "+editName,Boolean(prefs.indicators[editName]),value=>{prefs.indicators[editName]=value;persist();notify();syncPanels();}));if(editName==="AO")content.append(el("p","AO: diferencia entre medias simples de cinco y treinta y cuatro períodos del precio medio."));}else{const warning=el("p","Este indicador todavía no está integrado.");warning.className="cl-settings-disabled-note";content.append(warning);}content.append(button("Guardar",closeSettings,"cl-settings-save"));}
-function settingsOther(){const names={drawing:"Herramientas de dibujo",interface:"Interfaz",guide:"Guía de velas japonesas"};content.append(el("h2",names[settingsPage]||"Configuración"));if(settingsPage==="drawing"){content.append(button("Fibonacci",()=>{closeSettings();if($("clFibonacciTools"))$("clFibonacciTools").open=true;activateTab("charts","clFibonacciTools");}),button("Cajas moradas",()=>{closeSettings();if($("clRangeBoxesTools"))$("clRangeBoxesTools").open=true;activateTab("charts","clRangeBoxesTools");}));}else content.append(el("p",settingsPage==="interface"?"La interfaz conserva el fondo oscuro y los colores de velas verde y rojo.":"Guía de velas japonesas pendiente de completar."));content.append(button("Volver",()=>openSettings("main"),"cl-settings-save"));}
-$("clChartSettings")?.addEventListener("click",()=>openSettings("main"));$("clSettingsClose")?.addEventListener("click",closeSettings);$("clSettingsBack")?.addEventListener("click",()=>openSettings(settingsPage==="edit"?"indicators":"main"));overlay?.addEventListener("click",e=>{if(e.target===overlay)closeSettings();});
-overlay?.addEventListener("keydown",event=>{if(event.key!=="Tab")return;const focusable=qa('#clSettingsOverlay button:not([disabled]):not([hidden]),#clSettingsOverlay input:not([disabled]):not([hidden]),#clSettingsOverlay select:not([disabled]):not([hidden])').filter(x=>x.getClientRects().length);if(!focusable.length)return;const first=focusable[0],last=focusable[focusable.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}});
-window.addEventListener("cryptolexuz:indicator-settings-change",event=>{const next=event.detail?.settings;if(next&&next!==prefs&&typeof next==="object"){prefs={...prefs,...next,maLines:normalizeLines(next.maLines,defaultMA),emaLines:normalizeLines(next.emaLines,defaultEMA),options:{...prefs.options,...(next.options||{})},indicators:{...prefs.indicators,...(next.indicators||{})}};}syncPanels();});
-function init(){if($("chart"))$("chart").style.height=Math.max(240,Math.min(600,Number(prefs.height)||360))+"px";renderMarkets();organizeModules();syncTimeframes();syncPanels();const observer=new MutationObserver(scheduleOrganize);observer.observe(document.body,{childList:true,subtree:true});window.addEventListener("load",()=>setTimeout(()=>{organizeModules();persist();notify();if(screen==="charts")refreshCharts();},500),{once:true});window.addEventListener("keydown",e=>{if(e.key==="Escape"){if(overlay&&!overlay.hidden)closeSettings();else setOpen(false);}});window.addEventListener("resize",refreshCharts);}
-if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
+
+function normalizeLines(lines,fallback){
+ if(!Array.isArray(lines)||!lines.length){
+  return cloneLines(fallback);
+ }
+
+ return lines.slice(0,12).map(line=>({
+  period:Math.max(
+   1,
+   Math.min(1000,Math.round(Number(line.period)||21))
+  ),
+  color:/^#[0-9a-f]{6}$/i.test(line.color)
+   ?line.color
+   :"#bb52ff",
+  width:Math.max(1,Math.min(5,Number(line.width)||2)),
+  enabled:line.enabled!==false
+ }));
+}
+
+let prefs={
+ maLines:cloneLines(defaultMA),
+ emaLines:cloneLines(defaultEMA),
+ height:360,
+ options:{
+  countdown:true,
+  multiperiod:true,
+  bidask:false
+ },
+ indicators:{
+  MA:true,
+  EMA:true,
+  VOL:true,
+  RSI:true,
+  ADX:false,
+  AO:false,
+  FVG:true,
+  IFVG:false
+ }
+};
+
+try{
+ const saved=JSON.parse(localStorage.getItem(SETTINGS_KEY)||"null");
+
+ if(saved&&typeof saved==="object"&&!Array.isArray(saved)){
+  const legacy=Array.isArray(saved.lines)?saved.lines:[];
+  const ma=Array.isArray(saved.maLines)
+   ?saved.maLines
+   :legacy.filter(x=>Number(x.period)!==21);
+
+  const ema=Array.isArray(saved.emaLines)
+   ?saved.emaLines
+   :legacy.filter(x=>Number(x.period)===21);
+
+  prefs={
+   ...prefs,
+   ...saved,
+   maLines:normalizeLines(ma,defaultMA),
+   emaLines:normalizeLines(ema,defaultEMA),
+   options:{...prefs.options,...(saved.options||{})},
+   indicators:{...prefs.indicators,...(saved.indicators||{})}
+  };
+ }
+}catch(e){
+ console.warn("Configuración anterior:",e);
+}
+
+function persist(){
+ try{
+  localStorage.setItem(SETTINGS_KEY,JSON.stringify(prefs));
+ }catch(e){
+  console.warn("Guardar ajustes:",e);
+ }
+}
+
+function notify(){
+ window.dispatchEvent(new CustomEvent(
+  "cryptolexuz:indicator-settings-change",
+  {detail:{settings:prefs}}
+ ));
+}
+
+function syncIndicatorButtons(){
+ const map={
+  rsi:"RSI",
+  adx:"ADX",
+  ao:"AO",
+  fvg:"FVG",
+  ifvg:"IFVG",
+  liquidity:"liquidity",
+  sweeps:"sweeps",
+  support:"support",
+  resistance:"resistance"
+ };
+
+ qa("#indicatorButtons [data-indicator]").forEach(b=>{
+  const id=b.dataset.indicator;
+  let active;
+
+  if(/^ma\d+$/.test(id)){
+   active=prefs.maLines.some(
+    x=>Number(x.period)===Number(id.slice(2))&&x.enabled
+   );
+  }else if(/^ema\d+$/.test(id)){
+   active=prefs.emaLines.some(
+    x=>Number(x.period)===Number(id.slice(3))&&x.enabled
+   );
+  }else{
+   const key=map[id];
+
+   if(!key||typeof prefs.indicators[key]!=="boolean"){
+    return;
+   }
+
+   active=prefs.indicators[key];
+  }
+
+  b.classList.toggle("active",!!active);
+  b.setAttribute("aria-pressed",String(!!active));
+ });
+}
+
+function syncPanels(){
+ for(const [name,id] of [
+  ["RSI","rsiSection"],
+  ["ADX","adxSection"],
+  ["AO","aoSection"]
+ ]){
+  if($(id)){
+   $(id).hidden=!Boolean(prefs.indicators[name]);
+  }
+ }
+
+ const volume=$("volumeChart")?.closest(".volume-section");
+
+ if(volume){
+  volume.hidden=prefs.indicators.VOL===false;
+ }
+
+ syncIndicatorButtons();
+ refreshCharts();
+}
+
+/* MODAL DE AJUSTES */
+
+const overlay=$("clSettingsOverlay");
+const content=$("clSettingsContent");
+
+let settingsPage="main";
+let editName="MA";
+let lastFocus=null;
+
+function el(tag,value){
+ const e=document.createElement(tag);
+
+ if(value!==undefined){
+  e.textContent=String(value);
+ }
+
+ return e;
+}
+
+function button(value,callback,cls="cl-settings-row"){
+ const b=el("button",value);
+ b.type="button";
+ b.className=cls;
+ b.addEventListener("click",callback);
+ return b;
+}
+
+function checkbox(value,checked,callback){
+ const label=el("label");
+ label.className="cl-settings-check";
+
+ const input=el("input");
+ input.type="checkbox";
+ input.checked=checked;
+
+ input.addEventListener("change",()=>{
+  callback(input.checked);
+ });
+
+ label.append(input,document.createTextNode(value));
+ return label;
+}
+
+function openSettings(page="main"){
+ if(!overlay||!content)return;
+
+ if(overlay.hidden){
+  lastFocus=document.activeElement;
+ }
+
+ settingsPage=page;
+ overlay.hidden=false;
+
+ document.body.classList.add("cl-settings-open");
+
+ content.replaceChildren();
+
+ $("clSettingsBack").hidden=page==="main";
+
+ if(page==="main"){
+  settingsMain();
+ }else if(page==="indicators"){
+  settingsIndicators();
+ }else if(page==="edit"){
+  settingsEdit();
+ }else{
+  settingsOther();
+ }
+
+ const heading=content.querySelector("h2");
+
+ if(heading){
+  heading.id="clSettingsTitle";
+ }
+
+ const sheet=overlay.querySelector(".cl-settings-sheet");
+
+ if(sheet){
+  sheet.scrollTop=0;
+  sheet.focus({preventScroll:true});
+ }
+}
+
+function closeSettings(){
+ if(overlay){
+  overlay.hidden=true;
+ }
+
+ document.body.classList.remove("cl-settings-open");
+
+ persist();
+ notify();
+
+ if(lastFocus&&typeof lastFocus.focus==="function"){
+  lastFocus.focus({preventScroll:true});
+ }
+
+ lastFocus=null;
+}
+
+function settingsMain(){
+ content.append(el("h2","Configuración del gráfico"));
+
+ const grid=el("div");
+ grid.className="cl-settings-grid";
+
+ for(const [name,icon,page] of [
+  ["Indicadores","▧","indicators"],
+  ["Dibujo","✎","drawing"],
+  ["Interfaz","⚙","interface"],
+  ["Guía de velas","▣","guide"]
+ ]){
+  const tile=button(
+   name,
+   ()=>openSettings(page),
+   "cl-settings-tile"
+  );
+
+  tile.prepend(el("span",icon));
+  grid.append(tile);
+ }
+
+ content.append(grid,el("h3","Visualización del gráfico"));
+
+ for(const [name,key] of [
+  ["Cuenta regresiva","countdown"],
+  ["Cambios multiperíodo","multiperiod"],
+  ["Precios de compra y venta","bidask"]
+ ]){
+  content.append(
+   checkbox(name,Boolean(prefs.options[key]),value=>{
+    prefs.options[key]=value;
+    persist();
+    notify();
+   })
+  );
+ }
+
+ content.append(el("h3","Altura de la gráfica"));
+
+ const range=el("input");
+ range.type="range";
+ range.min="240";
+ range.max="600";
+ range.step="20";
+ range.value=prefs.height;
+ range.style.width="100%";
+
+ const heightText=el("p",String(prefs.height)+" px");
+ heightText.className="cl-settings-hint";
+
+ range.addEventListener("input",()=>{
+  heightText.textContent=range.value+" px";
+ });
+
+ range.addEventListener("change",()=>{
+  prefs.height=Number(range.value);
+
+  if($("chart")){
+   $("chart").style.height=prefs.height+"px";
+  }
+
+  persist();
+  notify();
+  refreshCharts();
+ });
+
+ content.append(
+  range,
+  heightText,
+  button("Guardar",closeSettings,"cl-settings-save")
+ );
+}
+
+function settingsIndicators(){
+ content.append(
+  el("h2","Indicadores"),
+  el("h3","Principal")
+ );
+
+ for(const name of [
+  "MA","EMA","BOLL","SAR","AVL","LSR","FVG","IFVG"
+ ]){
+  indicatorRow(name);
+ }
+
+ content.append(el("h3","Subimagen"));
+
+ for(const name of [
+  "VOL","MACD","KDJ","RSI","WR","CCI",
+  "SKDJ","ADX","AO","Squeeze"
+ ]){
+  indicatorRow(name);
+ }
+
+ content.append(el(
+  "p",
+  "Los indicadores no integrados aparecen como pendientes y no activan cálculos inexistentes."
+ ));
+}
+
+function indicatorRow(name){
+ const available=availableIndicators.has(name);
+ const active=Boolean(prefs.indicators[name]);
+
+ const row=button(
+  name,
+  ()=>{
+   editName=name;
+   openSettings("edit");
+  },
+  "cl-settings-indicator"
+ );
+
+ const label=el("span",name);
+ label.className="cl-settings-indicator-name";
+
+ const status=el(
+  "span",
+  available
+   ?active?"Activo ›":"Configurar ›"
+   :"Pendiente"
+ );
+
+ status.className="cl-settings-indicator-status";
+
+ row.replaceChildren(label,status);
+ row.classList.toggle("is-unavailable",!available);
+
+ if(!available){
+  row.disabled=true;
+  row.title="Indicador pendiente de implementación";
+ }
+
+ content.append(row);
+}
+
+function settingsEdit(){
+ content.append(el("h2",editName));
+
+ if(editName==="MA"||editName==="EMA"){
+
+  const isEMA=editName==="EMA";
+  const key=isEMA?"emaLines":"maLines";
+  const defaults=isEMA?defaultEMA:defaultMA;
+  const lines=prefs[key];
+
+  const grid=el("div");
+  grid.className="cl-ma-grid";
+
+  for(const title of ["Línea","Valor","Ancho","Color"]){
+   grid.append(el("small",title));
+  }
+
+  lines.forEach((line,index)=>{
+   const label=el("label",editName+(index+1));
+   label.className="cl-ma-label";
+
+   const enabled=el("input");
+   enabled.type="checkbox";
+   enabled.checked=Boolean(line.enabled);
+
+   enabled.addEventListener("change",()=>{
+    line.enabled=enabled.checked;
+    persist();
+    notify();
+    syncPanels();
+   });
+
+   label.prepend(enabled);
+
+   const period=el("input");
+   period.type="number";
+   period.min="1";
+   period.max="1000";
+   period.value=line.period;
+
+   period.addEventListener("change",()=>{
+    line.period=Math.max(
+     1,
+     Math.min(1000,Math.round(Number(period.value)||21))
+    );
+
+    period.value=line.period;
+    persist();
+    notify();
+    syncPanels();
+   });
+
+   const width=el("select");
+
+   for(const v of [1,2,3,4,5]){
+    const o=el("option",v+" px");
+    o.value=v;
+    width.append(o);
+   }
+
+   width.value=String(line.width);
+
+   width.addEventListener("change",()=>{
+    line.width=Number(width.value);
+    persist();
+    notify();
+   });
+
+   const color=el("input");
+   color.type="color";
+
+   color.value=/^#[0-9a-f]{6}$/i.test(line.color)
+    ?line.color
+    :"#bb52ff";
+
+   color.addEventListener("change",()=>{
+    line.color=color.value;
+    persist();
+    notify();
+   });
+
+   grid.append(label,period,width,color);
+  });
+
+  content.append(grid);
+
+  const actions=el("div");
+  actions.className="cl-settings-actions";
+
+  actions.append(
+   button("Restablecer",()=>{
+    prefs[key]=cloneLines(defaults);
+    persist();
+    notify();
+    syncPanels();
+    openSettings("edit");
+   }),
+   button("Agregar",()=>{
+    if(prefs[key].length>=12)return;
+
+    prefs[key].push({
+     period:isEMA?9:50,
+     color:isEMA?"#bb52ff":"#479eff",
+     width:2,
+     enabled:true
+    });
+
+    persist();
+    notify();
+    syncPanels();
+    openSettings("edit");
+   }),
+   button("Eliminar",()=>{
+    if(prefs[key].length>1){
+     prefs[key].pop();
+    }
+
+    persist();
+    notify();
+    syncPanels();
+    openSettings("edit");
+   })
+  );
+
+  content.append(actions);
+
+  const hint=el(
+   "p",
+   "Cada línea tiene período, grosor, color e interruptor independiente."
+  );
+
+  hint.className="cl-settings-hint";
+  content.append(hint);
+
+ }else if(availableIndicators.has(editName)){
+
+  content.append(
+   checkbox(
+    "Mostrar "+editName,
+    Boolean(prefs.indicators[editName]),
+    value=>{
+     prefs.indicators[editName]=value;
+     persist();
+     notify();
+     syncPanels();
+    }
+   )
+  );
+
+  if(editName==="AO"){
+   content.append(el(
+    "p",
+    "AO: diferencia entre medias simples de cinco y treinta y cuatro períodos del precio medio."
+   ));
+  }
+
+ }else{
+  const warning=el(
+   "p",
+   "Este indicador todavía no está integrado."
+  );
+
+  warning.className="cl-settings-disabled-note";
+  content.append(warning);
+ }
+
+ content.append(
+  button("Guardar",closeSettings,"cl-settings-save")
+ );
+}
+
+function settingsOther(){
+ const names={
+  drawing:"Herramientas de dibujo",
+  interface:"Interfaz",
+  guide:"Guía de velas japonesas"
+ };
+
+ content.append(
+  el("h2",names[settingsPage]||"Configuración")
+ );
+
+ if(settingsPage==="drawing"){
+  content.append(
+   button("Fibonacci",()=>{
+    closeSettings();
+
+    if($("clFibonacciTools")){
+     $("clFibonacciTools").open=true;
+    }
+
+    activateTab("charts","clFibonacciTools");
+   }),
+   button("Cajas moradas",()=>{
+    closeSettings();
+
+    if($("clRangeBoxesTools")){
+     $("clRangeBoxesTools").open=true;
+    }
+
+    activateTab("charts","clRangeBoxesTools");
+   })
+  );
+ }else{
+  content.append(el(
+   "p",
+   settingsPage==="interface"
+    ?"La interfaz conserva el fondo oscuro y los colores de velas verde y rojo."
+    :"Guía de velas japonesas pendiente de completar."
+  ));
+ }
+
+ content.append(
+  button("Volver",()=>openSettings("main"),"cl-settings-save")
+ );
+}
+
+$("clChartSettings")?.addEventListener("click",()=>{
+ openSettings("main");
+});
+
+$("clSettingsClose")?.addEventListener("click",closeSettings);
+
+$("clSettingsBack")?.addEventListener("click",()=>{
+ openSettings(settingsPage==="edit"?"indicators":"main");
+});
+
+overlay?.addEventListener("click",e=>{
+ if(e.target===overlay){
+  closeSettings();
+ }
+});
+
+overlay?.addEventListener("keydown",event=>{
+ if(event.key!=="Tab")return;
+
+ const focusable=qa(
+  '#clSettingsOverlay button:not([disabled]):not([hidden]),'+
+  '#clSettingsOverlay input:not([disabled]):not([hidden]),'+
+  '#clSettingsOverlay select:not([disabled]):not([hidden])'
+ ).filter(x=>x.getClientRects().length);
+
+ if(!focusable.length)return;
+
+ const first=focusable[0];
+ const last=focusable[focusable.length-1];
+
+ if(event.shiftKey&&document.activeElement===first){
+  event.preventDefault();
+  last.focus();
+ }else if(!event.shiftKey&&document.activeElement===last){
+  event.preventDefault();
+  first.focus();
+ }
+});
+
+/* SINCRONIZACIÓN CON APP.JS */
+
+window.addEventListener(
+ "cryptolexuz:indicator-settings-change",
+ event=>{
+  const next=event.detail?.settings;
+
+  if(next&&next!==prefs&&typeof next==="object"){
+   prefs={
+    ...prefs,
+    ...next,
+    maLines:normalizeLines(next.maLines,defaultMA),
+    emaLines:normalizeLines(next.emaLines,defaultEMA),
+    options:{
+     ...prefs.options,
+     ...(next.options||{})
+    },
+    indicators:{
+     ...prefs.indicators,
+     ...(next.indicators||{})
+    }
+   };
+  }
+
+  syncPanels();
+ }
+);
+
+window.addEventListener(
+ "cryptolexuz:indicator-state-updated",
+ ()=>{
+  try{
+   const current=window.CryptolexuzIndicators?.getSettings?.();
+
+   if(current&&typeof current==="object"){
+    prefs={
+     ...prefs,
+     ...current,
+     maLines:normalizeLines(current.maLines,defaultMA),
+     emaLines:normalizeLines(current.emaLines,defaultEMA),
+     options:{
+      ...prefs.options,
+      ...(current.options||{})
+     },
+     indicators:{
+      ...prefs.indicators,
+      ...(current.indicators||{})
+     }
+    };
+   }
+  }catch(e){
+   console.warn("Sincronización de indicadores:",e);
+  }
+
+  syncPanels();
+ }
+);
+
+/* INICIO */
+
+function init(){
+
+ if($("chart")){
+  $("chart").style.height=
+   Math.max(240,Math.min(600,Number(prefs.height)||360))+"px";
+ }
+
+ renderMarkets();
+ organizeModules();
+ syncTimeframes();
+ syncPanels();
+
+ /*
+  Se observan únicamente nuevos nodos del DOM
+  para reorganizar los módulos sin eliminar sus controles.
+ */
+ const observer=new MutationObserver(scheduleOrganize);
+
+ observer.observe(document.body,{
+  childList:true,
+  subtree:true
+ });
+
+ window.addEventListener("load",()=>{
+  setTimeout(()=>{
+   organizeModules();
+   syncTimeframes();
+   syncPanels();
+
+   if(screen==="charts"){
+    refreshCharts();
+   }
+  },500);
+ },{once:true});
+
+ window.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){
+   if(overlay&&!overlay.hidden){
+    closeSettings();
+   }else{
+    setOpen(false);
+   }
+  }
+ });
+
+ window.addEventListener("resize",refreshCharts);
+}
+
+if(document.readyState==="loading"){
+ document.addEventListener("DOMContentLoaded",init,{once:true});
+}else{
+ init();
+}
+
 })();
 </script>
+
 </body>
 </html>
