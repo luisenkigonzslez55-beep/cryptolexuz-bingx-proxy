@@ -1,4 +1,5 @@
 
+
 <!doctype html>
 <html lang="es">
 <head>
@@ -8,18 +9,20 @@
 <meta name="description" content="CRYPTOLEXUZ PRO: mercados, gráficas, indicadores, escáner y resultados informativos.">
 <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
 
-<!-- CRYPTOLEXUZ PRO — INDEX V28 CORREGIDO -->
+<!-- CRYPTOLEXUZ PRO — INDEX.HTML V29 COMPLETO -->
 <link rel="stylesheet" href="styles.css?v=23">
 
 <style>
 [hidden]{display:none!important}
-.cl-screen{display:none}
+.cl-screen{display:none;min-width:0}
 .cl-screen.cl-active{display:block}
 #priceChartArea{position:relative;isolation:isolate}
 .cl-box-touch-layer[hidden]{display:none!important}
 .cl-screen-title{margin-bottom:14px}
 .cl-screen-title h1{margin-bottom:5px}
-.cl-tool-content,.cl-module,#clRangeBoxesHost,#clFibonacciHost{min-width:0}
+.cl-tool-content,.cl-module,
+#clRangeBoxesHost,#clFibonacciHost{min-width:0}
+
 .cl-timeframes,.cl-indicator-strip{
  display:flex;
  overflow-x:auto;
@@ -27,36 +30,85 @@
  -webkit-overflow-scrolling:touch;
  scrollbar-width:thin
 }
-.cl-timeframes button,.cl-indicator-strip button{flex-shrink:0}
-#clPatternResults{max-width:100%}
-.cl-module-placeholder{padding:12px;color:#aebcdd}
-.cl-results-note{color:#aebcdd;font-size:12px;line-height:1.6}
-.cl-market-row{display:flex;align-items:center;min-width:0}
-.cl-market-row .cl-favorite{
- flex-shrink:0;cursor:pointer;border:0;background:transparent;
- color:#aebcdd;font-size:18px;padding:8px
-}
-.cl-market-row .cl-favorite.is-favorite{color:#ffce52}
-.cl-market-row .cl-market-open{
- flex:1;min-width:0;display:grid;
- grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,.8fr);
- align-items:center;gap:8px;text-align:left;border:0;
- background:transparent;color:inherit;padding:10px 2px;cursor:pointer
-}
-.cl-market-row .cl-market-price{text-align:right;overflow-wrap:anywhere}
-.cl-market-row .cl-market-change{text-align:center}
-.cl-market-row .cl-asset-name,.cl-market-row .cl-asset-label{min-width:0}
-.cl-market-row .cl-asset-label strong{overflow-wrap:anywhere}
+.cl-timeframes button,
+.cl-indicator-strip button{flex-shrink:0}
 
-/* GRÁFICAS ESTABLES */
-#chart,#volumeChart,#rsiChart,#adxChart,#squeezeChart{
+#clPatternResults{max-width:100%}
+.cl-module-placeholder{
+ padding:12px;
+ color:#aebcdd
+}
+.cl-results-note{
+ color:#aebcdd;
+ font-size:12px;
+ line-height:1.6
+}
+
+/* MERCADOS */
+
+.cl-market-row{
+ display:flex;
+ align-items:center;
+ min-width:0
+}
+.cl-market-row .cl-favorite{
+ flex-shrink:0;
+ cursor:pointer;
+ border:0;
+ background:transparent;
+ color:#aebcdd;
+ font-size:18px;
+ padding:8px
+}
+.cl-market-row .cl-favorite.is-favorite{
+ color:#ffce52
+}
+.cl-market-row .cl-market-open{
+ flex:1;
+ min-width:0;
+ display:grid;
+ grid-template-columns:
+  minmax(0,1.4fr)
+  minmax(0,1fr)
+  minmax(0,.8fr);
+ align-items:center;
+ gap:8px;
+ text-align:left;
+ border:0;
+ background:transparent;
+ color:inherit;
+ padding:10px 2px;
+ cursor:pointer
+}
+.cl-market-row .cl-market-price{
+ text-align:right;
+ overflow-wrap:anywhere
+}
+.cl-market-row .cl-market-change{text-align:center}
+.cl-market-row .cl-asset-name,
+.cl-market-row .cl-asset-label{min-width:0}
+.cl-market-row .cl-asset-label strong{
+ overflow-wrap:anywhere
+}
+
+/* GRÁFICAS */
+
+#chart,
+#volumeChart,
+#rsiChart,
+#adxChart,
+#aoChart,
+#squeezeChart{
  position:relative;
  min-width:0;
+ width:100%;
  overflow:hidden
 }
 #chart{height:360px}
 #volumeChart{height:115px}
-#rsiChart,#adxChart{height:145px}
+#rsiChart,#adxChart,#aoChart,
+#squeezeChart{height:145px}
+
 #zonesCanvas{
  position:absolute;
  inset:0;
@@ -68,32 +120,52 @@
  cursor:pointer
 }
 
-/* CONFIGURACIÓN CENTRADA — V28 */
+#aoSection{
+ margin-top:14px;
+ padding:10px 0;
+ border-top:1px solid #292d3b
+}
+#aoInterpretation{
+ color:#9fa2b0;
+ font-size:11px;
+ line-height:1.6
+}
+
+.cl-indicator-strip button[aria-pressed="true"]{
+ background:#43205f;
+ border:1px solid #ba69ff;
+ border-radius:8px;
+ color:white;
+ font-weight:700
+}
+
+/* CONFIGURACIÓN CENTRADA */
+
 .cl-settings-overlay{
  position:fixed;
  inset:0;
- z-index:9999;
+ z-index:20000;
  background:rgba(0,0,0,.78);
  display:flex;
- align-items:center;
- justify-content:center;
- padding:14px;
+ align-items:center!important;
+ justify-content:center!important;
+ padding:14px!important;
  box-sizing:border-box;
  backdrop-filter:blur(5px);
  -webkit-backdrop-filter:blur(5px)
 }
 .cl-settings-sheet{
- width:min(100%,560px);
- max-height:min(88dvh,780px);
+ width:min(100%,560px)!important;
+ max-height:min(88dvh,780px)!important;
  overflow-y:auto;
  overscroll-behavior:contain;
- background:#121522;
+ background:#121522!important;
  color:#f2f4ff;
- border:1px solid #44405f;
- border-radius:18px;
- padding:18px;
+ border:1px solid #44405f!important;
+ border-radius:18px!important;
+ padding:18px!important;
  box-sizing:border-box;
- box-shadow:0 24px 75px rgba(0,0,0,.65);
+ box-shadow:0 24px 75px rgba(0,0,0,.65)!important;
  scrollbar-width:thin;
  scrollbar-color:#594a83 #121522
 }
@@ -104,16 +176,20 @@
  margin-bottom:12px
 }
 .cl-settings-head button{
+ width:auto;
+ height:auto;
  background:#252b3d;
  color:white;
  border:1px solid #3b4157;
  border-radius:9px;
  padding:9px 15px;
- cursor:pointer
+ cursor:pointer;
+ font-size:17px
 }
 .cl-settings-row{
  display:block;
  width:100%;
+ min-height:0;
  text-align:left;
  background:#1b2131;
  color:#f1f3ff;
@@ -124,9 +200,8 @@
  cursor:pointer
 }
 .cl-settings-row:active,
-.cl-settings-tile:active{
- background:#302748
-}
+.cl-settings-tile:active{background:#302748}
+
 .cl-settings-save{
  display:block;
  width:100%;
@@ -158,6 +233,7 @@
  cursor:pointer
 }
 .cl-settings-tile span{font-size:23px}
+
 .cl-settings-check{
  display:flex;
  align-items:center;
@@ -169,9 +245,14 @@
  width:17px;
  height:17px
 }
+
 .cl-ma-grid{
  display:grid;
- grid-template-columns:minmax(0,1.1fr) minmax(0,.8fr) minmax(0,.8fr) 46px;
+ grid-template-columns:
+  minmax(0,1.1fr)
+  minmax(0,.8fr)
+  minmax(0,.8fr)
+  46px;
  gap:8px;
  align-items:center
 }
@@ -200,6 +281,7 @@
  font-size:12px
 }
 .cl-ma-label input{accent-color:#a56cff}
+
 .cl-settings-actions{
  display:flex;
  flex-wrap:wrap;
@@ -225,19 +307,6 @@
  color:#e8d7ff;
  margin:4px 0 14px
 }
-.cl-settings-group-title{
- font-size:12px;
- font-weight:700;
- color:#b7a6e3;
- text-transform:uppercase;
- letter-spacing:.07em;
- margin:18px 0 8px
-}
-.cl-settings-divider{
- height:1px;
- background:#33384e;
- margin:15px 0
-}
 .cl-settings-indicator{
  display:flex;
  align-items:center;
@@ -253,19 +322,15 @@
  cursor:pointer;
  text-align:left
 }
-.cl-settings-indicator .cl-settings-indicator-name{
- font-weight:600
-}
-.cl-settings-indicator .cl-settings-indicator-status{
+.cl-settings-indicator-name{font-weight:600}
+.cl-settings-indicator-status{
  color:#b2a1e8;
  font-size:12px
 }
-.cl-settings-indicator.is-unavailable{
- opacity:.65
-}
-.cl-settings-indicator.is-unavailable .cl-settings-indicator-status{
- color:#aebcdd
-}
+.cl-settings-indicator.is-unavailable{opacity:.65}
+.cl-settings-indicator.is-unavailable
+.cl-settings-indicator-status{color:#aebcdd}
+
 .cl-settings-disabled-note{
  color:#c6b5e9;
  font-size:12px;
@@ -277,15 +342,17 @@
  font-family:inherit
 }
 body.cl-settings-open{overflow:hidden}
+
 @media(max-width:420px){
- .cl-settings-overlay{padding:10px}
+ .cl-settings-overlay{padding:10px!important}
  .cl-settings-sheet{
-  padding:14px;
-  max-height:90dvh;
-  border-radius:15px
+  padding:14px!important;
+  max-height:90dvh!important;
+  border-radius:15px!important
  }
  .cl-ma-grid{
-  grid-template-columns:minmax(0,1fr) 60px 62px 42px;
+  grid-template-columns:
+   minmax(0,1fr) 60px 62px 42px;
   gap:5px
  }
  .cl-ma-grid input[type=color]{width:38px}
@@ -303,8 +370,8 @@ body.cl-settings-open{overflow:hidden}
 <script defer src="patterns.js?v=2"></script>
 <script defer src="patterns-bridge.js?v=1"></script>
 
-<!-- MOTOR PRINCIPAL V22 -->
-<script defer src="app.js?v=22"></script>
+<!-- MOTOR PRINCIPAL V23 -->
+<script defer src="app.js?v=23"></script>
 
 <script defer src="liquidity.js?v=12"></script>
 <script defer src="trade-plans.js?v=4"></script>
@@ -318,25 +385,37 @@ body.cl-settings-open{overflow:hidden}
 <body>
 
 <header class="app-header">
-<button id="menuToggle" class="menu-toggle" type="button"
- aria-label="Abrir herramientas" aria-controls="sidebar"
+<button
+ id="menuToggle"
+ class="menu-toggle"
+ type="button"
+ aria-label="Abrir herramientas"
+ aria-controls="sidebar"
  aria-expanded="false">☰</button>
 
 <div class="brand">
-<img class="logo-3d"
+<img
+ class="logo-3d"
  src="file_00000000600881fb8ee48d81ba77b640.png"
  alt="CRYPTOLEXUZ PRO">
 </div>
 
-<span id="connection" class="connection" role="status">
-● Conectando...
-</span>
+<span
+ id="connection"
+ class="connection"
+ role="status">● Conectando...</span>
 </header>
 
+<!-- MENÚ LATERAL -->
+
 <aside id="sidebar" class="sidebar" aria-label="Herramientas">
+
 <div class="sidebar-head">
 <strong>Herramientas</strong>
-<button id="menuClose" type="button" aria-label="Cerrar menú">✕</button>
+<button
+ id="menuClose"
+ type="button"
+ aria-label="Cerrar menú">✕</button>
 </div>
 
 <nav class="side-nav">
@@ -353,6 +432,7 @@ body.cl-settings-open{overflow:hidden}
 </nav>
 
 <h3>Indicadores</h3>
+
 <div id="indicatorButtons" class="indicator-buttons">
 <button type="button" data-indicator="ema21" aria-pressed="true">EMA 21</button>
 <button type="button" data-indicator="ma55" aria-pressed="true">MA 55</button>
@@ -360,6 +440,7 @@ body.cl-settings-open{overflow:hidden}
 <button type="button" data-indicator="ma200" aria-pressed="false">MA 200</button>
 <button type="button" data-indicator="rsi" aria-pressed="true">RSI</button>
 <button type="button" data-indicator="adx" aria-pressed="false">ADX</button>
+<button type="button" data-indicator="ao" aria-pressed="false">AO</button>
 <button type="button" data-indicator="fvg" aria-pressed="true">FVG</button>
 <button type="button" data-indicator="ifvg" aria-pressed="false">IFVG</button>
 <button type="button" data-indicator="liquidity" aria-pressed="false">Liquidez</button>
@@ -369,6 +450,7 @@ body.cl-settings-open{overflow:hidden}
 </div>
 
 <h3>Patrones automáticos</h3>
+
 <div id="patternButtons" class="indicator-buttons">
 <button type="button" data-pattern="divergences" disabled>Divergencias RSI</button>
 <button type="button" data-pattern="squeeze" disabled>Squeeze</button>
@@ -394,15 +476,25 @@ body.cl-settings-open{overflow:hidden}
 Mostrar mapa
 <input id="liquidityMapToggle" type="checkbox" checked disabled>
 </label>
+
 </aside>
 
-<button id="menuBackdrop" class="menu-backdrop" type="button"
- aria-label="Cerrar menú" hidden></button>
+<button
+ id="menuBackdrop"
+ class="menu-backdrop"
+ type="button"
+ aria-label="Cerrar menú"
+ hidden></button>
 
 <main class="app-container">
 
-<!-- MERCADOS -->
-<div id="clScreenMarkets" class="cl-screen cl-active"
+<!-- =========================
+     MERCADOS
+========================= -->
+
+<div
+ id="clScreenMarkets"
+ class="cl-screen cl-active"
  data-cl-screen="markets">
 
 <div class="cl-screen-title">
@@ -410,7 +502,10 @@ Mostrar mapa
 <p>Activos, precios y variaciones del mercado.</p>
 </div>
 
-<input id="clMarketSearch" class="cl-search" type="search"
+<input
+ id="clMarketSearch"
+ class="cl-search"
+ type="search"
  placeholder="Buscar BTC, ETH, GOLD..."
  aria-label="Buscar activo">
 
@@ -430,13 +525,20 @@ Mostrar mapa
 
 <div id="clMarketList"></div>
 
-<p id="clMarketListStatus" class="cl-notice" role="status">
-Consultando precios de mercado...
-</p>
+<p
+ id="clMarketListStatus"
+ class="cl-notice"
+ role="status">Consultando precios de mercado...</p>
+
 </div>
 
-<!-- GRÁFICAS -->
-<div id="clScreenCharts" class="cl-screen"
+<!-- =========================
+     GRÁFICAS
+========================= -->
+
+<div
+ id="clScreenCharts"
+ class="cl-screen"
  data-cl-screen="charts">
 
 <section class="market-card">
@@ -503,8 +605,12 @@ Temporalidad
 <h2 id="chartTitle">BTC-USDT · 15m</h2>
 <small>VELAS · MEDIAS · VOLUMEN · INDICADORES</small>
 </div>
-<button id="clChartSettings" class="cl-chart-gear"
- type="button" aria-label="Ajustes del gráfico">⚙</button>
+
+<button
+ id="clChartSettings"
+ class="cl-chart-gear"
+ type="button"
+ aria-label="Ajustes del gráfico">⚙</button>
 </div>
 
 <div class="cl-chart-tabs">
@@ -514,6 +620,8 @@ Temporalidad
 </div>
 
 <div id="clGraphContent">
+
+<!-- TEMPORALIDADES -->
 
 <div class="cl-timeframes">
 <button class="cl-chip" type="button" data-tf="1m">1m</button>
@@ -546,14 +654,19 @@ Desliza las velas y utiliza dos dedos para el zoom.
 <canvas id="zonesCanvas" aria-hidden="true"></canvas>
 </div>
 
+<!-- VOLUMEN -->
+
 <div class="volume-section">
 <div class="volume-heading">
 <strong>Volumen</strong>
 <span id="volumeLabel">BTC</span>
 </div>
+
 <div id="volumeChart"></div>
 <p id="volumeInterpretation">Esperando volumen...</p>
 </div>
+
+<!-- BOTONES DE INDICADORES -->
 
 <div class="cl-indicator-strip">
 <button data-osc="MA" class="active" type="button">MA</button>
@@ -565,27 +678,51 @@ Desliza las velas y utiliza dos dedos para el zoom.
 <button data-osc="KDJ" type="button">KDJ</button>
 <button data-osc="RSI" type="button">RSI</button>
 <button data-osc="ADX" type="button">ADX</button>
+<button data-osc="AO" type="button">AO</button>
 <button data-osc="Squeeze" type="button">Squeeze</button>
 </div>
+
+<!-- RSI -->
 
 <div id="rsiSection" class="oscillator-section">
 <div class="oscillator-heading">
 <strong>RSI 14</strong>
 <span id="rsiChartValue">—</span>
 </div>
+
 <div id="rsiChart"></div>
 <p id="rsiInterpretation">Esperando RSI...</p>
-<button id="rsiSpeak" type="button" disabled>🔊 Escuchar RSI</button>
+
+<button id="rsiSpeak" type="button" disabled>
+🔊 Escuchar RSI
+</button>
 </div>
+
+<!-- ADX -->
 
 <div id="adxSection" class="oscillator-section" hidden>
 <div class="oscillator-heading">
 <strong>ADX 14 / +DI / −DI</strong>
 <span id="adxChartValue">—</span>
 </div>
+
 <div id="adxChart"></div>
 <p id="adxInterpretation">Esperando ADX...</p>
 </div>
+
+<!-- AWESOME OSCILLATOR -->
+
+<div id="aoSection" class="oscillator-section" hidden>
+<div class="oscillator-heading">
+<strong>Awesome Oscillator (AO)</strong>
+<span id="aoValue">—</span>
+</div>
+
+<div id="aoChart"></div>
+<p id="aoInterpretation">Esperando cálculo del AO...</p>
+</div>
+
+<!-- SQUEEZE -->
 
 <div id="squeezeSection" class="oscillator-section" hidden>
 <strong>Squeeze Momentum</strong>
@@ -594,6 +731,7 @@ Desliza las velas y utiliza dos dedos para el zoom.
 </div>
 
 <p id="message" role="status">Cargando datos...</p>
+
 </div>
 
 <div id="clCoinContent" hidden>
@@ -604,25 +742,34 @@ Desliza las velas y utiliza dos dedos para el zoom.
 <p>Información del mercado.</p>
 </div>
 
+<!-- FIBONACCI -->
+
 <details id="clFibonacciTools" class="cl-tool-panel">
 <summary>📐 Fibonacci</summary>
+
 <div id="clFibonacciHost" class="cl-tool-content">
 <div id="fibFallback">Cargando Fibonacci...</div>
 </div>
 </details>
 
+<!-- CAJAS MORADAS -->
+
 <details id="clRangeBoxesTools" class="cl-tool-panel" open>
 <summary>🟪 Cajas moradas</summary>
+
 <div id="clRangeBoxesHost" class="cl-tool-content">
 <p class="cl-notice">
 Cajas moradas ajustables. Activa el modo edición para moverlas
 o cambiar sus bordes.
 </p>
+
 <div id="clRangeBoxesControls"></div>
 </div>
 </details>
 
 </section>
+
+<!-- PATRONES -->
 
 <section id="clPatternsPanel" class="cl-module">
 <h2>🧩 Patrones detectados</h2>
@@ -631,31 +778,43 @@ o cambiar sus bordes.
 </div>
 </section>
 
+<!-- MERCADO PRO -->
+
 <section id="clMercadoProHost" class="cl-module">
 <h2>📊 Mercado PRO</h2>
 <div id="clMercadoProStatus">Cargando mercado...</div>
 </section>
 
+<!-- LIQUIDEZ -->
+
 <section id="liquiditySection" class="liquidity-card">
 <h2>🌡️ Mapa de liquidez</h2>
 <div id="liquidityMap">Conectando...</div>
+
 <p class="cl-notice">
 Profundidad de órdenes. No representa liquidaciones reales.
 </p>
 </section>
 
+<!-- RESUMEN DE INDICADORES -->
+
 <section class="indicator-summary">
 <h2>Indicadores técnicos</h2>
+
 <div class="indicator-values">
 <div><span>EMA 21</span><strong id="ema21Value">—</strong></div>
 <div><span>MA 55</span><strong id="ma55Value">—</strong></div>
 <div><span>RSI 14</span><strong id="rsiValue">—</strong></div>
 <div><span>ADX 14</span><strong id="adxValue">—</strong></div>
 </div>
+
 <p id="indicatorReadout">Esperando cálculos...</p>
 </section>
 
+<!-- LIBRO DE ÓRDENES -->
+
 <section id="orderbookSection" class="cl-module">
+
 <div class="cl-book-tabs">
 <button class="cl-chip active" type="button" data-book="book">Libro de órdenes</button>
 <button class="cl-chip" type="button" data-book="trades">Trades</button>
@@ -673,7 +832,10 @@ Profundidad de órdenes. No representa liquidaciones reales.
 <p>Bid: <strong id="bid">—</strong></p>
 <p>Ask: <strong id="ask">—</strong></p>
 <p id="status">Comprobando conexión...</p>
-<small>Actualizado: <strong id="updated">—</strong></small>
+
+<small>
+Actualizado: <strong id="updated">—</strong>
+</small>
 </section>
 
 <div class="cl-long-short">
@@ -681,13 +843,19 @@ Profundidad de órdenes. No representa liquidaciones reales.
 <button id="clShortInfo" type="button">▼ SHORT</button>
 </div>
 
-<p class="cl-notice">Botones informativos. No ejecutan órdenes.</p>
+<p class="cl-notice">
+Botones informativos. No ejecutan órdenes.
+</p>
+
+<!-- AJUSTES DE MERCADO -->
 
 <section id="settingsSection" class="market-settings">
 <h2>⚙ Ajustes de mercado</h2>
+
 <div class="cl-extra-select">
 
-<label>Exchange
+<label>
+Exchange
 <select id="exchange">
 <option value="bingx">BingX</option>
 <option value="binance">Binance</option>
@@ -696,7 +864,8 @@ Profundidad de órdenes. No representa liquidaciones reales.
 </select>
 </label>
 
-<label>Mercado
+<label>
+Mercado
 <select id="market">
 <option value="perpetual">Perpetuos</option>
 <option value="spot">Spot</option>
@@ -708,8 +877,13 @@ Profundidad de órdenes. No representa liquidaciones reales.
 
 </div>
 
-<!-- ESCÁNER -->
-<div id="clScreenScanner" class="cl-screen"
+<!-- =========================
+     ESCÁNER
+========================= -->
+
+<div
+ id="clScreenScanner"
+ class="cl-screen"
  data-cl-screen="scanner">
 
 <div class="cl-screen-title">
@@ -723,6 +897,7 @@ Profundidad de órdenes. No representa liquidaciones reales.
 <h2>🎯 Planes LONG y SHORT</h2>
 
 <div class="cl-trade-pair">
+
 <article class="cl-trade-card long">
 <h3>▲ LONG</h3>
 <p>Entrada: <strong>Esperando análisis</strong></p>
@@ -736,20 +911,28 @@ Profundidad de órdenes. No representa liquidaciones reales.
 <p>Stop: —</p>
 <p>Objetivo: —</p>
 </article>
+
 </div>
 </section>
 
 <section id="clQuickScalp" class="cl-module">
 <h2>⚡ Scalping rápido</h2>
+
 <div id="clQuickScalpHost">
-<div class="cl-module-placeholder">Cargando scalping...</div>
+<div class="cl-module-placeholder">
+Cargando scalping...
+</div>
 </div>
 </section>
 
 <section id="signalsSection" class="signals-section">
-<h2>Monitor de señales <span id="engineState">INICIANDO</span></h2>
+<h2>
+Monitor de señales
+<span id="engineState">INICIANDO</span>
+</h2>
 
 <div class="signal-grid">
+
 <article class="signal-card">
 <h3>BTC-USDT / 5m</h3>
 <strong id="state5">Esperando datos</strong>
@@ -763,13 +946,19 @@ Profundidad de órdenes. No representa liquidaciones reales.
 <p id="detail15">—</p>
 <small id="metrics15">—</small>
 </article>
+
 </div>
 </section>
 
 </div>
 
-<!-- RESULTADOS -->
-<div id="clScreenResults" class="cl-screen"
+<!-- =========================
+     RESULTADOS
+========================= -->
+
+<div
+ id="clScreenResults"
+ class="cl-screen"
  data-cl-screen="results">
 
 <div class="cl-screen-title">
@@ -782,16 +971,23 @@ Profundidad de órdenes. No representa liquidaciones reales.
 
 <div class="cl-stats">
 <div class="cl-stat">
-<span>Señales</span><strong id="clTotalSignals">—</strong>
+<span>Señales</span>
+<strong id="clTotalSignals">—</strong>
 </div>
+
 <div class="cl-stat">
-<span>Objetivos</span><strong id="clTargetsHit">—</strong>
+<span>Objetivos</span>
+<strong id="clTargetsHit">—</strong>
 </div>
+
 <div class="cl-stat">
-<span>Stops</span><strong id="clStopsHit">—</strong>
+<span>Stops</span>
+<strong id="clStopsHit">—</strong>
 </div>
+
 <div class="cl-stat">
-<span>Efectividad</span><strong id="clWinRate">—</strong>
+<span>Efectividad</span>
+<strong id="clWinRate">—</strong>
 </div>
 </div>
 
@@ -803,6 +999,7 @@ No equivalen a operaciones ejecutadas.
 
 <section id="clScalpingResults" class="cl-module">
 <h2>⚡ Resultados de scalping</h2>
+
 <div class="table-wrap">
 <table>
 <thead>
@@ -816,8 +1013,13 @@ No equivalen a operaciones ejecutadas.
 <th>Aciertos</th>
 </tr>
 </thead>
+
 <tbody id="clScalpingResultsBody">
-<tr><td colspan="7">Esperando resultados verificables...</td></tr>
+<tr>
+<td colspan="7">
+Esperando resultados verificables...
+</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -825,6 +1027,7 @@ No equivalen a operaciones ejecutadas.
 
 <section id="historySection" class="history-section">
 <h2>Historial de señales</h2>
+
 <div class="table-wrap">
 <table>
 <thead>
@@ -838,8 +1041,11 @@ No equivalen a operaciones ejecutadas.
 <th>Estado</th>
 </tr>
 </thead>
+
 <tbody id="signalLog">
-<tr><td colspan="7">Sin señales registradas.</td></tr>
+<tr>
+<td colspan="7">Sin señales registradas.</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -855,38 +1061,69 @@ No ejecuta operaciones ni garantiza resultados.
 </main>
 
 <!-- NAVEGACIÓN INFERIOR -->
+
 <nav class="cl-bottom-nav" aria-label="Navegación principal">
 
-<button class="cl-nav-button active" type="button"
- data-cl-tab="markets" aria-pressed="true">
-<span class="cl-nav-icon">📋</span>Mercados
+<button
+ class="cl-nav-button active"
+ type="button"
+ data-cl-tab="markets"
+ aria-pressed="true">
+<span class="cl-nav-icon">📋</span>
+Mercados
 </button>
 
-<button class="cl-nav-button" type="button"
- data-cl-tab="charts" aria-pressed="false">
-<span class="cl-nav-icon">📈</span>Gráficas
+<button
+ class="cl-nav-button"
+ type="button"
+ data-cl-tab="charts"
+ aria-pressed="false">
+<span class="cl-nav-icon">📈</span>
+Gráficas
 </button>
 
-<button class="cl-nav-button" type="button"
- data-cl-tab="scanner" aria-pressed="false">
-<span class="cl-nav-icon">📡</span>Escáner
+<button
+ class="cl-nav-button"
+ type="button"
+ data-cl-tab="scanner"
+ aria-pressed="false">
+<span class="cl-nav-icon">📡</span>
+Escáner
 </button>
 
-<button class="cl-nav-button" type="button"
- data-cl-tab="results" aria-pressed="false">
-<span class="cl-nav-icon">📊</span>Resultados
+<button
+ class="cl-nav-button"
+ type="button"
+ data-cl-tab="results"
+ aria-pressed="false">
+<span class="cl-nav-icon">📊</span>
+Resultados
 </button>
 
 </nav>
 
-<!-- AJUSTES CENTRADOS -->
+<!-- AJUSTES DEL GRÁFICO -->
+
 <div id="clSettingsOverlay" class="cl-settings-overlay" hidden>
-<div class="cl-settings-sheet" role="dialog" aria-modal="true"
- aria-labelledby="clSettingsTitle" tabindex="-1">
+<div
+ class="cl-settings-sheet"
+ role="dialog"
+ aria-modal="true"
+ aria-labelledby="clSettingsTitle"
+ tabindex="-1">
+
 <div class="cl-settings-head">
-<button id="clSettingsBack" type="button" aria-label="Volver">‹</button>
-<button id="clSettingsClose" type="button" aria-label="Cerrar ajustes">✕</button>
+<button
+ id="clSettingsBack"
+ type="button"
+ aria-label="Volver">‹</button>
+
+<button
+ id="clSettingsClose"
+ type="button"
+ aria-label="Cerrar ajustes">✕</button>
 </div>
+
 <div id="clSettingsContent"></div>
 </div>
 </div>
@@ -895,11 +1132,29 @@ No ejecuta operaciones ni garantiza resultados.
 (() => {
 "use strict";
 
-if(window.__CL_INDEX_V28__)return;
-window.__CL_INDEX_V28__=true;
+/*
+ CRYPTOLEXUZ PRO — CONTROLADOR INDEX V29
+
+ Responsabilidades:
+ - Navegación de cuatro pantallas
+ - Menú lateral
+ - Mercado y favoritos
+ - Sincronización visual de temporalidades
+ - Panel de ajustes
+ - Configuración MA / EMA
+ - Preparación del Awesome Oscillator
+ - Organización de módulos existentes
+
+ Los cálculos financieros corresponden a app.js.
+*/
+
+if(window.__CL_INDEX_V29__)return;
+window.__CL_INDEX_V29__=true;
 
 const $=id=>document.getElementById(id);
-const qa=selector=>Array.from(document.querySelectorAll(selector));
+const qa=selector=>Array.from(
+ document.querySelectorAll(selector)
+);
 
 let screen="markets";
 let organizing=false;
@@ -913,33 +1168,59 @@ const assets=[
  {id:"SOL-USDT",name:"SOLUSDT",icon:"◎"},
  {id:"XRP-USDT",name:"XRPUSDT",icon:"✕"},
  {id:"DOGE-USDT",name:"DOGEUSDT",icon:"Ð"},
- {id:"NCCOGOLD2USD-USDT",name:"GOLD (XAU)",icon:"◆",commodity:true},
- {id:"NCCO1OILWTI2USD-USDT",name:"OIL WTI",icon:"◉",commodity:true}
+ {
+  id:"NCCOGOLD2USD-USDT",
+  name:"GOLD (XAU)",
+  icon:"◆",
+  commodity:true
+ },
+ {
+  id:"NCCO1OILWTI2USD-USDT",
+  name:"OIL WTI",
+  icon:"◉",
+  commodity:true
+ }
 ];
 
 let favorites=[];
+
 try{
- const saved=JSON.parse(localStorage.getItem("cl-favorites")||"[]");
- favorites=Array.isArray(saved)?saved.filter(x=>typeof x==="string"):[];
+ const saved=JSON.parse(
+  localStorage.getItem("cl-favorites")||"[]"
+ );
+
+ favorites=Array.isArray(saved)
+  ?saved.filter(x=>typeof x==="string")
+  :[];
 }catch{}
+
+/* FAVORITOS */
 
 function saveFavorites(){
  try{
-  localStorage.setItem("cl-favorites",JSON.stringify(favorites));
+  localStorage.setItem(
+   "cl-favorites",
+   JSON.stringify(favorites)
+  );
  }catch{}
 }
 
-/* REDIMENSIONAMIENTO CONTROLADO */
+/* REDIMENSIONAMIENTO */
+
 let chartResizeQueued=false;
 
 function refreshCharts(){
  if(chartResizeQueued)return;
+
  chartResizeQueued=true;
 
  requestAnimationFrame(()=>{
   chartResizeQueued=false;
 
-  if(screen!=="charts"||$("clGraphContent")?.hidden)return;
+  if(
+   screen!=="charts"||
+   $("clGraphContent")?.hidden
+  )return;
 
   window.CryptolexuzChart?.resize?.();
   window.CryptolexuzRangeBoxes?.redraw?.();
@@ -948,46 +1229,84 @@ function refreshCharts(){
  });
 }
 
+/* MENÚ LATERAL */
+
 function setOpen(open){
- $("sidebar")?.classList.toggle("is-open",open);
+ $("sidebar")?.classList.toggle(
+  "is-open",open
+ );
+
  const backdrop=$("menuBackdrop");
  if(backdrop)backdrop.hidden=!open;
- $("menuToggle")?.setAttribute("aria-expanded",String(open));
- document.body.classList.toggle("menu-open",open);
+
+ $("menuToggle")?.setAttribute(
+  "aria-expanded",
+  String(open)
+ );
+
+ document.body.classList.toggle(
+  "menu-open",open
+ );
 }
 
+/* NAVEGACIÓN */
+
 function activateTab(tab,target){
- if(!["markets","charts","scanner","results"].includes(tab))return;
+ if(![
+  "markets",
+  "charts",
+  "scanner",
+  "results"
+ ].includes(tab))return;
 
  const changed=screen!==tab;
  screen=tab;
 
  qa("[data-cl-screen]").forEach(element=>{
-  element.classList.toggle("cl-active",element.dataset.clScreen===tab);
+  element.classList.toggle(
+   "cl-active",
+   element.dataset.clScreen===tab
+  );
  });
 
  qa("[data-cl-tab]").forEach(element=>{
   const active=element.dataset.clTab===tab;
-  element.classList.toggle("active",active);
-  element.setAttribute("aria-pressed",String(active));
+
+  element.classList.toggle(
+   "active",active
+  );
+
+  element.setAttribute(
+   "aria-pressed",
+   String(active)
+  );
  });
 
  setOpen(false);
 
  requestAnimationFrame(()=>{
   if(target&&$(target)){
-   $(target).scrollIntoView({block:"start"});
+   $(target).scrollIntoView({
+    block:"start"
+   });
   }else{
-   window.scrollTo({top:0,behavior:"auto"});
+   window.scrollTo({
+    top:0,
+    behavior:"auto"
+   });
   }
 
-  if(tab==="charts"&&changed)refreshCharts();
+  if(tab==="charts"&&changed){
+   refreshCharts();
+  }
  });
 
- window.dispatchEvent(new CustomEvent(
-  "cryptolexuz:screen-change",
-  {detail:{screen:tab}}
- ));
+ window.dispatchEvent(
+  new CustomEvent(
+   "cryptolexuz:screen-change",
+   {detail:{screen:tab}}
+  )
+ );
 }
 
 window.CryptolexuzNavigation={
@@ -995,38 +1314,76 @@ window.CryptolexuzNavigation={
  getScreen:()=>screen
 };
 
-$("menuToggle")?.addEventListener("click",()=>{
- setOpen(!$("sidebar")?.classList.contains("is-open"));
-});
-$("menuClose")?.addEventListener("click",()=>setOpen(false));
-$("menuBackdrop")?.addEventListener("click",()=>setOpen(false));
+$("menuToggle")?.addEventListener(
+ "click",
+ ()=>{
+  setOpen(
+   !$("sidebar")?.classList.contains(
+    "is-open"
+   )
+  );
+ }
+);
+
+$("menuClose")?.addEventListener(
+ "click",
+ ()=>setOpen(false)
+);
+
+$("menuBackdrop")?.addEventListener(
+ "click",
+ ()=>setOpen(false)
+);
 
 qa("[data-cl-tab]").forEach(button=>{
- button.addEventListener("click",()=>activateTab(button.dataset.clTab));
+ button.addEventListener("click",()=>{
+  activateTab(button.dataset.clTab);
+ });
 });
 
 qa(".side-nav a").forEach(link=>{
  link.addEventListener("click",event=>{
   event.preventDefault();
-  const target=link.getAttribute("href")?.slice(1);
-  if($(target)?.tagName==="DETAILS")$(target).open=true;
-  activateTab(link.dataset.screen,target);
+
+  const target=link
+   .getAttribute("href")
+   ?.slice(1);
+
+  if($(target)?.tagName==="DETAILS"){
+   $(target).open=true;
+  }
+
+  activateTab(
+   link.dataset.screen,
+   target
+  );
  });
 });
 
+/* ORGANIZAR MÓDULOS */
+
 function move(id,hostId){
- const element=$(id),host=$(hostId);
- if(element&&host&&element!==host&&
-    !host.contains(element)&&!element.contains(host)){
+ const element=$(id);
+ const host=$(hostId);
+
+ if(
+  element&&host&&
+  element!==host&&
+  !host.contains(element)&&
+  !element.contains(host)
+ ){
   host.appendChild(element);
  }
 }
 
 function organizeModules(){
  if(organizing)return;
+
  organizing=true;
+
  try{
   move("clScanner","clScannerHost");
+
   move("fibToolbar","clFibonacciHost");
   move("fibPanel","clFibonacciHost");
 
@@ -1048,17 +1405,25 @@ function organizeModules(){
    "clRangeToolbar",
    "clRangePanel",
    "clRangeControls"
-  ])move(id,"clRangeBoxesControls");
+  ]){
+   move(id,"clRangeBoxesControls");
+  }
 
-  move("clPatternResults","clPatternsReadout");
+  move(
+   "clPatternResults",
+   "clPatternsReadout"
+  );
 
   for(const id of [
    "clMarketTrend",
    "clMarketVolumeProfile",
    "clMarketDepth"
-  ])move(id,"clMercadoProHost");
+  ]){
+   move(id,"clMercadoProHost");
+  }
 
   move("clAuditV4","clScreenResults");
+
  }finally{
   organizing=false;
  }
@@ -1066,51 +1431,99 @@ function organizeModules(){
 
 function scheduleOrganize(){
  if(queued)return;
+
  queued=true;
+
  requestAnimationFrame(()=>{
   queued=false;
   organizeModules();
  });
 }
 
+/* SELECCIÓN DE ACTIVO */
+
 function selectAsset(asset){
- const symbol=$("symbol"),market=$("market"),exchange=$("exchange");
+ const symbol=$("symbol");
+ const market=$("market");
+ const exchange=$("exchange");
+
  if(!symbol)return;
 
  if(asset.commodity){
   if(exchange&&exchange.value!=="bingx"){
    exchange.value="bingx";
-   exchange.dispatchEvent(new Event("change",{bubbles:true}));
+
+   exchange.dispatchEvent(
+    new Event("change",{bubbles:true})
+   );
   }
-  if(market&&market.value!=="perpetual"){
+
+  if(
+   market&&
+   market.value!=="perpetual"
+  ){
    market.value="perpetual";
-   market.dispatchEvent(new Event("change",{bubbles:true}));
+
+   market.dispatchEvent(
+    new Event("change",{bubbles:true})
+   );
   }
- }else if(market&&["spot","perpetual"].includes(marketFilter)&&
-          market.value!==marketFilter){
+
+ }else if(
+  market&&
+  ["spot","perpetual"].includes(marketFilter)&&
+  market.value!==marketFilter
+ ){
   market.value=marketFilter;
-  market.dispatchEvent(new Event("change",{bubbles:true}));
+
+  market.dispatchEvent(
+   new Event("change",{bubbles:true})
+  );
  }
 
  symbol.value=asset.id;
- symbol.dispatchEvent(new Event("change",{bubbles:true}));
+
+ symbol.dispatchEvent(
+  new Event("change",{bubbles:true})
+ );
+
  activateTab("charts");
 }
+
+/* RENDERIZADO DE MERCADOS */
 
 function renderMarkets(){
  const host=$("clMarketList");
  if(!host)return;
 
- const term=($("clMarketSearch")?.value||"").trim().toLowerCase();
+ const term=(
+  $("clMarketSearch")?.value||""
+ ).trim().toLowerCase();
+
  const fragment=document.createDocumentFragment();
  let count=0;
 
  for(const asset of assets){
-  if(!asset.name.toLowerCase().includes(term)&&
-     !asset.id.toLowerCase().includes(term))continue;
-  if(marketFilter==="favorites"&&!favorites.includes(asset.id))continue;
-  if(marketFilter==="commodities"&&!asset.commodity)continue;
-  if(["spot","perpetual"].includes(marketFilter)&&asset.commodity)continue;
+
+  if(
+   !asset.name.toLowerCase().includes(term)&&
+   !asset.id.toLowerCase().includes(term)
+  )continue;
+
+  if(
+   marketFilter==="favorites"&&
+   !favorites.includes(asset.id)
+  )continue;
+
+  if(
+   marketFilter==="commodities"&&
+   !asset.commodity
+  )continue;
+
+  if(
+   ["spot","perpetual"].includes(marketFilter)&&
+   asset.commodity
+  )continue;
 
   const row=document.createElement("div");
   row.className="cl-market-row";
@@ -1119,16 +1532,27 @@ function renderMarkets(){
   const star=document.createElement("button");
   star.type="button";
   star.className="cl-favorite";
-  star.classList.toggle("is-favorite",favorites.includes(asset.id));
-  star.textContent=favorites.includes(asset.id)?"★":"☆";
-  star.setAttribute("aria-label",
-   (favorites.includes(asset.id)?"Quitar de":"Agregar a")+
+
+  const isFavorite=favorites.includes(asset.id);
+
+  star.classList.toggle(
+   "is-favorite",
+   isFavorite
+  );
+
+  star.textContent=isFavorite?"★":"☆";
+
+  star.setAttribute(
+   "aria-label",
+   (isFavorite?"Quitar de":"Agregar a")+
    " favoritos: "+asset.name
   );
+
   star.addEventListener("click",()=>{
    favorites=favorites.includes(asset.id)
     ?favorites.filter(x=>x!==asset.id)
     :[...favorites,asset.id];
+
    saveFavorites();
    renderMarkets();
   });
@@ -1136,34 +1560,52 @@ function renderMarkets(){
   const open=document.createElement("button");
   open.type="button";
   open.className="cl-market-open";
-  open.setAttribute("aria-label","Abrir gráfica de "+asset.name);
+
+  open.setAttribute(
+   "aria-label",
+   "Abrir gráfica de "+asset.name
+  );
 
   const name=document.createElement("span");
   name.className="cl-asset-name";
+
   const icon=document.createElement("span");
   icon.className="cl-asset-icon";
   icon.textContent=asset.icon;
+
   const label=document.createElement("span");
   label.className="cl-asset-label";
+
   const strong=document.createElement("strong");
   strong.textContent=asset.name;
+
   const small=document.createElement("small");
-  small.textContent=asset.commodity?"Commodities · Futuros"
-   :marketFilter==="spot"?"Spot"
-   :marketFilter==="perpetual"?"Perpetuos"
-   :"Perpetuos / Spot";
+
+  small.textContent=asset.commodity
+   ?"Commodities · Futuros"
+   :marketFilter==="spot"
+    ?"Spot"
+    :marketFilter==="perpetual"
+     ?"Perpetuos"
+     :"Perpetuos / Spot";
+
   label.append(strong,small);
   name.append(icon,label);
 
   const price=document.createElement("span");
   price.className="cl-market-price";
   price.textContent="—";
+
   const change=document.createElement("span");
   change.className="cl-market-change";
   change.textContent="—%";
 
   open.append(name,price,change);
-  open.addEventListener("click",()=>selectAsset(asset));
+
+  open.addEventListener("click",()=>{
+   selectAsset(asset);
+  });
+
   row.append(star,open);
   fragment.appendChild(row);
   count++;
@@ -1172,130 +1614,302 @@ function renderMarkets(){
  host.replaceChildren(fragment);
 
  const status=$("clMarketListStatus");
+
  if(status){
   status.textContent=count
    ?"Consultando precios reales de mercado..."
    :"No se encontraron activos.";
  }
 
- window.dispatchEvent(new CustomEvent(
-  "cryptolexuz:markets-rendered",
-  {detail:{filter:marketFilter,count}}
- ));
+ window.dispatchEvent(
+  new CustomEvent(
+   "cryptolexuz:markets-rendered",
+   {
+    detail:{
+     filter:marketFilter,
+     count
+    }
+   }
+  )
+ );
 }
 
-$("clMarketSearch")?.addEventListener("input",renderMarkets);
+$("clMarketSearch")?.addEventListener(
+ "input",renderMarkets
+);
 
 qa("[data-market-filter]").forEach(button=>{
  button.addEventListener("click",()=>{
   marketFilter=button.dataset.marketFilter;
+
   qa("[data-market-filter]").forEach(element=>{
-   element.classList.toggle("active",element===button);
+   element.classList.toggle(
+    "active",
+    element===button
+   );
   });
+
   renderMarkets();
  });
 });
 
-qa("[data-tf]").forEach(button=>{
- button.addEventListener("click",()=>{
-  const interval=$("interval");
-  if(!interval)return;
-  if(interval.value===button.dataset.tf)return;
-  interval.value=button.dataset.tf;
-  interval.dispatchEvent(new Event("change",{bubbles:true}));
- });
-});
+/* TEMPORALIDADES V29
 
-$("interval")?.addEventListener("change",()=>{
+ El selector #interval es la fuente
+ de verdad. El motor principal puede
+ escuchar su evento change.
+
+ No registramos aquí un segundo
+ manejador click para [data-tf],
+ evitando dos solicitudes por pulsación
+ cuando app.js ya controla esos botones.
+*/
+
+function syncTimeframes(){
+ const interval=$("interval");
+ if(!interval)return;
+
  qa("[data-tf]").forEach(button=>{
-  button.classList.toggle("active",
-   button.dataset.tf===$("interval").value);
+  const active=button.dataset.tf===interval.value;
+
+  button.classList.toggle(
+   "active",active
+  );
+
+  button.setAttribute(
+   "aria-pressed",
+   String(active)
+  );
  });
-});
+}
+
+$("interval")?.addEventListener(
+ "change",
+ syncTimeframes
+);
+
+/* VISTAS DE GRÁFICA */
 
 qa("[data-chart-view]").forEach(button=>{
  button.addEventListener("click",()=>{
+
   qa("[data-chart-view]").forEach(element=>{
-   element.classList.toggle("active",element===button);
+   element.classList.toggle(
+    "active",
+    element===button
+   );
   });
+
   const view=button.dataset.chartView;
+
   $("clGraphContent").hidden=view!=="graph";
   $("clCoinContent").hidden=view!=="coin";
   $("clInfoContent").hidden=view!=="info";
-  if(view==="graph")refreshCharts();
+
+  if(view==="graph"){
+   refreshCharts();
+  }
  });
 });
 
-/* OSCILADORES Y AJUSTES */
+/* OSCILADORES V29
+
+ RSI, ADX y AO se controlan
+ mediante preferencias persistidas.
+
+ MA y EMA abren su editor.
+
+ Los indicadores todavía no
+ implementados no simulan datos.
+*/
+
+const oscillatorSections={
+ RSI:"rsiSection",
+ ADX:"adxSection",
+ AO:"aoSection"
+};
+
+function syncOscillatorButtons(){
+ qa("[data-osc]").forEach(button=>{
+  const name=button.dataset.osc;
+  const active=Boolean(prefs.indicators[name]);
+
+  button.classList.toggle(
+   "active",
+   active
+  );
+
+  button.setAttribute(
+   "aria-pressed",
+   String(active)
+  );
+ });
+}
+
+function syncOscillatorSections(){
+ for(const [name,id] of Object.entries(
+  oscillatorSections
+ )){
+  const section=$(id);
+
+  if(section){
+   section.hidden=!Boolean(
+    prefs.indicators[name]
+   );
+  }
+ }
+
+ const volume=$("volumeChart")?.parentElement;
+
+ if(
+  volume?.classList.contains("volume-section")
+ ){
+  volume.hidden=prefs.indicators.VOL===false;
+ }
+
+ syncOscillatorButtons();
+ refreshCharts();
+}
+
 qa("[data-osc]").forEach(button=>{
  button.addEventListener("click",()=>{
-  const type=button.dataset.osc;
+  const name=button.dataset.osc;
 
-  if(!["RSI","ADX","Squeeze"].includes(type)){
-   editName=type;
+  if(name==="MA"||name==="EMA"){
+   editName=name;
    openSettings("edit");
    return;
   }
 
-  qa("[data-osc]").forEach(element=>{
-   element.classList.toggle("active",element===button);
-  });
+  if(name==="VOL"){
+   prefs.indicators.VOL=
+    !Boolean(prefs.indicators.VOL);
 
-  $("rsiSection").hidden=type!=="RSI";
-  $("adxSection").hidden=type!=="ADX";
-  $("squeezeSection").hidden=type!=="Squeeze";
-  refreshCharts();
+   persist();
+   notify();
+   syncOscillatorSections();
+   return;
+  }
+
+  if(
+   Object.prototype.hasOwnProperty.call(
+    oscillatorSections,name
+   )
+  ){
+   prefs.indicators[name]=
+    !Boolean(prefs.indicators[name]);
+
+   persist();
+   notify();
+   syncOscillatorSections();
+   return;
+  }
+
+  editName=name;
+  openSettings("edit");
  });
 });
 
 /* LIBRO DE ÓRDENES */
+
 qa("[data-book]").forEach(button=>{
  button.addEventListener("click",()=>{
   const type=button.dataset.book;
-  const view=$("clBookView"),alternate=$("clBookAlternate");
+
+  const view=$("clBookView");
+  const alternate=$("clBookAlternate");
 
   qa("[data-book]").forEach(element=>{
-   element.classList.toggle("active",element===button);
+   element.classList.toggle(
+    "active",
+    element===button
+   );
   });
 
-  if(view)view.hidden=type!=="book";
-  if(alternate){
-   alternate.hidden=type==="book";
-   alternate.textContent=type==="trades"
-    ?"Trades: pendiente de integrar un flujo de operaciones ejecutadas."
-    :type==="depth"
-    ?"Profundidad: consulta el libro de órdenes para ver los niveles disponibles."
-    :"";
+  if(view){
+   view.hidden=type!=="book";
   }
 
-  window.dispatchEvent(new CustomEvent(
-   "cryptolexuz:book-view",{detail:{view:type}}
-  ));
+  if(alternate){
+   alternate.hidden=type==="book";
+
+   alternate.textContent=
+    type==="trades"
+     ?"Trades: pendiente de integrar un flujo de operaciones ejecutadas."
+     :type==="depth"
+      ?"Profundidad: consulta el libro de órdenes para ver los niveles disponibles."
+      :"";
+  }
+
+  window.dispatchEvent(
+   new CustomEvent(
+    "cryptolexuz:book-view",
+    {detail:{view:type}}
+   )
+  );
  });
 });
 
-for(const id of ["clLongInfo","clShortInfo"]){
+/* BOTONES LONG / SHORT */
+
+for(const id of [
+ "clLongInfo",
+ "clShortInfo"
+]){
  $(id)?.addEventListener("click",()=>{
-  activateTab("scanner","clTradePlansHost");
+  activateTab(
+   "scanner",
+   "clTradePlansHost"
+  );
  });
 }
 
-/* CONFIGURACIÓN MA / EMA — V28 */
+/* =========================
+   CONFIGURACIÓN MA / EMA
+========================= */
 
-const settingsKey="cryptolexuz-chart-settings-v1";
+const settingsKey=
+ "cryptolexuz-chart-settings-v1";
 
 const defaultMA=[
- {period:55,color:"#ff9a35",width:2,enabled:true},
- {period:100,color:"#ff476c",width:3,enabled:false},
- {period:200,color:"#36c5ff",width:2,enabled:false}
+ {
+  period:55,
+  color:"#ff9a35",
+  width:2,
+  enabled:true
+ },
+ {
+  period:100,
+  color:"#ff476c",
+  width:3,
+  enabled:false
+ },
+ {
+  period:200,
+  color:"#36c5ff",
+  width:2,
+  enabled:false
+ }
 ];
 
 const defaultEMA=[
- {period:21,color:"#bb52ff",width:2,enabled:true}
+ {
+  period:21,
+  color:"#bb52ff",
+  width:2,
+  enabled:true
+ }
 ];
 
 const availableIndicators=new Set([
- "MA","EMA","VOL","RSI","ADX","FVG","IFVG"
+ "MA",
+ "EMA",
+ "VOL",
+ "RSI",
+ "ADX",
+ "AO",
+ "FVG",
+ "IFVG"
 ]);
 
 function cloneLines(lines){
@@ -1303,12 +1917,31 @@ function cloneLines(lines){
 }
 
 function normalizeLines(lines,fallback){
- if(!Array.isArray(lines)||!lines.length)return cloneLines(fallback);
+ if(
+  !Array.isArray(lines)||
+  !lines.length
+ ){
+  return cloneLines(fallback);
+ }
+
  return lines.slice(0,12).map(line=>({
-  period:Math.max(1,Math.min(1000,Math.round(Number(line.period)||21))),
+  period:Math.max(
+   1,
+   Math.min(
+    1000,
+    Math.round(Number(line.period)||21)
+   )
+  ),
+
   color:/^#[0-9a-f]{6}$/i.test(line.color)
-   ?line.color:"#bb52ff",
-  width:Math.max(1,Math.min(5,Number(line.width)||2)),
+   ?line.color
+   :"#bb52ff",
+
+  width:Math.max(
+   1,
+   Math.min(5,Number(line.width)||2)
+  ),
+
   enabled:line.enabled!==false
  }));
 }
@@ -1317,51 +1950,115 @@ let prefs={
  maLines:cloneLines(defaultMA),
  emaLines:cloneLines(defaultEMA),
  height:360,
- options:{countdown:true,multiperiod:true,bidask:false},
- indicators:{MA:true,EMA:true,VOL:true,RSI:true,ADX:false}
+
+ options:{
+  countdown:true,
+  multiperiod:true,
+  bidask:false
+ },
+
+ indicators:{
+  MA:true,
+  EMA:true,
+  VOL:true,
+  RSI:true,
+  ADX:false,
+  AO:false,
+  FVG:true,
+  IFVG:false
+ }
 };
 
-try{
- const saved=JSON.parse(localStorage.getItem(settingsKey)||"null");
+/* CARGAR CONFIGURACIÓN */
 
- if(saved&&typeof saved==="object"&&!Array.isArray(saved)){
-  const legacy=Array.isArray(saved.lines)?saved.lines:[];
+try{
+ const saved=JSON.parse(
+  localStorage.getItem(settingsKey)||"null"
+ );
+
+ if(
+  saved&&
+  typeof saved==="object"&&
+  !Array.isArray(saved)
+ ){
+  const legacy=Array.isArray(saved.lines)
+   ?saved.lines
+   :[];
 
   const savedMA=Array.isArray(saved.maLines)
    ?saved.maLines
-   :legacy.filter(line=>Number(line.period)!==21);
+   :legacy.filter(
+    line=>Number(line.period)!==21
+   );
 
   const savedEMA=Array.isArray(saved.emaLines)
    ?saved.emaLines
-   :legacy.filter(line=>Number(line.period)===21);
+   :legacy.filter(
+    line=>Number(line.period)===21
+   );
 
   prefs={
    ...prefs,
    ...saved,
-   maLines:normalizeLines(savedMA,defaultMA),
-   emaLines:normalizeLines(savedEMA,defaultEMA),
-   options:{...prefs.options,...(saved.options||{})},
-   indicators:{...prefs.indicators,...(saved.indicators||{})}
+
+   maLines:normalizeLines(
+    savedMA,
+    defaultMA
+   ),
+
+   emaLines:normalizeLines(
+    savedEMA,
+    defaultEMA
+   ),
+
+   options:{
+    ...prefs.options,
+    ...(saved.options||{})
+   },
+
+   indicators:{
+    ...prefs.indicators,
+    ...(saved.indicators||{})
+   }
   };
  }
 }catch(error){
- console.warn("Configuración anterior:",error);
+ console.warn(
+  "Configuración anterior:",
+  error
+ );
 }
+
+/* PERSISTENCIA */
 
 function persist(){
  try{
-  localStorage.setItem(settingsKey,JSON.stringify(prefs));
+  localStorage.setItem(
+   settingsKey,
+   JSON.stringify(prefs)
+  );
  }catch(error){
-  console.warn("Guardar ajustes:",error);
+  console.warn(
+   "Guardar ajustes:",
+   error
+  );
  }
 }
 
 function notify(){
- window.dispatchEvent(new CustomEvent(
-  "cryptolexuz:indicator-settings-change",
-  {detail:{settings:prefs}}
- ));
+ window.dispatchEvent(
+  new CustomEvent(
+   "cryptolexuz:indicator-settings-change",
+   {
+    detail:{
+     settings:prefs
+    }
+   }
+  )
+ );
 }
+
+/* VENTANA DE AJUSTES */
 
 const overlay=$("clSettingsOverlay");
 const content=$("clSettingsContent");
@@ -1372,26 +2069,52 @@ let lastFocus=null;
 
 function el(tag,text){
  const node=document.createElement(tag);
- if(text!==undefined)node.textContent=String(text);
+
+ if(text!==undefined){
+  node.textContent=String(text);
+ }
+
  return node;
 }
 
-function button(text,callback,className="cl-settings-row"){
+function button(
+ text,
+ callback,
+ className="cl-settings-row"
+){
  const node=el("button",text);
  node.type="button";
  node.className=className;
- node.addEventListener("click",callback);
+
+ node.addEventListener(
+  "click",
+  callback
+ );
+
  return node;
 }
 
-function checkbox(text,checked,callback){
+function checkbox(
+ text,
+ checked,
+ callback
+){
  const label=el("label");
  label.className="cl-settings-check";
+
  const input=el("input");
  input.type="checkbox";
  input.checked=checked;
- input.addEventListener("change",()=>callback(input.checked));
- label.append(input,document.createTextNode(text));
+
+ input.addEventListener("change",()=>{
+  callback(input.checked);
+ });
+
+ label.append(
+  input,
+  document.createTextNode(text)
+ );
+
  return label;
 }
 
@@ -1404,40 +2127,74 @@ function openSettings(page="main"){
 
  settingsPage=page;
  overlay.hidden=false;
- document.body.classList.add("cl-settings-open");
+
+ document.body.classList.add(
+  "cl-settings-open"
+ );
+
  content.replaceChildren();
 
- $("clSettingsBack").hidden=page==="main";
+ $("clSettingsBack").hidden=
+  page==="main";
 
- if(page==="main")settingsMain();
- else if(page==="indicators")settingsIndicators();
- else if(page==="edit")settingsEdit();
- else settingsOther();
+ if(page==="main"){
+  settingsMain();
+ }else if(page==="indicators"){
+  settingsIndicators();
+ }else if(page==="edit"){
+  settingsEdit();
+ }else{
+  settingsOther();
+ }
 
  const heading=content.querySelector("h2");
- if(heading)heading.id="clSettingsTitle";
 
- const sheet=overlay.querySelector(".cl-settings-sheet");
+ if(heading){
+  heading.id="clSettingsTitle";
+ }
+
+ const sheet=overlay.querySelector(
+  ".cl-settings-sheet"
+ );
+
  if(sheet){
   sheet.scrollTop=0;
-  sheet.focus({preventScroll:true});
+  sheet.focus({
+   preventScroll:true
+  });
  }
 }
 
 function closeSettings(){
- if(overlay)overlay.hidden=true;
- document.body.classList.remove("cl-settings-open");
+ if(overlay){
+  overlay.hidden=true;
+ }
+
+ document.body.classList.remove(
+  "cl-settings-open"
+ );
+
  persist();
  notify();
 
- if(lastFocus&&typeof lastFocus.focus==="function"){
-  lastFocus.focus({preventScroll:true});
+ if(
+  lastFocus&&
+  typeof lastFocus.focus==="function"
+ ){
+  lastFocus.focus({
+   preventScroll:true
+  });
  }
+
  lastFocus=null;
 }
 
+/* AJUSTES PRINCIPALES */
+
 function settingsMain(){
- content.append(el("h2","Configuración del gráfico"));
+ content.append(
+  el("h2","Configuración del gráfico")
+ );
 
  const grid=el("div");
  grid.className="cl-settings-grid";
@@ -1448,26 +2205,45 @@ function settingsMain(){
   ["Interfaz","⚙","interface"],
   ["Guía de velas","▣","guide"]
  ]){
-  const tile=button(name,()=>openSettings(page),"cl-settings-tile");
-  tile.prepend(el("span",icon));
+  const tile=button(
+   name,
+   ()=>openSettings(page),
+   "cl-settings-tile"
+  );
+
+  tile.prepend(
+   el("span",icon)
+  );
+
   grid.append(tile);
  }
 
- content.append(grid,el("h3","Visualización del gráfico"));
+ content.append(
+  grid,
+  el("h3","Visualización del gráfico")
+ );
 
  for(const [name,key] of [
   ["Cuenta regresiva","countdown"],
   ["Cambios multiperíodo","multiperiod"],
   ["Precios de compra y venta","bidask"]
  ]){
-  content.append(checkbox(name,Boolean(prefs.options[key]),value=>{
-   prefs.options[key]=value;
-   persist();
-   notify();
-  }));
+  content.append(
+   checkbox(
+    name,
+    Boolean(prefs.options[key]),
+    value=>{
+     prefs.options[key]=value;
+     persist();
+     notify();
+    }
+   )
+  );
  }
 
- content.append(el("h3","Altura de la gráfica"));
+ content.append(
+  el("h3","Altura de la gráfica")
+ );
 
  const range=el("input");
  range.type="range";
@@ -1477,37 +2253,63 @@ function settingsMain(){
  range.value=prefs.height;
  range.style.width="100%";
 
- const heightText=el("p",String(prefs.height)+" px");
- heightText.className="cl-settings-hint";
+ const heightText=el(
+  "p",
+  String(prefs.height)+" px"
+ );
+
+ heightText.className=
+  "cl-settings-hint";
 
  range.addEventListener("input",()=>{
-  heightText.textContent=range.value+" px";
+  heightText.textContent=
+   range.value+" px";
  });
 
  range.addEventListener("change",()=>{
   prefs.height=Number(range.value);
+
   const chart=$("chart");
-  if(chart)chart.style.height=prefs.height+"px";
+
+  if(chart){
+   chart.style.height=
+    prefs.height+"px";
+  }
+
   persist();
+  notify();
   refreshCharts();
  });
 
  content.append(
   range,
   heightText,
-  button("Guardar",closeSettings,"cl-settings-save")
+  button(
+   "Guardar",
+   closeSettings,
+   "cl-settings-save"
+  )
  );
 }
 
+/* LISTADO DE INDICADORES */
+
 function settingsIndicators(){
- content.append(el("h2","Indicadores"));
+ content.append(
+  el("h2","Indicadores")
+ );
 
  content.append(
   el("h3","Principal")
  );
 
  for(const name of [
-  "MA","EMA","BOLL","SAR","AVL","LSR"
+  "MA",
+  "EMA",
+  "BOLL",
+  "SAR",
+  "AVL",
+  "LSR"
  ]){
   indicatorRow(name);
  }
@@ -1517,8 +2319,16 @@ function settingsIndicators(){
  );
 
  for(const name of [
-  "VOL","MACD","KDJ","RSI","WR",
-  "CCI","SKDJ","ADX","Squeeze"
+  "VOL",
+  "MACD",
+  "KDJ",
+  "RSI",
+  "WR",
+  "CCI",
+  "SKDJ",
+  "ADX",
+  "AO",
+  "Squeeze"
  ]){
   indicatorRow(name);
  }
@@ -1531,9 +2341,14 @@ function settingsIndicators(){
  );
 }
 
+/* FILA DE INDICADOR */
+
 function indicatorRow(name){
- const available=availableIndicators.has(name);
- const active=Boolean(prefs.indicators[name]);
+ const available=
+  availableIndicators.has(name);
+
+ const active=
+  Boolean(prefs.indicators[name]);
 
  const row=button(
   name,
@@ -1545,57 +2360,98 @@ function indicatorRow(name){
  );
 
  const label=el("span",name);
- label.className="cl-settings-indicator-name";
+ label.className=
+  "cl-settings-indicator-name";
 
- const status=el("span",
+ const status=el(
+  "span",
   available
-   ?active?"Activo ›":"Configurar ›"
+   ?active
+    ?"Activo ›"
+    :"Configurar ›"
    :"Pendiente"
  );
- status.className="cl-settings-indicator-status";
 
- row.replaceChildren(label,status);
- row.classList.toggle("is-unavailable",!available);
+ status.className=
+  "cl-settings-indicator-status";
+
+ row.replaceChildren(
+  label,
+  status
+ );
+
+ row.classList.toggle(
+  "is-unavailable",
+  !available
+ );
 
  if(!available){
   row.disabled=true;
-  row.title="Indicador pendiente de implementación";
+  row.title=
+   "Indicador pendiente de implementación";
  }
 
  content.append(row);
 }
 
-function settingsEdit(){
- content.append(el("h2",editName));
+/* EDITAR INDICADOR */
 
- if(editName==="MA"||editName==="EMA"){
+function settingsEdit(){
+ content.append(
+  el("h2",editName)
+ );
+
+ if(
+  editName==="MA"||
+  editName==="EMA"
+ ){
   const isEMA=editName==="EMA";
-  const key=isEMA?"emaLines":"maLines";
-  const defaults=isEMA?defaultEMA:defaultMA;
+
+  const key=isEMA
+   ?"emaLines"
+   :"maLines";
+
+  const defaults=isEMA
+   ?defaultEMA
+   :defaultMA;
+
   const lines=prefs[key];
 
   const grid=el("div");
   grid.className="cl-ma-grid";
 
   for(const title of [
-   "Línea","Valor","Ancho","Color"
+   "Línea",
+   "Valor",
+   "Ancho",
+   "Color"
   ]){
-   grid.append(el("small",title));
+   grid.append(
+    el("small",title)
+   );
   }
 
   lines.forEach((line,index)=>{
-   const label=el("label",editName+(index+1));
+   const label=el(
+    "label",
+    editName+(index+1)
+   );
+
    label.className="cl-ma-label";
 
    const enabled=el("input");
    enabled.type="checkbox";
-   enabled.checked=Boolean(line.enabled);
+   enabled.checked=
+    Boolean(line.enabled);
 
-   enabled.addEventListener("change",()=>{
-    line.enabled=enabled.checked;
-    persist();
-    notify();
-   });
+   enabled.addEventListener(
+    "change",
+    ()=>{
+     line.enabled=enabled.checked;
+     persist();
+     notify();
+    }
+   );
 
    label.prepend(enabled);
 
@@ -1605,64 +2461,100 @@ function settingsEdit(){
    period.max="1000";
    period.value=line.period;
 
-   period.addEventListener("change",()=>{
-    line.period=Math.max(
-     1,
-     Math.min(1000,Math.round(Number(period.value)||21))
-    );
-    period.value=line.period;
-    persist();
-    notify();
-   });
+   period.addEventListener(
+    "change",
+    ()=>{
+     line.period=Math.max(
+      1,
+      Math.min(
+       1000,
+       Math.round(
+        Number(period.value)||21
+       )
+      )
+     );
+
+     period.value=line.period;
+
+     persist();
+     notify();
+    }
+   );
 
    const width=el("select");
 
-   for(const value of [1,2,3,4,5]){
-    const option=el("option",value+" px");
+   for(const value of [
+    1,2,3,4,5
+   ]){
+    const option=el(
+     "option",
+     value+" px"
+    );
+
     option.value=value;
     width.append(option);
    }
 
    width.value=String(line.width);
 
-   width.addEventListener("change",()=>{
-    line.width=Number(width.value);
-    persist();
-    notify();
-   });
+   width.addEventListener(
+    "change",
+    ()=>{
+     line.width=Number(width.value);
+     persist();
+     notify();
+    }
+   );
 
    const color=el("input");
    color.type="color";
-   color.value=/^#[0-9a-f]{6}$/i.test(line.color)
-    ?line.color:"#bb52ff";
 
-   color.addEventListener("change",()=>{
-    line.color=color.value;
-    persist();
-    notify();
-   });
+   color.value=
+    /^#[0-9a-f]{6}$/i.test(line.color)
+     ?line.color
+     :"#bb52ff";
 
-   grid.append(label,period,width,color);
+   color.addEventListener(
+    "change",
+    ()=>{
+     line.color=color.value;
+     persist();
+     notify();
+    }
+   );
+
+   grid.append(
+    label,
+    period,
+    width,
+    color
+   );
   });
 
   content.append(grid);
 
   const actions=el("div");
-  actions.className="cl-settings-actions";
+  actions.className=
+   "cl-settings-actions";
 
   actions.append(
+
    button("Restablecer",()=>{
     prefs[key]=cloneLines(defaults);
+
     persist();
     notify();
     openSettings("edit");
    }),
+
    button("Agregar",()=>{
     if(prefs[key].length>=12)return;
 
     prefs[key].push({
      period:isEMA?9:50,
-     color:isEMA?"#bb52ff":"#479eff",
+     color:isEMA
+      ?"#bb52ff"
+      :"#479eff",
      width:2,
      enabled:true
     });
@@ -1671,61 +2563,104 @@ function settingsEdit(){
     notify();
     openSettings("edit");
    }),
+
    button("Eliminar",()=>{
     if(prefs[key].length>1){
      prefs[key].pop();
     }
+
     persist();
     notify();
     openSettings("edit");
    })
+
   );
 
   content.append(actions);
 
-  const hint=el("p",
+  const hint=el(
+   "p",
    "Cada línea tiene su propio período, grosor, color "+
    "e interruptor. Los cambios se guardan de forma "+
    "independiente para MA y EMA."
   );
-  hint.className="cl-settings-hint";
+
+  hint.className=
+   "cl-settings-hint";
+
   content.append(hint);
 
- }else if(availableIndicators.has(editName)){
+ }else if(
+  availableIndicators.has(editName)
+ ){
   content.append(
    checkbox(
     "Mostrar "+editName,
-    Boolean(prefs.indicators[editName]),
+    Boolean(
+     prefs.indicators[editName]
+    ),
     value=>{
      prefs.indicators[editName]=value;
+
      persist();
      notify();
+     syncOscillatorSections();
     }
    )
   );
 
   if(editName==="VOL"){
-   const hint=el("p",
+   const hint=el(
+    "p",
     "El volumen se representa en el panel inferior "+
     "cuando el motor dispone de datos."
    );
-   hint.className="cl-settings-hint";
+
+   hint.className=
+    "cl-settings-hint";
+
+   content.append(hint);
+  }
+
+  if(editName==="AO"){
+   const hint=el(
+    "p",
+    "Awesome Oscillator: histograma basado en la "+
+    "diferencia entre medias simples de cinco y "+
+    "treinta y cuatro períodos del precio medio. "+
+    "Su cálculo y visualización requieren soporte "+
+    "del motor principal."
+   );
+
+   hint.className=
+    "cl-settings-hint";
+
    content.append(hint);
   }
 
  }else{
-  const warning=el("p",
+  const warning=el(
+   "p",
    "Este indicador todavía no está integrado. "+
    "No se activará hasta que exista un motor funcional."
   );
-  warning.className="cl-settings-disabled-note";
+
+  warning.className=
+   "cl-settings-disabled-note";
+
   content.append(warning);
  }
 
  content.append(
-  button("Guardar",closeSettings,"cl-settings-save")
+  button(
+   "Guardar",
+   closeSettings,
+   "cl-settings-save"
+  )
  );
 }
+
+/* OTRAS CONFIGURACIONES */
 
 function settingsOther(){
  const names={
@@ -1735,32 +2670,53 @@ function settingsOther(){
  };
 
  content.append(
-  el("h2",names[settingsPage]||"Configuración")
+  el(
+   "h2",
+   names[settingsPage]||
+   "Configuración"
+  )
  );
 
  if(settingsPage==="drawing"){
   content.append(
+
    button("Fibonacci",()=>{
     closeSettings();
+
     $("clFibonacciTools").open=true;
-    activateTab("charts","clFibonacciTools");
+
+    activateTab(
+     "charts",
+     "clFibonacciTools"
+    );
    }),
+
    button("Cajas moradas",()=>{
     closeSettings();
+
     $("clRangeBoxesTools").open=true;
-    activateTab("charts","clRangeBoxesTools");
+
+    activateTab(
+     "charts",
+     "clRangeBoxesTools"
+    );
    })
+
   );
+
  }else if(settingsPage==="interface"){
   content.append(
-   el("p",
+   el(
+    "p",
     "La interfaz conserva el fondo oscuro y "+
     "los colores de velas verde y rojo."
    )
   );
+
  }else{
   content.append(
-   el("p",
+   el(
+    "p",
     "Guía de velas japonesas pendiente "+
     "de completar."
    )
@@ -1776,149 +2732,292 @@ function settingsOther(){
  );
 }
 
-$("clChartSettings")?.addEventListener("click",()=>{
- openSettings("main");
-});
+/* EVENTOS DE AJUSTES */
 
-$("clSettingsClose")?.addEventListener(
- "click",closeSettings
+$("clChartSettings")?.addEventListener(
+ "click",
+ ()=>openSettings("main")
 );
 
-$("clSettingsBack")?.addEventListener("click",()=>{
- if(settingsPage==="edit"){
-  openSettings("indicators");
- }else{
-  openSettings("main");
+$("clSettingsClose")?.addEventListener(
+ "click",
+ closeSettings
+);
+
+$("clSettingsBack")?.addEventListener(
+ "click",
+ ()=>{
+  if(settingsPage==="edit"){
+   openSettings("indicators");
+  }else{
+   openSettings("main");
+  }
  }
-});
+);
 
-overlay?.addEventListener("click",event=>{
- if(event.target===overlay)closeSettings();
-});
-
-overlay?.addEventListener("keydown",event=>{
- if(event.key!=="Tab")return;
-
- const focusable=qa(
-  "#clSettingsOverlay button:not([disabled]):not([hidden]),"+
-  "#clSettingsOverlay input:not([disabled]):not([hidden]),"+
-  "#clSettingsOverlay select:not([disabled]):not([hidden])"
- ).filter(node=>node.getClientRects().length);
-
- if(!focusable.length)return;
-
- const first=focusable[0];
- const last=focusable[focusable.length-1];
-
- if(event.shiftKey&&document.activeElement===first){
-  event.preventDefault();
-  last.focus();
- }else if(!event.shiftKey&&document.activeElement===last){
-  event.preventDefault();
-  first.focus();
+overlay?.addEventListener(
+ "click",
+ event=>{
+  if(event.target===overlay){
+   closeSettings();
+  }
  }
-});
+);
 
-/* SINCRONIZAR AJUSTES CON EL MOTOR V22 */
+/* ACCESIBILIDAD DEL DIÁLOGO */
+
+overlay?.addEventListener(
+ "keydown",
+ event=>{
+  if(event.key!=="Tab")return;
+
+  const focusable=qa(
+   "#clSettingsOverlay button:not([disabled]):not([hidden]),"+
+   "#clSettingsOverlay input:not([disabled]):not([hidden]),"+
+   "#clSettingsOverlay select:not([disabled]):not([hidden])"
+  ).filter(
+   node=>node.getClientRects().length
+  );
+
+  if(!focusable.length)return;
+
+  const first=focusable[0];
+  const last=focusable[
+   focusable.length-1
+  ];
+
+  if(
+   event.shiftKey&&
+   document.activeElement===first
+  ){
+   event.preventDefault();
+   last.focus();
+
+  }else if(
+   !event.shiftKey&&
+   document.activeElement===last
+  ){
+   event.preventDefault();
+   first.focus();
+  }
+ }
+);
+
+/* SINCRONIZACIÓN DE PREFERENCIAS */
+
 function applyChartPreferences(){
  const chart=$("chart");
+
  if(chart){
   chart.style.height=Math.max(
    240,
-   Math.min(600,Number(prefs.height)||360)
+   Math.min(
+    600,
+    Number(prefs.height)||360
+   )
   )+"px";
  }
 
- const indicators=prefs.indicators||{};
-
- const map={
-  RSI:"rsi",
-  ADX:"adx",
-  FVG:"fvg",
-  IFVG:"ifvg"
- };
-
- for(const [name,indicator] of Object.entries(map)){
-  const button=document.querySelector(
-   '[data-indicator="'+indicator+'"]'
-  );
-
-  if(!button||typeof indicators[name]!=="boolean")continue;
-
-  const desired=indicators[name];
-  const current=button.getAttribute("aria-pressed")==="true";
-
-  if(current!==desired){
-   button.click();
-  }
- }
-
- if($("rsiSection")&&typeof indicators.RSI==="boolean"){
-  $("rsiSection").hidden=!indicators.RSI;
- }
-
- if($("adxSection")&&typeof indicators.ADX==="boolean"){
-  $("adxSection").hidden=!indicators.ADX;
- }
+ syncOscillatorSections();
+ syncSidebarIndicators();
 
  persist();
  notify();
  refreshCharts();
 }
 
+/*
+ El estado de los botones laterales
+ se refleja visualmente sin generar
+ clics artificiales ni dobles cambios.
+*/
+
+function syncSidebarIndicators(){
+ const map={
+  RSI:"rsi",
+  ADX:"adx",
+  AO:"ao",
+  FVG:"fvg",
+  IFVG:"ifvg"
+ };
+
+ for(const [
+  name,
+  indicator
+ ] of Object.entries(map)){
+  const control=document.querySelector(
+   '[data-indicator="'+indicator+'"]'
+  );
+
+  if(
+   !control||
+   typeof prefs.indicators[name]!=="boolean"
+  )continue;
+
+  control.setAttribute(
+   "aria-pressed",
+   String(prefs.indicators[name])
+  );
+ }
+
+ const maMap={
+  ma55:55,
+  ma100:100,
+  ma200:200
+ };
+
+ for(const [
+  name,
+  period
+ ] of Object.entries(maMap)){
+  const control=document.querySelector(
+   '[data-indicator="'+name+'"]'
+  );
+
+  const active=prefs.maLines.some(
+   line=>
+    Number(line.period)===period&&
+    line.enabled
+  );
+
+  control?.setAttribute(
+   "aria-pressed",
+   String(active)
+  );
+ }
+
+ const ema21=prefs.emaLines.some(
+  line=>
+   Number(line.period)===21&&
+   line.enabled
+ );
+
+ document.querySelector(
+  '[data-indicator="ema21"]'
+ )?.setAttribute(
+  "aria-pressed",
+  String(ema21)
+ );
+}
+
+/* SINCRONIZACIÓN DEL MOTOR */
+
+window.addEventListener(
+ "cryptolexuz:indicator-settings-change",
+ event=>{
+  const next=event.detail?.settings;
+
+  if(
+   next&&
+   next!==prefs&&
+   typeof next==="object"
+  ){
+   prefs={
+    ...prefs,
+    ...next,
+
+    maLines:normalizeLines(
+     next.maLines,
+     defaultMA
+    ),
+
+    emaLines:normalizeLines(
+     next.emaLines,
+     defaultEMA
+    ),
+
+    options:{
+     ...prefs.options,
+     ...(next.options||{})
+    },
+
+    indicators:{
+     ...prefs.indicators,
+     ...(next.indicators||{})
+    }
+   };
+  }
+
+  syncSidebarIndicators();
+  syncOscillatorSections();
+ }
+);
+
+/* INICIALIZACIÓN */
+
 function init(){
  const chart=$("chart");
+
  if(chart){
   chart.style.height=Math.max(
-   240,Math.min(600,Number(prefs.height)||360)
+   240,
+   Math.min(
+    600,
+    Number(prefs.height)||360
+   )
   )+"px";
  }
 
  renderMarkets();
  organizeModules();
+ syncTimeframes();
+ syncSidebarIndicators();
+ syncOscillatorSections();
 
- const observer=new MutationObserver(scheduleOrganize);
- observer.observe(document.body,{
-  childList:true,
-  subtree:true
- });
+ const observer=new MutationObserver(
+  scheduleOrganize
+ );
 
- window.addEventListener("load",()=>{
-  setTimeout(()=>{
-   organizeModules();
-   applyChartPreferences();
-   if(screen==="charts")refreshCharts();
-  },500);
- },{once:true});
-
- window.addEventListener("keydown",event=>{
-  if(event.key==="Escape"){
-   if(overlay&&!overlay.hidden)closeSettings();
-   else setOpen(false);
+ observer.observe(
+  document.body,
+  {
+   childList:true,
+   subtree:true
   }
- });
+ );
 
  window.addEventListener(
-  "cryptolexuz:indicator-settings-change",
+  "load",
+  ()=>{
+   setTimeout(()=>{
+    organizeModules();
+    applyChartPreferences();
+
+    if(screen==="charts"){
+     refreshCharts();
+    }
+   },500);
+  },
+  {once:true}
+ );
+
+ window.addEventListener(
+  "keydown",
   event=>{
-   if(event.detail?.settings){
-    const next=event.detail.settings;
-    if(next&&next!==prefs){
-     prefs={
-      ...prefs,
-      ...next,
-      maLines:normalizeLines(next.maLines,defaultMA),
-      emaLines:normalizeLines(next.emaLines,defaultEMA)
-     };
+   if(event.key==="Escape"){
+    if(
+     overlay&&
+     !overlay.hidden
+    ){
+     closeSettings();
+    }else{
+     setOpen(false);
     }
    }
   }
+ );
+
+ window.addEventListener(
+  "resize",
+  refreshCharts
  );
 }
 
 if(document.readyState==="loading"){
  document.addEventListener(
-  "DOMContentLoaded",init,{once:true}
+  "DOMContentLoaded",
+  init,
+  {once:true}
  );
 }else{
  init();
