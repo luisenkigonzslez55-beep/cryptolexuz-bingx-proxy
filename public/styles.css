@@ -1,14 +1,24 @@
 
 /*
- CRYPTOLEXUZ PRO — STYLES.CSS V22
- Diseño móvil estilo BingX
+ CRYPTOLEXUZ PRO — STYLES.CSS V24 COMPLETO
 
+ Diseño móvil inspirado en BingX.
+ Compatible con INDEX.HTML V31.
+
+ Incluye:
  - Mercados, Gráficas, Escáner y Resultados
- - Gráficas táctiles
- - Fibonacci dibujable y ajustable
+ - Temporalidades horizontales
+ - Indicadores configurables
+ - Patrones horizontales
+ - Gráficas negras
+ - Fibonacci táctil
  - Cajas moradas editables
- - Sin caja verde automática
  - Volume Profile
+ - Ajustes centrados
+ - Diseño móvil y computadora
+
+ Los estilos no ejecutan indicadores ni patrones.
+ Su funcionamiento depende de los módulos JS.
 */
 
 :root {
@@ -66,10 +76,11 @@ textarea {
 button {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 button:disabled {
-  opacity: 0.4;
+  opacity: .4;
   cursor: not-allowed;
 }
 
@@ -183,7 +194,7 @@ small {
   border-right: 1px solid #37394c;
   box-shadow: 15px 0 40px #0008;
   transform: translateX(-110%);
-  transition: transform 0.22s ease;
+  transition: transform .22s ease;
   overscroll-behavior: contain;
 }
 
@@ -250,10 +261,11 @@ small {
   font-size: 11px;
 }
 
+.indicator-buttons button.active,
 .indicator-buttons button[aria-pressed="true"] {
-  background: #352046;
-  border-color: #b15cf4;
-  color: #f0d8ff;
+  background: #43205f;
+  border-color: #ba69ff;
+  color: #fff;
 }
 
 .switch-row {
@@ -380,8 +392,10 @@ small {
   width: 100%;
   padding: 9px 0;
   overflow-x: auto;
+  overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
 }
 
 .cl-market-filters::-webkit-scrollbar,
@@ -404,7 +418,8 @@ small {
   white-space: nowrap;
 }
 
-.cl-chip.active {
+.cl-chip.active,
+.cl-chip[aria-pressed="true"] {
   background: #342144;
   border-color: var(--purple);
   color: #fff;
@@ -598,7 +613,7 @@ small {
 
 .chart-heading small {
   font-size: 10px;
-  letter-spacing: 0.4px;
+  letter-spacing: .4px;
 }
 
 .cl-chart-gear {
@@ -636,6 +651,148 @@ small {
 }
 
 /* ========================================
+   TRES FILAS DE CONTROLES V24
+======================================== */
+
+/*
+ Controles creados por controls-fix.js.
+ Se mantienen separados de la gráfica.
+*/
+
+#clFixedTimeframes,
+#clFixedIndicators,
+#clFixedPatterns {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 10px 5px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+}
+
+#clFixedTimeframes::-webkit-scrollbar,
+#clFixedIndicators::-webkit-scrollbar,
+#clFixedPatterns::-webkit-scrollbar {
+  display: none;
+}
+
+#clFixedTimeframes button,
+#clFixedIndicators button,
+#clFixedPatterns button {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 9px 12px;
+  border: 1px solid #3b4055;
+  border-radius: 9px;
+  background: #191d2a;
+  color: #d7d9e7;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#clFixedTimeframes button.active,
+#clFixedTimeframes button[aria-pressed="true"],
+#clFixedTimeframes button[aria-selected="true"] {
+  background: #65319b;
+  border-color: #d7a3ff;
+  color: #fff;
+  box-shadow: 0 0 11px #ba69ff44;
+}
+
+#clFixedIndicators button.active,
+#clFixedIndicators button[aria-pressed="true"] {
+  background: #43205f;
+  border-color: #ba69ff;
+  color: #fff;
+  box-shadow: 0 0 10px #ba69ff33;
+}
+
+#clFixedPatterns button.active,
+#clFixedPatterns button[aria-pressed="true"] {
+  background: #402d62;
+  border-color: #ad85ff;
+  color: #fff;
+}
+
+#clFixedPatterns button:disabled {
+  opacity: .45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+#clFixedTimeframes button:active,
+#clFixedIndicators button:active,
+#clFixedPatterns button:not(:disabled):active {
+  filter: brightness(1.25);
+}
+
+/*
+ Compatibilidad con filas originales
+ del index.html y de otros módulos.
+*/
+
+.cl-timeframes button {
+  flex: none;
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #a9aabb;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cl-timeframes button.active,
+.cl-timeframes button[aria-pressed="true"],
+.cl-timeframes button[aria-selected="true"] {
+  background: #62309a;
+  border-color: #d7a3ff;
+  color: #fff;
+  font-weight: 750;
+  box-shadow: 0 0 12px #bb52ff55;
+}
+
+.cl-indicator-strip button {
+  flex: none;
+  min-height: 36px;
+  padding: 9px 9px;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #999ba8;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cl-indicator-strip button.active,
+.cl-indicator-strip button[aria-pressed="true"] {
+  background: #43205f;
+  border-color: #ba69ff;
+  color: #fff;
+  font-weight: 700;
+}
+
+.cl-chart-tabs button {
+  flex: none;
+  min-height: 36px;
+  white-space: nowrap;
+}
+
+/* ========================================
    CONTENEDOR PRINCIPAL DEL CHART
 ======================================== */
 
@@ -645,7 +802,7 @@ small {
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  background: #090c13;
+  background: #000 !important;
   border: 1px solid #252b3a;
   border-radius: 9px;
 }
@@ -658,12 +815,8 @@ small {
   min-height: 240px;
   overflow: hidden;
   overscroll-behavior: contain;
+  background: #000 !important;
 }
-
-/*
- Lightweight Charts gestiona los gestos
- táctiles sobre el gráfico principal.
-*/
 
 #chart,
 #chart canvas {
@@ -671,6 +824,28 @@ small {
   -webkit-user-select: none;
   user-select: none;
 }
+
+/*
+ Los fondos de los paneles se igualan
+ al fondo principal.
+*/
+
+#volumeChart,
+#rsiChart,
+#adxChart,
+#aoChart,
+#squeezeChart {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+/*
+ El color interno del lienzo de
+ Lightweight Charts depende de app.js.
+*/
 
 /* ========================================
    CAPAS DE INDICADORES
@@ -696,25 +871,11 @@ small {
   pointer-events: none !important;
 }
 
-/*
- Fibonacci:
- por defecto no bloquea el gráfico.
- Su JavaScript puede activar la captura
- táctil al entrar en modo dibujo.
-*/
-
 #fibonacciCanvas {
   z-index: 8;
   pointer-events: none;
   touch-action: none;
 }
-
-/*
- La propiedad inline que establece
- fibonacci.js tiene prioridad normal.
- Esta regla permite también la captura
- cuando el modo dibujo está activo.
-*/
 
 #fibonacciCanvas[style*="pointer-events: auto"] {
   pointer-events: auto !important;
@@ -730,11 +891,6 @@ small {
    CAJAS MORADAS
 ======================================== */
 
-/*
- Canvas visual de cajas.
- Nunca debe interceptar los gestos.
-*/
-
 #clRangeOverlay {
   position: absolute;
   inset: 0;
@@ -745,12 +901,6 @@ small {
   pointer-events: none !important;
   touch-action: none;
 }
-
-/*
- Capa independiente de edición.
- El JavaScript debe ocultarla cuando
- termina el modo de edición.
-*/
 
 #priceChartArea .cl-box-touch-layer {
   position: absolute;
@@ -772,8 +922,6 @@ small {
 #priceChartArea.cl-box-dragging {
   cursor: grabbing;
 }
-
-/* Controles de las cajas moradas */
 
 #clRangeControls {
   position: relative;
@@ -858,15 +1006,14 @@ small {
 ======================================== */
 
 #volumeChart {
-  width: 100%;
   height: 115px;
   min-height: 100px;
 }
 
 #rsiChart,
 #adxChart,
+#aoChart,
 #squeezeChart {
-  width: 100%;
   height: 145px;
   min-height: 110px;
 }
@@ -896,21 +1043,6 @@ small {
   line-height: 1.6;
 }
 
-.cl-indicator-strip button {
-  flex: none;
-  padding: 9px 7px;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  background: transparent;
-  color: #999ba8;
-  font-size: 12px;
-}
-
-.cl-indicator-strip button.active {
-  border-color: #d7a3ff;
-  color: #fff;
-}
-
 .cl-tool-panel {
   margin: 13px 0;
   border: 1px solid #393d4f;
@@ -926,6 +1058,7 @@ small {
 }
 
 .cl-tool-content {
+  min-width: 0;
   padding: 0 12px 13px;
 }
 
@@ -1127,7 +1260,7 @@ td {
 }
 
 /* ========================================
-   AJUSTES
+   AJUSTES CENTRADOS
 ======================================== */
 
 .cl-settings-overlay {
@@ -1136,8 +1269,10 @@ td {
   z-index: 20000;
   display: flex;
   justify-content: center;
-  align-items: flex-end;
-  background: rgba(0, 0, 0, 0.77);
+  align-items: center;
+  padding: 14px;
+  background: rgba(0, 0, 0, .82);
+  backdrop-filter: blur(6px);
 }
 
 .cl-settings-overlay[hidden] {
@@ -1146,14 +1281,14 @@ td {
 
 .cl-settings-sheet {
   width: min(100%, 620px);
-  max-height: 92dvh;
-  padding: 20px 17px
-    calc(23px + env(safe-area-inset-bottom));
+  max-height: calc(100dvh - 28px);
+  padding: 20px 17px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  border-radius: 27px 27px 0 0;
-  background: #141616;
-  box-shadow: 0 -10px 40px #0008;
+  border: 1px solid #60427d;
+  border-radius: 18px;
+  background: #15131e;
+  box-shadow: 0 20px 65px #000b;
 }
 
 .cl-settings-head {
@@ -1361,9 +1496,10 @@ td {
   font-size: 10px;
 }
 
-.cl-nav-button.active {
-  background: #281b38;
-  color: #e1b5ff;
+.cl-nav-button.active,
+.cl-nav-button[aria-current="page"] {
+  background: #39204f;
+  color: #e9c5ff;
   font-weight: 700;
 }
 
@@ -1396,6 +1532,27 @@ footer.cl-notice {
 }
 
 /* ========================================
+   RESPUESTA TÁCTIL
+======================================== */
+
+.cl-timeframes button,
+.cl-indicator-strip button,
+.cl-chart-tabs button,
+.indicator-buttons button,
+.chart-controls button {
+  position: relative;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cl-timeframes button:active,
+.cl-indicator-strip button:active,
+.chart-controls button:active,
+.cl-settings-tile:active {
+  filter: brightness(1.35);
+}
+
+/* ========================================
    PANTALLAS PEQUEÑAS
 ======================================== */
 
@@ -1415,7 +1572,7 @@ footer.cl-notice {
   .cl-market-row {
     grid-template-columns:
       minmax(0, 1.2fr)
-      minmax(0, 0.85fr)
+      minmax(0, .85fr)
       70px;
     gap: 4px;
   }
@@ -1434,6 +1591,13 @@ footer.cl-notice {
     grid-template-columns:
       65px minmax(0, 1fr) 58px 48px;
     gap: 4px;
+  }
+
+  #clFixedTimeframes button,
+  #clFixedIndicators button,
+  #clFixedPatterns button {
+    padding: 8px 10px;
+    font-size: 11px;
   }
 }
 
@@ -1500,81 +1664,5 @@ footer.cl-notice {
     transition: none;
   }
 }
-/*
- CRYPTOLEXUZ PRO — CORRECCIONES V23
- Ventana centrada y controles táctiles
-*/
 
-/* VENTANA DE AJUSTES CENTRADA */
-
-.cl-settings-overlay {
-  align-items: center !important;
-  justify-content: center !important;
-  padding: 14px !important;
-  background: rgba(0, 0, 0, 0.82) !important;
-  backdrop-filter: blur(6px);
-}
-
-.cl-settings-sheet {
-  width: min(100%, 620px) !important;
-  max-height: calc(100dvh - 28px) !important;
-  padding: 20px 17px !important;
-  border: 1px solid #60427d !important;
-  border-radius: 18px !important;
-  background: #15131e !important;
-  box-shadow: 0 20px 65px #000b !important;
-}
-
-/* BOTONES TÁCTILES */
-
-.cl-timeframes button,
-.cl-indicator-strip button,
-.cl-chart-tabs button,
-.indicator-buttons button,
-.chart-controls button {
-  position: relative;
-  touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* TEMPORALIDAD SELECCIONADA */
-
-.cl-timeframes button.active,
-.cl-timeframes button[aria-pressed="true"],
-.cl-timeframes button[aria-selected="true"] {
-  background: #62309a !important;
-  border-color: #d7a3ff !important;
-  color: #fff !important;
-  font-weight: 750;
-  box-shadow: 0 0 12px #bb52ff55;
-}
-
-/* INDICADORES ACTIVADOS */
-
-.cl-indicator-strip button.active,
-.cl-indicator-strip button[aria-pressed="true"],
-.indicator-buttons button.active,
-.indicator-buttons button[aria-pressed="true"] {
-  background: #43205f !important;
-  border: 1px solid #ba69ff !important;
-  border-radius: 8px;
-  color: #fff !important;
-  font-weight: 700;
-}
-
-/* RESPUESTA VISUAL AL PRESIONAR */
-
-.cl-timeframes button:active,
-.cl-indicator-strip button:active,
-.chart-controls button:active,
-.cl-settings-tile:active {
-  filter: brightness(1.35);
-}
-
-/* NAVEGACIÓN ACTIVA */
-
-.cl-nav-button.active,
-.cl-nav-button[aria-current="page"] {
-  background: #39204f !important;
-  color: #e9c5ff !important;
-}
+/* FIN — CRYPTOLEXUZ PRO STYLES.CSS V24 */
