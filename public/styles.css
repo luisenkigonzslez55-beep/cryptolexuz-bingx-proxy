@@ -1,24 +1,17 @@
 
 /*
- CRYPTOLEXUZ PRO — STYLES.CSS V24 COMPLETO
+ CRYPTOLEXUZ PRO — STYLES.CSS V25 COMPLETO
+ Diseño móvil y computadora.
+ Compatible con Lightweight Charts 4.2.2.
 
- Diseño móvil inspirado en BingX.
- Compatible con INDEX.HTML V31.
-
- Incluye:
- - Mercados, Gráficas, Escáner y Resultados
- - Temporalidades horizontales
- - Indicadores configurables
- - Patrones horizontales
- - Gráficas negras
- - Fibonacci táctil
- - Cajas moradas editables
- - Volume Profile
- - Ajustes centrados
- - Diseño móvil y computadora
-
- Los estilos no ejecutan indicadores ni patrones.
- Su funcionamiento depende de los módulos JS.
+ Correcciones:
+ - Fondo negro uniforme en gráficas.
+ - Desplazamiento vertical de la página.
+ - Desplazamiento horizontal de controles.
+ - Botones táctiles.
+ - Capas de Fibonacci y cajas.
+ - Menú lateral y ajustes.
+ - Cuatro pestañas inferiores.
 */
 
 :root {
@@ -43,15 +36,20 @@
 html {
   width: 100%;
   min-height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
   scroll-behavior: smooth;
   overscroll-behavior-x: none;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
-  min-height: 100vh;
   width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   overflow-x: hidden;
+  overflow-y: auto;
   background: var(--bg);
   color: var(--text);
   font-family: system-ui, -apple-system, Arial, sans-serif;
@@ -75,8 +73,8 @@ textarea {
 
 button {
   cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button:disabled {
@@ -122,9 +120,7 @@ small {
   color: var(--muted);
 }
 
-/* ========================================
-   CABECERA
-======================================== */
+/* CABECERA */
 
 .app-header {
   position: sticky;
@@ -171,15 +167,13 @@ small {
 .connection {
   flex: none;
   max-width: 112px;
-  font-size: 11px;
   color: #a6a8b4;
-  text-align: right;
+  font-size: 11px;
   line-height: 1.4;
+  text-align: right;
 }
 
-/* ========================================
-   MENÚ LATERAL
-======================================== */
+/* MENÚ LATERAL */
 
 .sidebar {
   position: fixed;
@@ -190,12 +184,12 @@ small {
   width: min(340px, 88vw);
   padding: 18px 15px 35px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   background: #10121b;
   border-right: 1px solid #37394c;
   box-shadow: 15px 0 40px #0008;
   transform: translateX(-110%);
   transition: transform .22s ease;
-  overscroll-behavior: contain;
 }
 
 .sidebar.is-open {
@@ -264,7 +258,7 @@ small {
 .indicator-buttons button.active,
 .indicator-buttons button[aria-pressed="true"] {
   background: #43205f;
-  border-color: #ba69ff;
+  border-color: var(--purple);
   color: #fff;
 }
 
@@ -285,9 +279,7 @@ small {
   background: #000a;
 }
 
-/* ========================================
-   CONTENEDOR Y PANTALLAS
-======================================== */
+/* CONTENEDOR */
 
 .app-container {
   width: 100%;
@@ -318,8 +310,8 @@ small {
 
 .cl-screen-title p {
   margin: 0;
-  font-size: 12px;
   color: var(--muted);
+  font-size: 12px;
 }
 
 .cl-module,
@@ -332,8 +324,8 @@ small {
 .history-section {
   width: 100%;
   min-width: 0;
-  padding: 13px;
   margin: 0 0 14px;
+  padding: 13px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 13px;
@@ -362,9 +354,7 @@ small {
   line-height: 1.6;
 }
 
-/* ========================================
-   MERCADOS
-======================================== */
+/* MERCADOS */
 
 .cl-search {
   display: block;
@@ -385,24 +375,36 @@ small {
 .cl-chart-tabs,
 .cl-timeframes,
 .cl-indicator-strip,
-.cl-book-tabs {
+.cl-pattern-strip,
+.cl-book-tabs,
+#clFixedTimeframes,
+#clFixedIndicators,
+#clFixedPatterns {
   display: flex;
   align-items: center;
+  flex-wrap: nowrap;
   gap: 7px;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   padding: 9px 0;
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+  touch-action: pan-x;
 }
 
 .cl-market-filters::-webkit-scrollbar,
 .cl-chart-tabs::-webkit-scrollbar,
 .cl-timeframes::-webkit-scrollbar,
 .cl-indicator-strip::-webkit-scrollbar,
-.cl-book-tabs::-webkit-scrollbar {
+.cl-pattern-strip::-webkit-scrollbar,
+.cl-book-tabs::-webkit-scrollbar,
+#clFixedTimeframes::-webkit-scrollbar,
+#clFixedIndicators::-webkit-scrollbar,
+#clFixedPatterns::-webkit-scrollbar {
   display: none;
 }
 
@@ -438,8 +440,8 @@ small {
 
 .cl-market-head {
   padding: 13px 4px;
-  font-size: 10px;
   color: #858995;
+  font-size: 10px;
 }
 
 .cl-market-row {
@@ -516,9 +518,45 @@ small {
   background: #0da46e;
 }
 
-/* ========================================
-   GRÁFICAS
-======================================== */
+/* COMPATIBILIDAD MERCADOS */
+
+.cl-market-row .cl-favorite {
+  flex-shrink: 0;
+  padding: 8px;
+  border: 0;
+  background: transparent;
+  color: #aebcdd;
+  font-size: 18px;
+}
+
+.cl-market-row .cl-favorite.is-favorite {
+  color: #ffce52;
+}
+
+.cl-market-row:has(.cl-market-open) {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.cl-market-row .cl-market-open {
+  flex: 1;
+  display: grid;
+  grid-template-columns:
+    minmax(0, 1.4fr)
+    minmax(0, 1fr)
+    minmax(0, .8fr);
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px 2px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+/* GRÁFICAS */
 
 .market-top,
 .chart-heading {
@@ -540,8 +578,8 @@ small {
   display: grid;
   gap: 6px;
   min-width: 0;
-  font-size: 11px;
   color: #a5a7b5;
+  font-size: 11px;
 }
 
 .compact-field select,
@@ -650,151 +688,86 @@ small {
   font-size: 10px;
 }
 
-/* ========================================
-   TRES FILAS DE CONTROLES V24
-======================================== */
+/* TRES FILAS DE CONTROLES */
 
-/*
- Controles creados por controls-fix.js.
- Se mantienen separados de la gráfica.
-*/
-
-#clFixedTimeframes,
-#clFixedIndicators,
-#clFixedPatterns {
+.cl-chart-control-stack {
   display: flex;
-  align-items: center;
-  gap: 7px;
-  width: 100%;
-  min-width: 0;
-  max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding: 10px 5px;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-x: contain;
-  touch-action: pan-x;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
 }
 
-#clFixedTimeframes::-webkit-scrollbar,
-#clFixedIndicators::-webkit-scrollbar,
-#clFixedPatterns::-webkit-scrollbar {
-  display: none;
+.cl-control-label {
+  color: #b7c3e1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
 }
 
+.cl-timeframes button,
+.cl-indicator-strip button,
+.cl-pattern-strip button,
+.cl-chart-tabs button,
 #clFixedTimeframes button,
 #clFixedIndicators button,
 #clFixedPatterns button {
   flex: 0 0 auto;
-  min-height: 38px;
-  padding: 9px 12px;
-  border: 1px solid #3b4055;
-  border-radius: 9px;
-  background: #191d2a;
+  min-height: 36px;
+  padding: 8px 11px;
+  border: 1px solid #34364c;
+  border-radius: 8px;
+  background: #171a25;
   color: #d7d9e7;
   font-size: 12px;
   font-weight: 650;
   line-height: 1.2;
   white-space: nowrap;
-  cursor: pointer;
   touch-action: manipulation;
-  -webkit-tap-highlight-color: transparent;
 }
 
+.cl-timeframes button.active,
+.cl-timeframes button[aria-pressed="true"],
+.cl-timeframes button[aria-selected="true"],
 #clFixedTimeframes button.active,
-#clFixedTimeframes button[aria-pressed="true"],
-#clFixedTimeframes button[aria-selected="true"] {
+#clFixedTimeframes button[aria-pressed="true"] {
   background: #65319b;
   border-color: #d7a3ff;
   color: #fff;
   box-shadow: 0 0 11px #ba69ff44;
 }
 
+.cl-indicator-strip button.active,
+.cl-indicator-strip button[aria-pressed="true"],
 #clFixedIndicators button.active,
 #clFixedIndicators button[aria-pressed="true"] {
   background: #43205f;
-  border-color: #ba69ff;
+  border-color: var(--purple);
   color: #fff;
   box-shadow: 0 0 10px #ba69ff33;
 }
 
-#clFixedPatterns button.active,
-#clFixedPatterns button[aria-pressed="true"] {
+.cl-pattern-strip button.active,
+.cl-pattern-strip button[aria-pressed="true"],
+#clFixedPatterns button.active {
   background: #402d62;
   border-color: #ad85ff;
   color: #fff;
 }
 
+.cl-pattern-strip button:disabled,
 #clFixedPatterns button:disabled {
   opacity: .45;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
-#clFixedTimeframes button:active,
-#clFixedIndicators button:active,
-#clFixedPatterns button:not(:disabled):active {
+.cl-timeframes button:active,
+.cl-indicator-strip button:active,
+.cl-pattern-strip button:not(:disabled):active {
   filter: brightness(1.25);
 }
 
-/*
- Compatibilidad con filas originales
- del index.html y de otros módulos.
-*/
-
-.cl-timeframes button {
-  flex: none;
-  min-height: 36px;
-  padding: 8px 11px;
-  border: 1px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: #a9aabb;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.cl-timeframes button.active,
-.cl-timeframes button[aria-pressed="true"],
-.cl-timeframes button[aria-selected="true"] {
-  background: #62309a;
-  border-color: #d7a3ff;
-  color: #fff;
-  font-weight: 750;
-  box-shadow: 0 0 12px #bb52ff55;
-}
-
-.cl-indicator-strip button {
-  flex: none;
-  min-height: 36px;
-  padding: 9px 9px;
-  border: 1px solid transparent;
-  border-bottom: 2px solid transparent;
-  border-radius: 8px;
-  background: transparent;
-  color: #999ba8;
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.cl-indicator-strip button.active,
-.cl-indicator-strip button[aria-pressed="true"] {
-  background: #43205f;
-  border-color: #ba69ff;
-  color: #fff;
-  font-weight: 700;
-}
-
-.cl-chart-tabs button {
-  flex: none;
-  min-height: 36px;
-  white-space: nowrap;
-}
-
-/* ========================================
-   CONTENEDOR PRINCIPAL DEL CHART
-======================================== */
+/* GRÁFICA NEGRA Y DESPLAZAMIENTO MÓVIL */
 
 #priceChartArea {
   position: relative;
@@ -814,21 +787,29 @@ small {
   height: 360px;
   min-height: 240px;
   overflow: hidden;
-  overscroll-behavior: contain;
   background: #000 !important;
+  overscroll-behavior-x: contain;
+  touch-action: pan-y !important;
 }
 
-#chart,
-#chart canvas {
-  touch-action: none !important;
-  -webkit-user-select: none;
-  user-select: none;
+#chart canvas,
+#chart > div,
+#chart > div canvas {
+  background-color: transparent;
 }
 
 /*
- Los fondos de los paneles se igualan
- al fondo principal.
+ Permitir que el navegador reciba el gesto vertical.
+ app.js también debe mantener
+ handleScroll.vertTouchDrag = false.
 */
+
+#chart,
+#chart canvas {
+  touch-action: pan-y !important;
+  -webkit-user-select: none;
+  user-select: none;
+}
 
 #volumeChart,
 #rsiChart,
@@ -839,24 +820,24 @@ small {
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  background: #000;
+  background: #000 !important;
+  touch-action: pan-y;
 }
 
-/*
- El color interno del lienzo de
- Lightweight Charts depende de app.js.
-*/
+#volumeChart canvas,
+#rsiChart canvas,
+#adxChart canvas,
+#aoChart canvas {
+  touch-action: pan-y;
+}
 
-/* ========================================
-   CAPAS DE INDICADORES
-======================================== */
+/* CAPAS DE INDICADORES */
 
 #zonesCanvas,
 #fibonacciCanvas,
 #clVpCanvas {
   position: absolute;
   pointer-events: none;
-  touch-action: none;
 }
 
 #zonesCanvas,
@@ -869,12 +850,13 @@ small {
 #zonesCanvas {
   z-index: 2;
   pointer-events: none !important;
+  touch-action: pan-y;
 }
 
 #fibonacciCanvas {
   z-index: 8;
   pointer-events: none;
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 #fibonacciCanvas[style*="pointer-events: auto"] {
@@ -885,11 +867,10 @@ small {
 #clVpCanvas {
   z-index: 5;
   pointer-events: none !important;
+  touch-action: pan-y;
 }
 
-/* ========================================
-   CAJAS MORADAS
-======================================== */
+/* CAJAS MORADAS */
 
 #clRangeOverlay {
   position: absolute;
@@ -899,7 +880,7 @@ small {
   width: 100%;
   height: 100%;
   pointer-events: none !important;
-  touch-action: none;
+  touch-action: pan-y;
 }
 
 #priceChartArea .cl-box-touch-layer {
@@ -907,6 +888,12 @@ small {
   inset: 0;
   z-index: 9;
   background: transparent;
+  pointer-events: none;
+  touch-action: pan-y;
+}
+
+#priceChartArea.cl-box-editing .cl-box-touch-layer,
+#priceChartArea.cl-box-dragging .cl-box-touch-layer {
   pointer-events: auto;
   touch-action: none;
 }
@@ -939,14 +926,8 @@ small {
   touch-action: manipulation;
 }
 
-#clRangeControls button:focus-visible,
-#clRangeControls select:focus-visible {
-  outline: 2px solid #bb52ff;
-  outline-offset: 2px;
-}
-
 #clRangeControls input[type="checkbox"] {
-  accent-color: #bb52ff;
+  accent-color: var(--purple);
 }
 
 .cl-purple-box-button {
@@ -967,9 +948,7 @@ small {
   color: #fff;
 }
 
-/* ========================================
-   FIBONACCI Y HERRAMIENTAS
-======================================== */
+/* FIBONACCI */
 
 #fibToolbar,
 #fibPanel,
@@ -1001,9 +980,7 @@ small {
   flex-wrap: wrap;
 }
 
-/* ========================================
-   INDICADORES
-======================================== */
+/* INDICADORES */
 
 #volumeChart {
   height: 115px;
@@ -1037,7 +1014,8 @@ small {
 
 #volumeInterpretation,
 #rsiInterpretation,
-#adxInterpretation {
+#adxInterpretation,
+#aoInterpretation {
   color: #9fa2b0;
   font-size: 11px;
   line-height: 1.6;
@@ -1099,9 +1077,7 @@ small {
   font-size: 12px;
 }
 
-/* ========================================
-   LIBRO DE ÓRDENES
-======================================== */
+/* LIBRO DE ÓRDENES */
 
 .cl-book-bar {
   display: flex;
@@ -1157,9 +1133,7 @@ small {
   background: #e94b65;
 }
 
-/* ========================================
-   ESCÁNER
-======================================== */
+/* ESCÁNER */
 
 .signal-grid {
   display: grid;
@@ -1200,9 +1174,7 @@ small {
   color: var(--red);
 }
 
-/* ========================================
-   RESULTADOS
-======================================== */
+/* RESULTADOS */
 
 .cl-stats {
   display: grid;
@@ -1259,9 +1231,7 @@ td {
   color: #e0e0e7;
 }
 
-/* ========================================
-   AJUSTES CENTRADOS
-======================================== */
+/* AJUSTES */
 
 .cl-settings-overlay {
   position: fixed;
@@ -1459,9 +1429,7 @@ td {
   accent-color: var(--purple);
 }
 
-/* ========================================
-   NAVEGACIÓN INFERIOR
-======================================== */
+/* NAVEGACIÓN INFERIOR */
 
 .cl-bottom-nav {
   position: fixed;
@@ -1508,22 +1476,20 @@ td {
   line-height: 1;
 }
 
-/* ========================================
-   AUXILIARES
-======================================== */
+/* AUXILIARES */
 
 #message,
 #status,
 #indicatorReadout,
 #patternStatus {
+  color: #a8abb9;
   font-size: 12px;
   line-height: 1.6;
-  color: #a8abb9;
 }
 
 #engineState {
-  font-size: 11px;
   color: #d8a5ff;
+  font-size: 11px;
 }
 
 footer.cl-notice {
@@ -1531,9 +1497,7 @@ footer.cl-notice {
   text-align: center;
 }
 
-/* ========================================
-   RESPUESTA TÁCTIL
-======================================== */
+/* RESPUESTA TÁCTIL */
 
 .cl-timeframes button,
 .cl-indicator-strip button,
@@ -1552,9 +1516,7 @@ footer.cl-notice {
   filter: brightness(1.35);
 }
 
-/* ========================================
-   PANTALLAS PEQUEÑAS
-======================================== */
+/* PANTALLAS PEQUEÑAS */
 
 @media (max-width: 380px) {
   .app-container {
@@ -1601,9 +1563,7 @@ footer.cl-notice {
   }
 }
 
-/* ========================================
-   TABLET
-======================================== */
+/* TABLET */
 
 @media (min-width: 700px) {
   .app-container {
@@ -1612,24 +1572,19 @@ footer.cl-notice {
   }
 
   .market-bottom {
-    grid-template-columns:
-      repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .cl-stats {
-    grid-template-columns:
-      repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .signal-grid {
-    grid-template-columns:
-      repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-/* ========================================
-   COMPUTADORA
-======================================== */
+/* COMPUTADORA */
 
 @media (min-width: 900px) {
   #chart {
@@ -1651,9 +1606,7 @@ footer.cl-notice {
   }
 }
 
-/* ========================================
-   ACCESIBILIDAD
-======================================== */
+/* ACCESIBILIDAD */
 
 @media (prefers-reduced-motion: reduce) {
   html {
@@ -1665,4 +1618,4 @@ footer.cl-notice {
   }
 }
 
-/* FIN — CRYPTOLEXUZ PRO STYLES.CSS V24 */
+/* FIN — CRYPTOLEXUZ PRO STYLES.CSS V25 */
