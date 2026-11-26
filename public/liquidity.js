@@ -1,30 +1,36 @@
 
 /*
- CRYPTOLEXUZ PRO — LIQUIDITY.JS V12
- MAPA DE CALOR ESTILO BOOKMAP
+ CRYPTOLEXUZ PRO — LIQUIDITY.JS V13 COMPLETO
 
- Conserva:
- - BingX / OKX
+ MAPA DE CALOR DE PROFUNDIDAD REAL
+
+ Compatible con:
+ - BingX / OKX mediante proxy
+ - CRYPTOLEXUZ PRO
+ - Vista móvil y computadora
+
+ Funciones:
+ - Mapa de calor tipo Bookmap
  - Libro de órdenes Top 10
- - Spread, bid, ask y resumen
- - Interruptor original
- - Historial de profundidad real
-
- Mejora:
- - Bandas horizontales de liquidez
- - Trayectoria blanca del precio
- - Perfil lateral
+ - Spread, bid, ask y concentración
+ - Historial de snapshots reales
+ - Trayectoria del precio medio bid/ask
+ - Perfil lateral de liquidez
  - Escala de precios
- - Diseño móvil panorámico
- - Intensidad, detalle e historial
- - Zoom vertical táctil
+ - Intensidad configurable
+ - Zoom vertical táctil y con rueda
+ - Reinicio seguro al cambiar de mercado
  - Sin datos simulados
+
+ No representa liquidaciones.
+ No ejecuta operaciones.
 */
+
 "use strict";
 
 (() => {
-  if (window.__CL_LIQUIDITY_V12__) return;
-  window.__CL_LIQUIDITY_V12__ = true;
+  if (window.__CL_LIQUIDITY_V13__) return;
+  window.__CL_LIQUIDITY_V13__ = true;
 
   const $ = id => document.getElementById(id);
 
@@ -37,10 +43,12 @@
   };
 
   const C = {
-    bg: "#050713",
+    bg: "#000000",
     green: "#00f5a0",
     red: "#ff476c",
     blue: "#36c5ff",
+    purple: "#bb52ff",
+    yellow: "#ffe15a",
     muted: "#9ba9c9"
   };
 
@@ -60,50 +68,76 @@
     showMap: true,
     showPrice: true,
     showProfile: true,
-    dragging: false,
-    touchY: 0,
-    observer: null
+    observer: null,
+    initialized: false,
+    frame: 0,
+    pinchDistance: 0,
+    pendingRefresh: false,
+    lastError: "",
+    lastUpdated: 0
   };
 
-  function el(tag, cls = "", text) {
-    const n = document.createElement(tag);
-    if (cls) n.className = cls;
-    if (text !== undefined) n.textContent = text;
-    return n;
+  function el(tag, cls = "", value) {
+    const node = document.createElement(tag);
+
+    if (cls) node.className = cls;
+
+    if (value !== undefined) {
+      node.textContent = String(value);
+    }
+
+    return node;
   }
 
   function fmt(value, digits = 2) {
-    const n = Number(value);
-    if (!Number.isFinite(n)) return "—";
-    return n.toLocaleString("en-US", {
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) {
+      return "—";
+    }
+
+    return number.toLocaleString("en-US", {
       minimumFractionDigits: digits,
       maximumFractionDigits: digits
     });
   }
 
+  function priceDigits(value) {
+    const n = Math.abs(Number(value));
+
+    if (n >= 100) return 2;
+    if (n >= 1) return 4;
+    if (n >= 0.01) return 6;
+
+    return 8;
+  }
+
+  function fmtPrice(value) {
+    return fmt(value, priceDigits(value));
+  }
+
   function commodity(symbol) {
-    return [
-      "NCCOGOLD2USD-USDT",
-      "NCCO1OILWTI2USD-USDT"
-    ].includes(symbol);
+    return /^NCCO/i.test(String(symbol));
   }
 
   function selection() {
     const symbol =
       $("symbol")?.value || "BTC-USDT";
 
+    const special = commodity(symbol);
+
     return {
       symbol,
-      exchange: commodity(symbol)
+      exchange: special
         ? "bingx"
         : $("exchange")?.value || "bingx",
-      market: commodity(symbol)
+      market: special
         ? "perpetual"
         : $("market")?.value || "perpetual"
     };
   }
 
-  function key(s) {
+  function marketKey(s = selection()) {
     return [
       s.exchange,
       s.market,
@@ -111,38 +145,38 @@
     ].join("|");
   }
 
-  function status(text, color = C.muted) {
-    const n = $("clMapStatus");
-    if (!n) return;
-    n.textContent = text;
-    n.style.color = color;
+  function status(message, color = C.muted) {
+    const target = $("clMapStatus");
+
+    if (!target) return;
+
+    target.textContent = message;
+    target.style.color = color;
   }
 
   function styles() {
-    if ($("clLiquidityStyles")) {
-      $("clLiquidityStyles").remove();
-    }
+    if ($("clLiquidityStyles")) return;
 
-    const css = el("style");
-    css.id = "clLiquidityStyles";
+    const style = el("style");
+    style.id = "clLiquidityStyles";
 
-    css.textContent = `
+    style.textContent = `
       .cl-liquidity-map {
         width:100%;
         min-width:0;
         box-sizing:border-box;
-        background:#070b19;
+        padding:10px;
+        color:#edf1ff;
+        background:#080b16;
         border:1px solid #34416b;
         border-radius:14px;
-        padding:10px;
-        color:#e9efff;
         overflow:hidden;
       }
 
       .cl-map-heading {
         display:flex;
-        justify-content:space-between;
         align-items:center;
+        justify-content:space-between;
         flex-wrap:wrap;
         gap:8px;
         margin-bottom:10px;
@@ -150,15 +184,15 @@
       }
 
       .cl-muted {
-        font-size:11px;
         color:#9ba9c9;
+        font-size:11px;
       }
 
       .cl-heat-toolbar {
         display:flex;
         flex-wrap:wrap;
         align-items:center;
-        gap:9px;
+        gap:8px;
         margin-bottom:10px;
         font-size:11px;
       }
@@ -166,21 +200,25 @@
       .cl-heat-toolbar label {
         display:flex;
         align-items:center;
-        gap:4px;
+        gap:5px;
       }
 
       .cl-heat-toolbar select,
       .cl-heat-toolbar button {
+        padding:7px;
+        color:#f2eaff;
         background:#192442;
         border:1px solid #45557e;
         border-radius:7px;
-        color:#e7eeff;
-        padding:6px;
         font-size:11px;
       }
 
-      .cl-heat-toolbar input[type=range] {
-        width:80px;
+      .cl-heat-toolbar input[type="range"] {
+        width:85px;
+        accent-color:#bb52ff;
+      }
+
+      .cl-heat-toolbar input[type="checkbox"] {
         accent-color:#bb52ff;
       }
 
@@ -189,9 +227,9 @@
         width:100%;
         height:440px;
         overflow:hidden;
-        border-radius:9px;
-        background:#050713;
+        background:#000;
         border:1px solid #202b4b;
+        border-radius:9px;
       }
 
       #clHeatmap {
@@ -226,10 +264,10 @@
       }
 
       .cl-map-note {
+        margin:9px 0;
         color:#9ba9c9;
         font-size:11px;
         line-height:1.6;
-        margin:9px 0;
       }
 
       .cl-orderbook {
@@ -240,8 +278,8 @@
 
       .cl-book-title {
         margin:0 0 10px;
-        font-size:13px;
         color:#f5f7ff;
+        font-size:13px;
       }
 
       .cl-book-label {
@@ -250,8 +288,8 @@
         font-weight:800;
       }
 
-      .cl-sell {color:#ff476c}
-      .cl-buy {color:#00f5a0}
+      .cl-sell { color:#ff476c; }
+      .cl-buy { color:#00f5a0; }
 
       .cl-book-columns,
       .cl-book-row {
@@ -275,8 +313,8 @@
       .cl-book-row {
         position:relative;
         overflow:hidden;
-        border-radius:5px;
         margin-bottom:3px;
+        border-radius:5px;
       }
 
       .cl-book-row > span {
@@ -287,8 +325,8 @@
       .cl-book-bar {
         position:absolute;
         inset:0 auto 0 0;
-        opacity:.23;
         z-index:0;
+        opacity:.23;
       }
 
       .cl-book-row.ask {
@@ -322,31 +360,33 @@
       .cl-book-summary {
         margin-top:12px;
         padding:11px;
-        border-radius:8px;
-        background:#101831;
         color:#cbd5f2;
+        background:#101831;
+        border-radius:8px;
         font-size:11px;
         line-height:1.8;
       }
 
-      @media(min-width:700px) {
+      @media (min-width:700px) {
         .cl-heat-stage {
           height:560px;
         }
       }
     `;
 
-    document.head.append(css);
+    document.head.appendChild(style);
   }
 
   function createColumns() {
-    const n = el("div", "cl-book-columns");
+    const row = el("div", "cl-book-columns");
 
     ["Precio", "Cantidad", "USDT"].forEach(
-      text => n.append(el("span", "", text))
+      value => row.appendChild(
+        el("span", "", value)
+      )
     );
 
-    return n;
+    return row;
   }
 
   function build() {
@@ -355,78 +395,124 @@
 
     if (!map || !section) {
       console.warn(
-        "CRYPTOLEXUZ: faltan contenedores de liquidez"
+        "Liquidez: faltan contenedores HTML"
       );
       return false;
     }
 
     styles();
 
-    map.className = "cl-liquidity-map";
+    map.classList.add("cl-liquidity-map");
     map.replaceChildren();
 
-    const heading = el("div", "cl-map-heading");
-    heading.append(
-      el("strong", "", "Mapa de calor · Liquidez")
+    const heading = el(
+      "div",
+      "cl-map-heading"
+    );
+
+    heading.appendChild(
+      el(
+        "strong",
+        "",
+        "Mapa de calor · Liquidez"
+      )
     );
 
     const stateLabel = el(
-      "span", "cl-muted", "Conectando..."
+      "span",
+      "cl-muted",
+      "Preparando..."
     );
+
     stateLabel.id = "clMapStatus";
-    heading.append(stateLabel);
+    heading.appendChild(stateLabel);
 
-    const toolbar = el("div", "cl-heat-toolbar");
+    const toolbar = el(
+      "div",
+      "cl-heat-toolbar"
+    );
 
-    function check(id, text, checked) {
+    function checkbox(id, text, checked) {
       const label = el("label");
       const input = el("input");
+
       input.type = "checkbox";
       input.id = id;
       input.checked = checked;
-      label.append(input, el("span", "", text));
-      toolbar.append(label);
+
+      label.append(
+        input,
+        el("span", "", text)
+      );
+
+      toolbar.appendChild(label);
+
       return input;
     }
 
-    check("clHeatEnabled", "Calor", true);
-    check("clHeatPrice", "Precio", true);
-    check("clHeatProfile", "Perfil", true);
+    checkbox(
+      "clHeatEnabled",
+      "Calor",
+      S.showMap
+    );
+
+    checkbox(
+      "clHeatPrice",
+      "Precio",
+      S.showPrice
+    );
+
+    checkbox(
+      "clHeatProfile",
+      "Perfil",
+      S.showProfile
+    );
 
     const intensityLabel = el("label");
-    intensityLabel.append(
+
+    intensityLabel.appendChild(
       el("span", "", "Intensidad")
     );
 
     const intensity = el("input");
+
     intensity.type = "range";
     intensity.id = "clHeatIntensity";
     intensity.min = "0.5";
     intensity.max = "2.5";
     intensity.step = "0.25";
-    intensity.value = "1";
+    intensity.value = String(S.intensity);
 
-    intensityLabel.append(intensity);
-    toolbar.append(intensityLabel);
+    intensityLabel.appendChild(intensity);
+    toolbar.appendChild(intensityLabel);
 
-    function select(id, label, values, current) {
-      const wrap = el("label");
-      wrap.append(el("span", "", label));
+    function select(id, title, values, selected) {
+      const label = el("label");
+
+      label.appendChild(
+        el("span", "", title)
+      );
 
       const input = el("select");
       input.id = id;
 
       values.forEach(value => {
         const option = el(
-          "option", "", String(value)
+          "option",
+          "",
+          value
         );
-        option.value = value;
-        option.selected = value === current;
-        input.append(option);
+
+        option.value = String(value);
+        option.selected =
+          Number(value) === Number(selected);
+
+        input.appendChild(option);
       });
 
-      wrap.append(input);
-      toolbar.append(wrap);
+      label.appendChild(input);
+      toolbar.appendChild(label);
+
       return input;
     }
 
@@ -434,35 +520,47 @@
       "clHeatHistory",
       "Historial",
       [60, 120, 180, 300],
-      180
+      S.maxHistory
     );
 
     select(
       "clHeatBins",
       "Detalle",
       [60, 80, 100, 140],
-      100
+      S.bins
     );
 
     const resetZoom = el(
-      "button", "", "Restablecer zoom"
+      "button",
+      "",
+      "Restablecer zoom"
     );
-    resetZoom.type = "button";
-    resetZoom.id = "clHeatResetZoom";
-    toolbar.append(resetZoom);
 
-    const stage = el("div", "cl-heat-stage");
+    resetZoom.id = "clHeatResetZoom";
+    resetZoom.type = "button";
+
+    toolbar.appendChild(resetZoom);
+
+    const stage = el(
+      "div",
+      "cl-heat-stage"
+    );
 
     const canvas = el("canvas");
     canvas.id = "clHeatmap";
+
     canvas.setAttribute(
       "aria-label",
-      "Mapa histórico de liquidez visible"
+      "Mapa histórico de liquidez real"
     );
 
-    stage.append(canvas);
+    stage.appendChild(canvas);
 
-    const legend = el("div", "cl-heat-legend");
+    const legend = el(
+      "div",
+      "cl-heat-legend"
+    );
+
     legend.append(
       el("span", "", "Menor"),
       el("div", "cl-heat-gradient"),
@@ -474,15 +572,17 @@
       "cl-map-note",
       "Esperando profundidad real..."
     );
+
     info.id = "clHeatInfo";
 
     const note = el(
       "p",
       "cl-map-note",
-      "Las franjas representan órdenes limitadas " +
-      "visibles registradas durante esta sesión. " +
-      "No representan liquidaciones ni garantizan " +
-      "que el precio vaya a rebotar."
+      "Cada columna corresponde a una consulta " +
+      "real del libro de órdenes. Las bandas " +
+      "muestran liquidez limitada visible, no " +
+      "liquidaciones. Las órdenes pueden " +
+      "cancelarse o modificarse."
     );
 
     map.append(
@@ -495,14 +595,19 @@
     );
 
     const article =
-      section.querySelector("article") || section;
+      section.querySelector("article") ||
+      section;
 
     let book = $("clOrderbook");
 
     if (!book) {
-      book = el("div", "cl-orderbook");
+      book = el(
+        "div",
+        "cl-orderbook"
+      );
+
       book.id = "clOrderbook";
-      article.append(book);
+      article.appendChild(book);
     }
 
     book.replaceChildren();
@@ -522,18 +627,22 @@
     );
 
     const asks = el(
-      "div", "", "Esperando órdenes..."
+      "div",
+      "",
+      "Esperando órdenes..."
     );
+
     asks.id = "clAsks";
-    book.append(asks);
+    book.appendChild(asks);
 
     const spread = el(
       "div",
       "cl-book-middle",
       "Spread: —"
     );
+
     spread.id = "clSpread";
-    book.append(spread);
+    book.appendChild(spread);
 
     book.append(
       el(
@@ -545,22 +654,27 @@
     );
 
     const bids = el(
-      "div", "", "Esperando órdenes..."
+      "div",
+      "",
+      "Esperando órdenes..."
     );
+
     bids.id = "clBids";
-    book.append(bids);
+    book.appendChild(bids);
 
     const summary = el(
       "div",
       "cl-book-summary",
       "Esperando profundidad..."
     );
-    summary.id = "clBookSummary";
-    book.append(summary);
 
-    const outer = $("liquidityMapToggle");
-    if (outer) {
-      outer.disabled = false;
+    summary.id = "clBookSummary";
+    book.appendChild(summary);
+
+    const toggle = $("liquidityMapToggle");
+
+    if (toggle) {
+      toggle.disabled = false;
     }
 
     const subtitle = document.querySelector(
@@ -578,77 +692,104 @@
   function parseSide(side) {
     if (!Array.isArray(side)) return [];
 
-    return side.map(x => {
+    const result = [];
+
+    for (const item of side) {
+      if (!item) continue;
+
       const price = Number(
-        Array.isArray(x)
-          ? x[0]
-          : x.price ?? x.px ?? x.p
+        Array.isArray(item)
+          ? item[0]
+          : item.price ?? item.px ?? item.p
       );
 
       const quantity = Number(
-        Array.isArray(x)
-          ? x[1]
-          : x.quantity ??
-            x.qty ??
-            x.size ??
-            x.sz ??
-            x.amount ??
-            x.q
+        Array.isArray(item)
+          ? item[1]
+          : item.quantity ??
+            item.qty ??
+            item.size ??
+            item.sz ??
+            item.amount ??
+            item.q
       );
 
-      return { price, quantity };
-    }).filter(x =>
-      Number.isFinite(x.price) &&
-      Number.isFinite(x.quantity) &&
-      x.price > 0 &&
-      x.quantity > 0
-    );
+      if (
+        !Number.isFinite(price) ||
+        !Number.isFinite(quantity) ||
+        price <= 0 ||
+        quantity <= 0
+      ) {
+        continue;
+      }
+
+      result.push({
+        price,
+        quantity
+      });
+    }
+
+    return result;
   }
 
   function normalize(raw) {
     if (
       raw?.code !== undefined &&
-      ![0, "0"].includes(raw.code)
+      ![0, "0", "00000"].includes(raw.code)
     ) {
-      throw Error("API " + raw.code);
+      throw new Error(
+        "API " + raw.code
+      );
     }
 
-    let d = raw;
+    let data = raw;
 
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       if (
-        d?.bids || d?.asks ||
-        d?.b || d?.a
-      ) break;
+        data?.bids ||
+        data?.asks ||
+        data?.b ||
+        data?.a
+      ) {
+        break;
+      }
 
-      d = d?.data;
-      if (Array.isArray(d)) d = d[0];
+      data = data?.data;
+
+      if (Array.isArray(data)) {
+        data = data[0];
+      }
     }
 
     const bids = parseSide(
-      d?.bids ?? d?.b
-    ).sort((a, b) => b.price - a.price);
+      data?.bids ?? data?.b
+    ).sort(
+      (a, b) => b.price - a.price
+    );
 
     const asks = parseSide(
-      d?.asks ?? d?.a
-    ).sort((a, b) => a.price - b.price);
+      data?.asks ?? data?.a
+    ).sort(
+      (a, b) => a.price - b.price
+    );
 
-    if (
-      !bids.length ||
-      !asks.length ||
-      bids[0].price >= asks[0].price
-    ) {
-      throw Error(
-        "Libro de órdenes vacío o inconsistente"
+    if (!bids.length || !asks.length) {
+      throw new Error(
+        "Libro de órdenes vacío"
+      );
+    }
+
+    if (bids[0].price >= asks[0].price) {
+      throw new Error(
+        "Precios bid/ask inconsistentes"
       );
     }
 
     return {
       bids: bids.slice(0, CFG.depth),
       asks: asks.slice(0, CFG.depth),
-      mid: (
-        bids[0].price + asks[0].price
-      ) / 2
+      mid:
+        (bids[0].price + asks[0].price) / 2
     };
   }
 
@@ -660,89 +801,117 @@
       encodeURIComponent(s.symbol) +
       "?market=" +
       encodeURIComponent(s.market) +
-      "&limit=" + CFG.depth
+      "&limit=" +
+      CFG.depth
     );
   }
 
-  async function fetchBook(s) {
-    const controller = new AbortController();
-    S.controller = controller;
-
-    const timeout = setTimeout(
-      () => controller.abort(),
-      CFG.timeout
+  async function fetchBook(s, signal) {
+    const response = await fetch(
+      depthURL(s),
+      {
+        signal,
+        cache: "no-store"
+      }
     );
 
-    try {
-      const response = await fetch(
-        depthURL(s),
-        {
-          signal: controller.signal,
-          cache: "no-store"
-        }
+    if (!response.ok) {
+      throw new Error(
+        "HTTP " + response.status
       );
-
-      if (!response.ok) {
-        throw Error(
-          "HTTP " + response.status
-        );
-      }
-
-      return normalize(
-        await response.json()
-      );
-
-    } finally {
-      clearTimeout(timeout);
-
-      if (S.controller === controller) {
-        S.controller = null;
-      }
     }
+
+    return normalize(
+      await response.json()
+    );
   }
 
   function renderSide(id, side, kind) {
     const root = $(id);
+
     if (!root) return;
 
     root.replaceChildren();
 
     const levels = side.slice(
-      0, CFG.bookLevels
+      0,
+      CFG.bookLevels
     );
 
     const max = Math.max(
       1,
       ...levels.map(
-        x => x.price * x.quantity
+        order =>
+          order.price * order.quantity
       )
     );
 
-    levels.forEach(x => {
+    levels.forEach(order => {
       const row = el(
         "div",
         "cl-book-row " + kind
       );
 
-      const bar = el("div", "cl-book-bar");
+      const bar = el(
+        "div",
+        "cl-book-bar"
+      );
+
+      const notional =
+        order.price * order.quantity;
 
       bar.style.width =
-        (x.price * x.quantity / max * 100) +
-        "%";
+        (notional / max * 100) + "%";
 
       row.append(
         bar,
-        el("span", "", fmt(x.price)),
-        el("span", "", fmt(x.quantity, 4)),
         el(
           "span",
           "",
-          fmt(x.price * x.quantity, 0)
+          fmtPrice(order.price)
+        ),
+        el(
+          "span",
+          "",
+          fmt(order.quantity, 4)
+        ),
+        el(
+          "span",
+          "",
+          fmt(notional, 0)
         )
       );
 
-      root.append(row);
+      root.appendChild(row);
     });
+  }
+
+  function totalNotional(orders) {
+    return orders.reduce(
+      (sum, order) =>
+        sum +
+        order.price * order.quantity,
+      0
+    );
+  }
+
+  function largestOrder(orders) {
+    return orders.reduce(
+      (best, order) => {
+        if (!best) return order;
+
+        const current =
+          order.price * order.quantity;
+
+        const previous =
+          best.price * best.quantity;
+
+        return current > previous
+          ? order
+          : best;
+      },
+      null
+    );
   }
 
   function renderBook(book) {
@@ -762,45 +931,64 @@
     const ask = book.asks[0].price;
 
     if ($("bid")) {
-      $("bid").textContent = fmt(bid);
+      $("bid").textContent =
+        fmtPrice(bid);
     }
 
     if ($("ask")) {
-      $("ask").textContent = fmt(ask);
+      $("ask").textContent =
+        fmtPrice(ask);
     }
 
-    const spread = $("clSpread");
+    const spread = ask - bid;
 
-    if (spread) {
-      spread.textContent =
-        "Spread: " +
-        fmt(ask - bid, 4) +
-        " USDT · " +
-        fmt((ask - bid) / ask * 100, 4) +
-        "%";
+    const spreadElement = $("clSpread");
+
+    if (spreadElement) {
+      spreadElement.textContent =
+        "Bid: " +
+        fmtPrice(bid) +
+        " · Ask: " +
+        fmtPrice(ask) +
+        " · Spread: " +
+        fmtPrice(spread) +
+        " (" +
+        fmt(spread / book.mid * 100, 4) +
+        "%)";
     }
 
-    const buys = book.bids.slice(0, 10);
-    const sells = book.asks.slice(0, 10);
-
-    const total = arr => arr.reduce(
-      (sum, x) =>
-        sum + x.price * x.quantity,
-      0
+    const buys = book.bids.slice(
+      0,
+      CFG.bookLevels
     );
 
-    const buyTotal = total(buys);
-    const sellTotal = total(sells);
-
-    const largest = arr => arr.reduce(
-      (best, x) =>
-        !best ||
-        x.price * x.quantity >
-        best.price * best.quantity
-          ? x
-          : best,
-      null
+    const sells = book.asks.slice(
+      0,
+      CFG.bookLevels
     );
+
+    const buyTotal =
+      totalNotional(buys);
+
+    const sellTotal =
+      totalNotional(sells);
+
+    const combined =
+      buyTotal + sellTotal;
+
+    const buyPercent = combined
+      ? buyTotal / combined * 100
+      : 0;
+
+    const sellPercent = combined
+      ? sellTotal / combined * 100
+      : 0;
+
+    const strongestBuy =
+      largestOrder(buys);
+
+    const strongestSell =
+      largestOrder(sells);
 
     const summary = $("clBookSummary");
 
@@ -808,17 +996,19 @@
       summary.textContent =
         "Compras visibles: " +
         fmt(buyTotal, 0) +
-        " USDT · Ventas visibles: " +
+        " USDT (" +
+        fmt(buyPercent, 1) +
+        "%). Ventas visibles: " +
         fmt(sellTotal, 0) +
-        " USDT · Ratio: " +
-        (sellTotal
-          ? fmt(buyTotal / sellTotal)
-          : "—") +
-        " · Mayor compra: " +
-        fmt(largest(buys)?.price) +
-        " · Mayor venta: " +
-        fmt(largest(sells)?.price) +
-        ". Cálculos sobre diez niveles por lado.";
+        " USDT (" +
+        fmt(sellPercent, 1) +
+        "%). Mayor concentración compradora: " +
+        fmtPrice(strongestBuy?.price) +
+        ". Mayor concentración vendedora: " +
+        fmtPrice(strongestSell?.price) +
+        ". Datos calculados sobre diez " +
+        "niveles por lado. No equivalen " +
+        "a probabilidades de rechazo.";
     }
   }
 
@@ -826,11 +1016,17 @@
     S.snapshots.push({
       time: Date.now(),
       mid: book.mid,
-      bids: book.bids.map(x => ({ ...x })),
-      asks: book.asks.map(x => ({ ...x }))
+      bids: book.bids.map(
+        order => ({ ...order })
+      ),
+      asks: book.asks.map(
+        order => ({ ...order })
+      )
     });
 
-    if (S.snapshots.length > S.maxHistory) {
+    if (
+      S.snapshots.length > S.maxHistory
+    ) {
       S.snapshots.splice(
         0,
         S.snapshots.length - S.maxHistory
@@ -838,57 +1034,80 @@
     }
   }
 
-  function heatColor(v) {
+  function heatColor(value) {
     const x = Math.max(
       0,
-      Math.min(1, v * S.intensity)
+      Math.min(
+        1,
+        value * S.intensity
+      )
     );
 
-    if (x < .08) return "#1d0936";
-    if (x < .20) return "#53208b";
-    if (x < .34) return "#9825c9";
-    if (x < .49) return "#176fbd";
-    if (x < .63) return "#15b7cf";
-    if (x < .76) return "#27d7a3";
-    if (x < .89) return "#ffe34d";
+    if (x < 0.08) return "#1d0936";
+    if (x < 0.20) return "#53208b";
+    if (x < 0.34) return "#9825c9";
+    if (x < 0.49) return "#176fbd";
+    if (x < 0.63) return "#15b7cf";
+    if (x < 0.76) return "#27d7a3";
+    if (x < 0.89) return "#ffe34d";
 
     return "#ff7919";
   }
 
+  function requestDraw() {
+    if (S.frame) return;
+
+    S.frame = requestAnimationFrame(() => {
+      S.frame = 0;
+      draw();
+    });
+  }
+
   function draw() {
     const canvas = $("clHeatmap");
+
     if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
+    const rect =
+      canvas.getBoundingClientRect();
 
-    if (
-      rect.width < 50 ||
-      rect.height < 50
-    ) return;
+    const w = rect.width;
+    const h = rect.height;
+
+    if (w < 50 || h < 50) return;
 
     const dpr = Math.min(
       window.devicePixelRatio || 1,
       2
     );
 
-    const w = rect.width;
-    const h = rect.height;
+    const pixelWidth =
+      Math.round(w * dpr);
 
-    const cw = Math.round(w * dpr);
-    const ch = Math.round(h * dpr);
+    const pixelHeight =
+      Math.round(h * dpr);
 
     if (
-      canvas.width !== cw ||
-      canvas.height !== ch
+      canvas.width !== pixelWidth ||
+      canvas.height !== pixelHeight
     ) {
-      canvas.width = cw;
-      canvas.height = ch;
+      canvas.width = pixelWidth;
+      canvas.height = pixelHeight;
     }
 
-    const ctx = canvas.getContext("2d");
+    const ctx =
+      canvas.getContext("2d");
+
     if (!ctx) return;
 
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.setTransform(
+      dpr,
+      0,
+      0,
+      dpr,
+      0,
+      0
+    );
 
     ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, w, h);
@@ -901,184 +1120,227 @@
       ctx.textAlign = "center";
 
       ctx.fillText(
-        "Esperando datos reales...",
+        "Esperando profundidad real...",
         w / 2,
         h / 2
       );
+
       return;
     }
 
     const left = 5;
-    const axis = Math.min(69, w * .19);
-    const profile = S.showProfile
-      ? Math.min(85, w * .23)
-      : 0;
+    const axis = Math.min(
+      75,
+      w * 0.22
+    );
 
-    const gap = S.showProfile ? 7 : 0;
+    const profileWidth =
+      S.showProfile
+        ? Math.min(85, w * 0.23)
+        : 0;
 
-    const right = w - axis - profile - gap;
+    const gap =
+      S.showProfile ? 7 : 0;
+
+    const right =
+      w - axis - profileWidth - gap;
+
     const top = 14;
     const bottom = h - 28;
 
     const plotW = right - left;
     const plotH = bottom - top;
 
-    if (plotW < 20 || plotH < 20) return;
-
-    /*
-     Escala centrada en el último precio.
-     Se utiliza la profundidad realmente
-     observada, con zoom vertical.
-    */
-    const allPrices = [];
-
-    snaps.forEach(s => {
-      allPrices.push(s.mid);
-
-      s.bids.forEach(x =>
-        allPrices.push(x.price)
-      );
-
-      s.asks.forEach(x =>
-        allPrices.push(x.price)
-      );
-    });
-
-    let min = Math.min(...allPrices);
-    let max = Math.max(...allPrices);
-
-    const last = snaps[snaps.length - 1];
-
-    const fullRange = Math.max(
-      max - min,
-      last.mid * .00005
-    );
-
-    const center = last.mid;
-
-    const half = (
-      fullRange * 1.08 / S.zoom
-    ) / 2;
-
-    min = center - half;
-    max = center + half;
-
-    /*
-     Garantizar que la trayectoria
-     registrada permanezca dentro
-     de la escala, cuando sea posible.
-    */
-    const pathMin = Math.min(
-      ...snaps.map(s => s.mid)
-    );
-
-    const pathMax = Math.max(
-      ...snaps.map(s => s.mid)
-    );
-
-    if (pathMin < min || pathMax > max) {
-      const pathCenter =
-        (pathMin + pathMax) / 2;
-
-      const pathHalf = Math.max(
-        half,
-        (pathMax - pathMin) * .55
-      );
-
-      min = pathCenter - pathHalf;
-      max = pathCenter + pathHalf;
+    if (
+      plotW < 20 ||
+      plotH < 20
+    ) {
+      return;
     }
 
+    const last =
+      snaps[snaps.length - 1];
+
+    /*
+     Determinar el rango de precios
+     usando los niveles reales
+     registrados.
+    */
+
+    let observedMin = Infinity;
+    let observedMax = -Infinity;
+
+    let pathMin = Infinity;
+    let pathMax = -Infinity;
+
+    for (const snap of snaps) {
+      observedMin = Math.min(
+        observedMin,
+        snap.mid
+      );
+
+      observedMax = Math.max(
+        observedMax,
+        snap.mid
+      );
+
+      pathMin = Math.min(
+        pathMin,
+        snap.mid
+      );
+
+      pathMax = Math.max(
+        pathMax,
+        snap.mid
+      );
+
+      for (const order of snap.bids) {
+        observedMin = Math.min(
+          observedMin,
+          order.price
+        );
+
+        observedMax = Math.max(
+          observedMax,
+          order.price
+        );
+      }
+
+      for (const order of snap.asks) {
+        observedMin = Math.min(
+          observedMin,
+          order.price
+        );
+
+        observedMax = Math.max(
+          observedMax,
+          order.price
+        );
+      }
+    }
+
+    if (
+      !Number.isFinite(observedMin) ||
+      !Number.isFinite(observedMax)
+    ) {
+      return;
+    }
+
+    const fullRange = Math.max(
+      observedMax - observedMin,
+      last.mid * 0.00005
+    );
+
+    let half =
+      fullRange * 0.54 / S.zoom;
+
+    let center = last.mid;
+
+    /*
+     El zoom modifica la escala
+     vertical. La trayectoria puede
+     quedar parcialmente fuera del
+     área al ampliar, como corresponde.
+    */
+
+    const min = Math.max(
+      Number.EPSILON,
+      center - half
+    );
+
+    const max =
+      center + half;
+
     const range = max - min;
+
+    if (range <= 0) return;
+
     const bins = S.bins;
     const cellH = plotH / bins;
+    const colW = plotW / snaps.length;
 
     const yPrice = price =>
       bottom -
       (price - min) / range * plotH;
 
-    /*
-     Cada columna representa una
-     muestra real. Se distribuyen
-     sobre el ancho disponible.
-     No se inventan muestras pasadas.
-    */
-    const colW = plotW / snaps.length;
-
     const matrices = [];
-    const profileBid = Array(bins).fill(0);
-    const profileAsk = Array(bins).fill(0);
-
     const nonzero = [];
 
-    snaps.forEach(s => {
-      const bids = Array(bins).fill(0);
-      const asks = Array(bins).fill(0);
+    for (const snap of snaps) {
+      const column =
+        new Float64Array(bins);
 
-      for (const [levels, target, prof] of [
-        [s.bids, bids, profileBid],
-        [s.asks, asks, profileAsk]
+      for (const orders of [
+        snap.bids,
+        snap.asks
       ]) {
-        levels.forEach(order => {
-          const idx = Math.floor(
+        for (const order of orders) {
+          const index = Math.floor(
             (order.price - min) /
             range * bins
           );
 
-          if (idx < 0 || idx >= bins) {
-            return;
+          if (
+            index < 0 ||
+            index >= bins
+          ) {
+            continue;
           }
 
-          const notional =
+          column[index] +=
             order.price * order.quantity;
-
-          target[idx] += notional;
-          prof[idx] += notional;
-        });
+        }
       }
 
-      const combined = bids.map(
-        (value, i) => value + asks[i]
-      );
+      for (const value of column) {
+        if (value > 0) {
+          nonzero.push(value);
+        }
+      }
 
-      combined.forEach(value => {
-        if (value > 0) nonzero.push(value);
-      });
+      matrices.push(column);
+    }
 
-      matrices.push(combined);
-    });
-
-    nonzero.sort((a, b) => a - b);
+    nonzero.sort(
+      (a, b) => a - b
+    );
 
     const reference = nonzero.length
       ? Math.max(
           1,
           nonzero[
             Math.floor(
-              (nonzero.length - 1) * .95
+              (nonzero.length - 1) * 0.95
             )
           ]
         )
       : 1;
 
-    const strength = value =>
-      value > 0
-        ? Math.min(
-            1,
-            Math.log1p(value) /
-            Math.log1p(reference)
-          )
-        : 0;
+    const logReference =
+      Math.log1p(reference);
+
+    function strength(value) {
+      if (value <= 0) return 0;
+
+      return Math.min(
+        1,
+        Math.log1p(value) /
+        logReference
+      );
+    }
 
     /*
-     Cuadrícula de precios.
+     Cuadrícula horizontal.
     */
+
     ctx.strokeStyle =
       "rgba(160,170,220,.13)";
+
     ctx.lineWidth = 1;
 
     for (let i = 0; i <= 6; i++) {
-      const y = top + i * plotH / 6;
+      const y =
+        top + i * plotH / 6;
 
       ctx.beginPath();
       ctx.moveTo(left, y);
@@ -1087,115 +1349,156 @@
     }
 
     /*
-     Bandas horizontales de calor.
-
-     Las franjas mantienen el mismo
-     nivel de precio entre muestras
-     consecutivas cuando existe
-     liquidez observada en ese nivel.
+     Bandas de calor.
+     Cada columna procede de
+     una muestra real.
     */
+
     if (S.showMap) {
-      matrices.forEach((column, x) => {
-        const px = left + x * colW;
+      matrices.forEach(
+        (column, columnIndex) => {
+          const x =
+            left + columnIndex * colW;
 
-        for (let row = 0; row < bins; row++) {
-          const value = column[row];
-          if (value <= 0) continue;
+          for (
+            let row = 0;
+            row < bins;
+            row++
+          ) {
+            const value =
+              column[row];
 
-          const py =
-            bottom - (row + 1) * cellH;
+            if (value <= 0) continue;
 
-          ctx.fillStyle = heatColor(
-            strength(value)
-          );
+            const y =
+              bottom -
+              (row + 1) * cellH;
 
-          ctx.fillRect(
-            px,
-            py,
-            Math.ceil(colW + .4),
-            Math.max(1, cellH + .4)
-          );
+            ctx.fillStyle = heatColor(
+              strength(value)
+            );
+
+            ctx.fillRect(
+              x,
+              y,
+              Math.ceil(colW + 0.4),
+              Math.max(1, cellH + 0.4)
+            );
+          }
         }
-      });
+      );
     }
 
     /*
-     Perfil lateral.
-     Se calcula con la última muestra,
-     para mostrar la liquidez visible
-     actual y no sumar repetidamente
-     las mismas órdenes históricas.
+     Perfil lateral:
+     solamente órdenes visibles
+     en la última muestra.
     */
-    if (S.showProfile) {
-      const pb = Array(bins).fill(0);
-      const pa = Array(bins).fill(0);
 
-      for (const [orders, target] of [
-        [last.bids, pb],
-        [last.asks, pa]
+    if (S.showProfile) {
+      const buys =
+        new Float64Array(bins);
+
+      const sells =
+        new Float64Array(bins);
+
+      for (const [
+        orders,
+        target
+      ] of [
+        [last.bids, buys],
+        [last.asks, sells]
       ]) {
-        orders.forEach(order => {
-          const idx = Math.floor(
+        for (const order of orders) {
+          const index = Math.floor(
             (order.price - min) /
             range * bins
           );
 
-          if (idx >= 0 && idx < bins) {
-            target[idx] +=
-              order.price * order.quantity;
+          if (
+            index < 0 ||
+            index >= bins
+          ) {
+            continue;
           }
-        });
+
+          target[index] +=
+            order.price * order.quantity;
+        }
       }
 
-      const peak = Math.max(
-        1,
-        ...pb.map((v, i) => v + pa[i])
-      );
+      let peak = 1;
+
+      for (let i = 0; i < bins; i++) {
+        peak = Math.max(
+          peak,
+          buys[i] + sells[i]
+        );
+      }
 
       const x0 = right + gap;
 
+      const scale =
+        Math.max(0, profileWidth - 4) /
+        peak;
+
       for (let i = 0; i < bins; i++) {
         const y =
-          bottom - (i + 1) * cellH;
+          bottom -
+          (i + 1) * cellH;
 
-        const scale =
-          (profile - 4) / peak;
+        const buyWidth =
+          buys[i] * scale;
 
-        const bw = pb[i] * scale;
-        const aw = pa[i] * scale;
+        const sellWidth =
+          sells[i] * scale;
 
         ctx.fillStyle = C.green;
+
         ctx.fillRect(
           x0,
           y,
-          bw,
+          buyWidth,
           Math.max(1, cellH)
         );
 
         ctx.fillStyle = C.red;
+
         ctx.fillRect(
-          x0 + bw,
+          x0 + buyWidth,
           y,
-          aw,
+          sellWidth,
           Math.max(1, cellH)
         );
       }
     }
 
     /*
-     Trayectoria del precio.
-     Por ahora usa el precio medio
-     bid/ask registrado en cada
-     snapshot real del libro.
+     Trayectoria blanca del precio.
+     Se utiliza el precio medio
+     bid/ask de cada snapshot.
     */
+
     if (S.showPrice) {
+      ctx.save();
+
+      ctx.beginPath();
+      ctx.rect(
+        left,
+        top,
+        plotW,
+        plotH
+      );
+      ctx.clip();
+
       ctx.beginPath();
 
-      snaps.forEach((s, i) => {
+      snaps.forEach((snap, i) => {
         const x =
-          left + (i + .5) * colW;
+          left + (i + 0.5) * colW;
 
-        const y = yPrice(s.mid);
+        const y =
+          yPrice(snap.mid);
 
         if (i === 0) {
           ctx.moveTo(x, y);
@@ -1212,25 +1515,34 @@
       ctx.strokeStyle = "#ffffff";
       ctx.lineWidth = 1.6;
       ctx.stroke();
+
+      ctx.restore();
     }
 
     /*
-     Precio actual.
+     Línea del precio actual.
     */
-    const py = yPrice(last.mid);
 
-    ctx.beginPath();
-    ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = C.blue;
-    ctx.lineWidth = 1;
-    ctx.moveTo(left, py);
-    ctx.lineTo(right, py);
-    ctx.stroke();
-    ctx.setLineDash([]);
+    const py =
+      yPrice(last.mid);
+
+    if (py >= top && py <= bottom) {
+      ctx.beginPath();
+      ctx.setLineDash([4, 4]);
+      ctx.strokeStyle = C.blue;
+      ctx.lineWidth = 1;
+
+      ctx.moveTo(left, py);
+      ctx.lineTo(right, py);
+      ctx.stroke();
+
+      ctx.setLineDash([]);
+    }
 
     /*
-     Etiquetas de precio.
+     Escala lateral de precios.
     */
+
     ctx.font = "10px system-ui";
     ctx.textAlign = "left";
     ctx.fillStyle = "#aab7d4";
@@ -1239,10 +1551,11 @@
       const price =
         max - i * range / 6;
 
-      const y = top + i * plotH / 6;
+      const y =
+        top + i * plotH / 6;
 
       ctx.fillText(
-        fmt(price),
+        fmtPrice(price),
         w - axis + 3,
         Math.max(
           11,
@@ -1251,28 +1564,33 @@
       );
     }
 
-    ctx.fillStyle = C.blue;
+    if (py >= top && py <= bottom) {
+      ctx.fillStyle = C.blue;
 
-    ctx.fillText(
-      fmt(last.mid),
-      w - axis + 3,
-      Math.max(
-        12,
-        Math.min(h - 20, py - 7)
-      )
-    );
+      ctx.fillText(
+        fmtPrice(last.mid),
+        w - axis + 3,
+        Math.max(
+          12,
+          Math.min(h - 20, py - 7)
+        )
+      );
+    }
 
     /*
-     Eje temporal real.
+     Eje temporal:
+     tiempos reales de consulta.
     */
+
     const first = snaps[0];
 
-    const timeText = t =>
-      new Date(t).toLocaleTimeString(
+    const timeText = time =>
+      new Date(time).toLocaleTimeString(
         "es-MX",
         {
           hour: "2-digit",
-          minute: "2-digit"
+          minute: "2-digit",
+          second: "2-digit"
         }
       );
 
@@ -1280,6 +1598,7 @@
     ctx.font = "10px system-ui";
 
     ctx.textAlign = "left";
+
     ctx.fillText(
       timeText(first.time),
       left,
@@ -1287,15 +1606,13 @@
     );
 
     ctx.textAlign = "right";
+
     ctx.fillText(
       timeText(last.time),
       right,
       h - 9
     );
 
-    /*
-     Estado informativo.
-    */
     const info = $("clHeatInfo");
 
     if (info) {
@@ -1308,7 +1625,7 @@
         " a " +
         timeText(last.time) +
         " · Precio medio: " +
-        fmt(last.mid) +
+        fmtPrice(last.mid) +
         " · Profundidad: " +
         last.bids.length +
         " compras / " +
@@ -1320,6 +1637,8 @@
   function reset() {
     S.snapshots = [];
     S.lastBook = null;
+    S.lastUpdated = 0;
+    S.lastError = "";
 
     if ($("clAsks")) {
       $("clAsks").textContent =
@@ -1329,6 +1648,11 @@
     if ($("clBids")) {
       $("clBids").textContent =
         "Esperando órdenes...";
+    }
+
+    if ($("clSpread")) {
+      $("clSpread").textContent =
+        "Spread: —";
     }
 
     if ($("clBookSummary")) {
@@ -1341,18 +1665,32 @@
         "Esperando muestras reales...";
     }
 
-    draw();
+    requestDraw();
+  }
+
+  function abortRequest() {
+    if (S.controller) {
+      S.controller.abort();
+      S.controller = null;
+    }
   }
 
   async function refresh() {
     if (
       !S.running ||
-      S.busy ||
       document.hidden
-    ) return;
+    ) {
+      return;
+    }
 
-    const s = selection();
-    const currentKey = key(s);
+    if (S.busy) {
+      S.pendingRefresh = true;
+      return;
+    }
+
+    const selected = selection();
+    const currentKey =
+      marketKey(selected);
 
     if (currentKey !== S.key) {
       S.key = currentKey;
@@ -1360,36 +1698,57 @@
       reset();
     }
 
-    const generation = S.generation;
+    const generation =
+      S.generation;
+
+    const controller =
+      new AbortController();
+
+    S.controller = controller;
     S.busy = true;
+
+    let timeout = null;
 
     try {
       status(
         "Consultando " +
-        s.exchange.toUpperCase(),
-        "#ffe15a"
+        selected.exchange.toUpperCase(),
+        C.yellow
       );
 
-      const book = await fetchBook(s);
+      timeout = setTimeout(
+        () => controller.abort(),
+        CFG.timeout
+      );
+
+      const book = await fetchBook(
+        selected,
+        controller.signal
+      );
 
       if (
         !S.running ||
         generation !== S.generation ||
-        currentKey !== key(selection())
-      ) return;
+        currentKey !== marketKey() ||
+        controller.signal.aborted
+      ) {
+        return;
+      }
 
       S.lastBook = book;
+      S.lastUpdated = Date.now();
+      S.lastError = "";
 
       capture(book);
       renderBook(book);
-      draw();
+      requestDraw();
 
       status(
-        s.exchange.toUpperCase() +
+        selected.exchange.toUpperCase() +
         " · " +
-        new Date().toLocaleTimeString(
-          "es-MX"
-        ),
+        new Date(
+          S.lastUpdated
+        ).toLocaleTimeString("es-MX"),
         C.green
       );
 
@@ -1397,7 +1756,16 @@
       if (
         generation !== S.generation ||
         !S.running
-      ) return;
+      ) {
+        return;
+      }
+
+      const message =
+        controller.signal.aborted
+          ? "Tiempo de espera agotado"
+          : error.message;
+
+      S.lastError = message;
 
       console.warn(
         "CRYPTOLEXUZ Liquidez:",
@@ -1405,8 +1773,7 @@
       );
 
       status(
-        "Sin profundidad · " +
-        error.message,
+        "Sin profundidad · " + message,
         C.red
       );
 
@@ -1416,11 +1783,39 @@
       ) {
         $("clBookSummary").textContent =
           "No se pudo consultar el libro. " +
-          "Revisa la conexión del proxy.";
+          "Verifica el proxy y la conexión.";
       }
 
     } finally {
+      if (timeout !== null) {
+        clearTimeout(timeout);
+      }
+
+      if (S.controller === controller) {
+        S.controller = null;
+      }
+
       S.busy = false;
+
+      if (
+        S.pendingRefresh &&
+        S.running &&
+        !document.hidden
+      ) {
+        S.pendingRefresh = false;
+
+        /*
+         Permite terminar la petición
+         anterior antes de iniciar
+         la nueva.
+        */
+
+        queueMicrotask(() => {
+          if (S.running) {
+            refresh();
+          }
+        });
+      }
     }
   }
 
@@ -1428,10 +1823,11 @@
     if (S.running) return;
 
     S.running = true;
+    S.key = marketKey();
 
     status(
       "Conectando...",
-      "#ffe15a"
+      C.yellow
     );
 
     refresh();
@@ -1445,105 +1841,139 @@
   function stop() {
     S.running = false;
     S.generation++;
+    S.pendingRefresh = false;
 
     if (S.timer) {
       clearInterval(S.timer);
       S.timer = null;
     }
 
-    S.controller?.abort();
+    abortRequest();
 
-    status("Mapa detenido");
+    status(
+      "Mapa detenido",
+      C.muted
+    );
   }
 
   function restart() {
     S.generation++;
-    S.key = "";
+    S.key = marketKey();
 
-    S.controller?.abort();
+    abortRequest();
     reset();
 
     if (S.running) {
-      if (S.busy) {
-        setTimeout(() => {
-          if (S.running) refresh();
-        }, 150);
-      } else {
+      S.pendingRefresh = true;
+
+      if (!S.busy) {
+        S.pendingRefresh = false;
         refresh();
       }
     }
   }
 
+  function setZoom(value) {
+    const next = Number(value);
+
+    if (!Number.isFinite(next)) {
+      return;
+    }
+
+    S.zoom = Math.max(
+      0.5,
+      Math.min(6, next)
+    );
+
+    requestDraw();
+  }
+
   function events() {
     $("clHeatEnabled")?.addEventListener(
       "change",
-      e => {
-        S.showMap = e.target.checked;
-        draw();
+      event => {
+        S.showMap =
+          event.target.checked;
+
+        requestDraw();
       }
     );
 
     $("clHeatPrice")?.addEventListener(
       "change",
-      e => {
-        S.showPrice = e.target.checked;
-        draw();
+      event => {
+        S.showPrice =
+          event.target.checked;
+
+        requestDraw();
       }
     );
 
     $("clHeatProfile")?.addEventListener(
       "change",
-      e => {
-        S.showProfile = e.target.checked;
-        draw();
+      event => {
+        S.showProfile =
+          event.target.checked;
+
+        requestDraw();
       }
     );
 
     $("clHeatIntensity")?.addEventListener(
       "input",
-      e => {
-        S.intensity = Number(
-          e.target.value
-        );
-        draw();
+      event => {
+        S.intensity =
+          Number(event.target.value) || 1;
+
+        requestDraw();
       }
     );
 
     $("clHeatHistory")?.addEventListener(
       "change",
-      e => {
-        S.maxHistory = Number(
-          e.target.value
+      event => {
+        const next =
+          Number(event.target.value);
+
+        S.maxHistory = Math.max(
+          1,
+          Math.min(
+            CFG.maxSnapshots,
+            next || 180
+          )
         );
 
-        S.snapshots = S.snapshots.slice(
-          -S.maxHistory
-        );
+        S.snapshots =
+          S.snapshots.slice(-S.maxHistory);
 
-        draw();
+        requestDraw();
       }
     );
 
     $("clHeatBins")?.addEventListener(
       "change",
-      e => {
-        S.bins = Number(e.target.value);
-        draw();
+      event => {
+        const next =
+          Number(event.target.value);
+
+        S.bins = Math.max(
+          20,
+          Math.min(200, next || 100)
+        );
+
+        requestDraw();
       }
     );
 
     $("clHeatResetZoom")?.addEventListener(
       "click",
-      () => {
-        S.zoom = 1;
-        draw();
-      }
+      () => setZoom(1)
     );
 
     $("liquidityMapToggle")?.addEventListener(
       "change",
-      e => {
-        if (e.target.checked) {
+      event => {
+        if (event.target.checked) {
           start();
         } else {
           stop();
@@ -1567,38 +1997,32 @@
     if (canvas) {
       canvas.addEventListener(
         "wheel",
-        e => {
-          e.preventDefault();
+        event => {
+          event.preventDefault();
 
-          S.zoom = Math.max(
-            .5,
-            Math.min(
-              6,
-              S.zoom * (
-                e.deltaY < 0
-                  ? 1.12
-                  : .89
-              )
-            )
+          setZoom(
+            S.zoom *
+            (event.deltaY < 0
+              ? 1.12
+              : 0.89)
           );
-
-          draw();
         },
         { passive: false }
       );
 
       canvas.addEventListener(
         "touchstart",
-        e => {
-          if (e.touches.length !== 2) {
+        event => {
+          if (event.touches.length !== 2) {
+            S.pinchDistance = 0;
             return;
           }
 
-          S.dragging = true;
-
-          S.touchY = Math.abs(
-            e.touches[0].clientY -
-            e.touches[1].clientY
+          S.pinchDistance = Math.hypot(
+            event.touches[0].clientX -
+            event.touches[1].clientX,
+            event.touches[0].clientY -
+            event.touches[1].clientY
           );
         },
         { passive: true }
@@ -1606,44 +2030,52 @@
 
       canvas.addEventListener(
         "touchmove",
-        e => {
+        event => {
           if (
-            !S.dragging ||
-            e.touches.length !== 2
-          ) return;
-
-          const distance = Math.abs(
-            e.touches[0].clientY -
-            e.touches[1].clientY
-          );
-
-          if (S.touchY > 0) {
-            S.zoom = Math.max(
-              .5,
-              Math.min(
-                6,
-                S.zoom *
-                distance / S.touchY
-              )
-            );
+            event.touches.length !== 2 ||
+            S.pinchDistance <= 0
+          ) {
+            return;
           }
 
-          S.touchY = distance;
-          draw();
+          event.preventDefault();
+
+          const distance = Math.hypot(
+            event.touches[0].clientX -
+            event.touches[1].clientX,
+            event.touches[0].clientY -
+            event.touches[1].clientY
+          );
+
+          if (distance > 0) {
+            setZoom(
+              S.zoom *
+              distance / S.pinchDistance
+            );
+
+            S.pinchDistance = distance;
+          }
         },
-        { passive: true }
+        { passive: false }
       );
+
+      function finishPinch() {
+        S.pinchDistance = 0;
+      }
 
       canvas.addEventListener(
         "touchend",
-        () => {
-          S.dragging = false;
-        }
+        finishPinch
+      );
+
+      canvas.addEventListener(
+        "touchcancel",
+        finishPinch
       );
 
       if (window.ResizeObserver) {
         S.observer = new ResizeObserver(
-          () => draw()
+          requestDraw
         );
 
         S.observer.observe(canvas);
@@ -1658,19 +2090,19 @@
           S.running
         ) {
           refresh();
-          draw();
+          requestDraw();
         }
       }
     );
 
     window.addEventListener(
       "resize",
-      draw
+      requestDraw
     );
 
     window.addEventListener(
       "cryptolexuz:screen-change",
-      () => setTimeout(draw, 150)
+      requestDraw
     );
 
     window.addEventListener(
@@ -1683,12 +2115,22 @@
   }
 
   function init() {
-    if (!build()) return;
+    if (S.initialized) return;
+
+    if (!build()) {
+      console.warn(
+        "Liquidity V13: inicialización pendiente"
+      );
+      return;
+    }
+
+    S.initialized = true;
 
     events();
     reset();
 
-    const toggle = $("liquidityMapToggle");
+    const toggle =
+      $("liquidityMapToggle");
 
     if (!toggle || toggle.checked) {
       start();
@@ -1697,9 +2139,46 @@
     }
 
     console.info(
-      "CRYPTOLEXUZ PRO · Liquidity V12"
+      "CRYPTOLEXUZ PRO — Liquidity V13 cargado"
     );
   }
+
+  window.CryptolexuzLiquidity = {
+    version: "13",
+
+    start,
+    stop,
+    restart,
+    refresh,
+    redraw: requestDraw,
+
+    isRunning: () => S.running,
+
+    getSelection: selection,
+
+    getBook: () =>
+      S.lastBook
+        ? JSON.parse(
+            JSON.stringify(S.lastBook)
+          )
+        : null,
+
+    getSnapshots: () =>
+      JSON.parse(
+        JSON.stringify(S.snapshots)
+      ),
+
+    getStatus: () => ({
+      running: S.running,
+      busy: S.busy,
+      market: S.key,
+      samples: S.snapshots.length,
+      lastUpdated: S.lastUpdated,
+      lastError: S.lastError
+    }),
+
+    setZoom
+  };
 
   if (document.readyState === "loading") {
     document.addEventListener(
