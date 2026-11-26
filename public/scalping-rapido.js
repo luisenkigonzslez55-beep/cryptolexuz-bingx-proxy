@@ -1,29 +1,32 @@
+JavaScript
 
 /*
  CRYPTOLEXUZ PRO
- SCALPING RÁPIDO V2 COMPLETO
+ SCALPING RÁPIDO V3 COMPLETO
 
  BTC: LONG / SHORT 100x
  ORO: LONG / SHORT 100x
  PETRÓLEO WTI: LONG / SHORT 50x
 
- Temporalidades: 1m y 5m
+ Temporalidades: 1m y 5m.
+ Confirmación adicional: 15m.
+
  EMA 21, MA 55, ATR, volumen,
- ruptura y retesteo.
+ ruptura, retesteo y estructura.
 
- Objetivos teóricos:
- ROI bruto +50%, +100%, +200%.
+ Objetivos teóricos de ROI bruto:
+ +50%, +100%, +200%.
 
- No ejecuta órdenes.
+ Solo información.
+ No ejecuta órdenes reales.
  No garantiza resultados.
 */
 
 "use strict";
 
 (() => {
-
-  if (window.__clScalpingRapidoV2) return;
-  window.__clScalpingRapidoV2 = true;
+  if (window.__clScalpingRapidoV3) return;
+  window.__clScalpingRapidoV3 = true;
 
   const $ = id => document.getElementById(id);
 
@@ -51,30 +54,49 @@
     }
   ];
 
+  const INTERVALS = {
+    "1m": 60,
+    "5m": 300,
+    "15m": 900
+  };
+
   const state = new Map();
+  const cache = new Map();
 
   let busy = false;
+  let rerun = false;
   let lastRun = 0;
   let timer = null;
+  let initialized = false;
 
-  function fmt(n, digits = 2) {
+  const now = () =>
+    Math.floor(Date.now() / 1000);
+
+  function fmt(value, digits = 2) {
     if (
-      n === null ||
-      n === undefined ||
-      n === "" ||
-      !Number.isFinite(Number(n))
-    ) return "—";
+      value === null ||
+      value === undefined ||
+      value === "" ||
+      !Number.isFinite(Number(value))
+    ) {
+      return "—";
+    }
 
-    return Number(n).toLocaleString("en-US", {
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits
-    });
+    return Number(value).toLocaleString(
+      "en-US",
+      {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits
+      }
+    );
   }
 
   function el(tag, className = "", value) {
     const element = document.createElement(tag);
 
-    if (className) element.className = className;
+    if (className) {
+      element.className = className;
+    }
 
     if (value !== undefined) {
       element.textContent = String(value);
@@ -84,7 +106,6 @@
   }
 
   function normalize(payload) {
-
     const candidates = [
       payload?.data?.data,
       payload?.data?.list,
@@ -95,23 +116,31 @@
       payload
     ];
 
-    const raw = candidates.find(Array.isArray) || [];
+    const raw =
+      candidates.find(Array.isArray) || [];
+
     const result = [];
 
+    const num = value =>
+      value === null ||
+      value === undefined ||
+      value === ""
+        ? NaN
+        : Number(value);
+
     for (const v of raw) {
+      if (!v || typeof v !== "object") {
+        continue;
+      }
 
-      if (!v || typeof v !== "object") continue;
+      const array = Array.isArray(v);
 
-      const a = Array.isArray(v);
-
-      const num = x =>
-        x === null || x === undefined || x === ""
-          ? NaN
-          : Number(x);
-
-      let time = a
+      let time = array
         ? v[0]
-        : (v.time ?? v.timestamp ?? v.openTime ?? v.t);
+        : v.time ??
+          v.timestamp ??
+          v.openTime ??
+          v.t;
 
       time =
         typeof time === "string" &&
@@ -124,23 +153,25 @@
       }
 
       const open = num(
-        a ? v[1] : (v.open ?? v.o)
+        array ? v[1] : v.open ?? v.o
       );
 
       const high = num(
-        a ? v[2] : (v.high ?? v.h)
+        array ? v[2] : v.high ?? v.h
       );
 
       const low = num(
-        a ? v[3] : (v.low ?? v.l)
+        array ? v[3] : v.low ?? v.l
       );
 
       const close = num(
-        a ? v[4] : (v.close ?? v.c)
+        array ? v[4] : v.close ?? v.c
       );
 
       const volume = num(
-        a ? v[5] : (v.volume ?? v.vol ?? v.v ?? 0)
+        array
+          ? v[5]
+          : v.volume ?? v.vol ?? v.v ?? 0
       );
 
       if (
@@ -152,15 +183,25 @@
           close,
           volume
         ].every(Number.isFinite)
-      ) continue;
+      ) {
+        continue;
+      }
 
       if (
         time <= 0 ||
-        low <= 0 ||
+        time > now() + 60 ||
+        Math.min(
+          open,
+          high,
+          low,
+          close
+        ) <= 0 ||
         volume < 0 ||
-        high < Math.max(open, close, low) ||
+        high < Math.max(open, close) ||
         low > Math.min(open, close)
-      ) continue;
+      ) {
+        continue;
+      }
 
       result.push({
         time,
@@ -172,7 +213,9 @@
       });
     }
 
-    result.sort((a, b) => a.time - b.time);
+    result.sort(
+      (a, b) => a.time - b.time
+    );
 
     return [
       ...new Map(
@@ -181,17 +224,7 @@
     ];
   }
 
-  async function getCandles(asset, tf) {
-
-    const interval = tf === "1m" ? 60 : 300;
-
-    const url =
-      "/api/exchange/bingx/klines/" +
-      encodeURIComponent(asset.symbol) +
-      "?market=perpetual" +
-      "&interval=" + encodeURIComponent(tf) +
-      "&limit=180";
-
+  async function requestJSON(url) {
     const controller = new AbortController();
 
     const timeout = setTimeout(
@@ -200,7 +233,6 @@
     );
 
     try {
-
       const response = await fetch(url, {
         signal: controller.signal,
         cache: "no-store"
@@ -208,7 +240,7 @@
 
       if (!response.ok) {
         throw new Error(
-          "Error HTTP " + response.status
+          "HTTP " + response.status
         );
       }
 
@@ -216,423 +248,626 @@
 
       if (
         payload?.code !== undefined &&
-        ![0, "0"].includes(payload.code)
+        ![
+          0,
+          "0",
+          "00000"
+        ].includes(payload.code)
       ) {
         throw new Error(
-          payload.msg || "Error de BingX"
+          String(
+            payload.msg ||
+            payload.message ||
+            "Error de API"
+          )
         );
       }
 
-      const data = normalize(payload);
-
-      const currentTime = Math.floor(
-        Date.now() / 1000
-      );
-
-      const closed = data.filter(c =>
-        c.time + interval <= currentTime - 2
-      );
-
-      if (closed.length < 65) {
-        throw new Error(
-          "Historial insuficiente en " + tf
-        );
-      }
-
-      if (
-        currentTime - closed.at(-1).time >
-        (tf === "1m" ? 240 : 900)
-      ) {
-        throw new Error(
-          "Velas desactualizadas en " + tf
-        );
-      }
-
-      return closed;
+      return payload;
 
     } finally {
       clearTimeout(timeout);
     }
   }
 
-  function ema(values, length) {
+  async function getCandles(asset, tf) {
+    const seconds = INTERVALS[tf];
 
-    if (values.length < length) return NaN;
+    if (!seconds) {
+      throw new Error(
+        "Temporalidad no compatible"
+      );
+    }
+
+    const key =
+      asset.symbol + "|" + tf;
+
+    const cached = cache.get(key);
+
+    const ttl = tf === "1m"
+      ? 20000
+      : tf === "5m"
+        ? 45000
+        : 60000;
+
+    if (
+      cached &&
+      Date.now() - cached.at < ttl
+    ) {
+      return cached.data;
+    }
+
+    const url =
+      "/api/exchange/bingx/klines/" +
+      encodeURIComponent(asset.symbol) +
+      "?market=perpetual" +
+      "&interval=" +
+      encodeURIComponent(tf) +
+      "&limit=200";
+
+    const payload = await requestJSON(url);
+
+    const rows = normalize(payload);
+
+    const current = now();
+
+    const closed = rows.filter(
+      c =>
+        c.time + seconds <=
+        current - 2
+    );
+
+    if (closed.length < 65) {
+      throw new Error(
+        "Historial insuficiente en " + tf
+      );
+    }
+
+    const last = closed.at(-1);
+
+    const age =
+      current - (last.time + seconds);
+
+    const maxAge = tf === "1m"
+      ? 150
+      : tf === "5m"
+        ? 420
+        : 1050;
+
+    if (age > maxAge) {
+      throw new Error(
+        "Velas desactualizadas en " + tf
+      );
+    }
+
+    cache.set(key, {
+      at: Date.now(),
+      data: closed
+    });
+
+    return closed;
+  }
+
+  function ema(values, length) {
+    if (values.length < length) {
+      return NaN;
+    }
 
     let result =
       values.slice(0, length)
-        .reduce((a, b) => a + b, 0) / length;
+        .reduce((a, b) => a + b, 0) /
+      length;
+
+    const multiplier =
+      2 / (length + 1);
 
     for (
       let i = length;
       i < values.length;
       i++
     ) {
-
-      result =
-        values[i] * 2 / (length + 1) +
-        result * (length - 1) / (length + 1);
+      result +=
+        (values[i] - result) *
+        multiplier;
     }
 
     return result;
   }
 
   function sma(values, length) {
-
-    if (values.length < length) return NaN;
+    if (values.length < length) {
+      return NaN;
+    }
 
     return values.slice(-length)
-      .reduce((a, b) => a + b, 0) / length;
+      .reduce((a, b) => a + b, 0) /
+      length;
   }
 
   function atr(rows, length = 14) {
+    if (rows.length < length + 2) {
+      return NaN;
+    }
 
     const ranges = [];
 
-    for (let i = 1; i < rows.length; i++) {
-
-      ranges.push(Math.max(
-        rows[i].high - rows[i].low,
-        Math.abs(
-          rows[i].high - rows[i - 1].close
-        ),
-        Math.abs(
-          rows[i].low - rows[i - 1].close
+    for (
+      let i = 1;
+      i < rows.length;
+      i++
+    ) {
+      ranges.push(
+        Math.max(
+          rows[i].high - rows[i].low,
+          Math.abs(
+            rows[i].high -
+            rows[i - 1].close
+          ),
+          Math.abs(
+            rows[i].low -
+            rows[i - 1].close
+          )
         )
-      ));
+      );
     }
 
     return sma(ranges, length);
   }
 
-  function analyze(asset, one, five, side) {
+  function trend(rows, side) {
+    const closes =
+      rows.map(c => c.close);
 
-    const isLong = side === "LONG";
+    const last =
+      closes.at(-1);
 
-    const last = one.at(-1);
+    const e21 =
+      ema(closes, 21);
 
-    const closesOne = one.map(c => c.close);
-    const closesFive = five.map(c => c.close);
+    const m55 =
+      sma(closes, 55);
 
-    const emaOne = ema(closesOne, 21);
-    const maOne = sma(closesOne, 55);
-
-    const emaFive = ema(closesFive, 21);
-    const maFive = sma(closesFive, 55);
-
-    const aligned = isLong
-      ? (
-          last.close > emaOne &&
-          emaOne > maOne &&
-          five.at(-1).close > emaFive &&
-          emaFive > maFive
-        )
-      : (
-          last.close < emaOne &&
-          emaOne < maOne &&
-          five.at(-1).close < emaFive &&
-          emaFive < maFive
-        );
-
-    if (!aligned) {
-      return {
-        status: "ESPERANDO CONFIRMACIÓN",
-        reason:
-          "Las medias de uno y cinco minutos " +
-          "no están alineadas."
-      };
+    if (
+      ![
+        last,
+        e21,
+        m55
+      ].every(Number.isFinite)
+    ) {
+      return false;
     }
 
-    const volatility = atr(one);
+    return side === "LONG"
+      ? last > e21 && e21 > m55
+      : last < e21 && e21 < m55;
+  }
+
+  function waiting(reason) {
+    return {
+      status: "ESPERANDO CONFIRMACIÓN",
+      reason
+    };
+  }
+
+  function analyze(
+    asset,
+    one,
+    five,
+    fifteen,
+    side
+  ) {
+    const isLong =
+      side === "LONG";
+
+    const last =
+      one.at(-1);
+
+    if (
+      !trend(one, side) ||
+      !trend(five, side) ||
+      !trend(fifteen, side)
+    ) {
+      return waiting(
+        "EMA 21 y MA 55 sin alineación " +
+        "en uno, cinco y quince minutos."
+      );
+    }
+
+    const volatility =
+      atr(one);
 
     if (
       !Number.isFinite(volatility) ||
       volatility <= 0
     ) {
-      return {
-        status: "ESPERANDO CONFIRMACIÓN",
-        reason: "Volatilidad no verificable."
-      };
+      return waiting(
+        "Volatilidad ATR insuficiente."
+      );
     }
 
-    const prior = one.slice(-13, -3);
+    let setup = null;
 
-    const level = isLong
-      ? Math.max(...prior.map(c => c.high))
-      : Math.min(...prior.map(c => c.low));
+    for (
+      let back = 1;
+      back <= 3;
+      back++
+    ) {
+      const index =
+        one.length - 1 - back;
 
-    const recent = one.slice(-3);
+      if (index < 25) {
+        continue;
+      }
 
-    const broke = recent.some(c =>
-      isLong
-        ? c.close > level + 0.04 * volatility
-        : c.close < level - 0.04 * volatility
-    );
+      const breakout =
+        one[index];
 
-    const retest = isLong
-      ? (
-          last.low <= level + 0.25 * volatility &&
-          last.close > level
-        )
-      : (
-          last.high >= level - 0.25 * volatility &&
-          last.close < level
+      const previous =
+        one.slice(
+          index - 10,
+          index
         );
 
-    const baseline = sma(
-      one.slice(-24, -4).map(c => c.volume),
-      20
-    );
+      const level = isLong
+        ? Math.max(
+            ...previous.map(
+              c => c.high
+            )
+          )
+        : Math.min(
+            ...previous.map(
+              c => c.low
+            )
+          );
 
-    const recentVolume = Math.max(
-      ...recent.map(c => c.volume)
-    );
+      const volumeHistory =
+        one.slice(
+          index - 20,
+          index
+        );
 
-    const volumeOK =
-      baseline > 0 &&
-      recentVolume >= baseline * 1.3;
+      const averageVolume =
+        volumeHistory.reduce(
+          (sum, c) =>
+            sum + c.volume,
+          0
+        ) / volumeHistory.length;
 
-    if (
-      !broke ||
-      !retest ||
-      !volumeOK
-    ) {
+      const volumeOK =
+        averageVolume > 0 &&
+        breakout.volume >=
+          averageVolume * 1.3;
 
-      return {
-        status: "ESPERANDO CONFIRMACIÓN",
-        reason:
-          "Ruptura: " + (broke ? "Sí" : "No") +
-          " · Retesteo: " + (retest ? "Sí" : "No") +
-          " · Volumen: " + (volumeOK ? "Sí" : "No")
-      };
+      const broke = isLong
+        ? breakout.close >
+          level +
+          0.04 * volatility
+        : breakout.close <
+          level -
+          0.04 * volatility;
+
+      const intermediate =
+        one.slice(
+          index + 1,
+          -1
+        );
+
+      const held =
+        intermediate.every(
+          c => isLong
+            ? c.close >=
+              level -
+              0.16 * volatility
+            : c.close <=
+              level +
+              0.16 * volatility
+        );
+
+      const retest = isLong
+        ? (
+            last.low <=
+              level +
+              0.20 * volatility &&
+            last.low >=
+              level -
+              0.25 * volatility &&
+            last.close > level
+          )
+        : (
+            last.high >=
+              level -
+              0.20 * volatility &&
+            last.high <=
+              level +
+              0.25 * volatility &&
+            last.close < level
+          );
+
+      if (
+        broke &&
+        held &&
+        retest &&
+        volumeOK
+      ) {
+        setup = {
+          level,
+          breakout,
+          retest: last,
+          averageVolume
+        };
+
+        break;
+      }
+    }
+
+    if (!setup) {
+      return waiting(
+        "Sin ruptura, retesteo y " +
+        "volumen confirmados en " +
+        "velas cerradas."
+      );
     }
 
     const entry = isLong
       ? last.high
       : last.low;
 
+    const recent =
+      one.slice(-6);
+
+    const buffer =
+      0.2 * volatility;
+
     const stop = isLong
-      ? (
-          Math.min(
-            ...one.slice(-6).map(c => c.low)
-          ) - 0.2 * volatility
-        )
-      : (
-          Math.max(
-            ...one.slice(-6).map(c => c.high)
-          ) + 0.2 * volatility
-        );
+      ? Math.min(
+          ...recent.map(
+            c => c.low
+          )
+        ) - buffer
+      : Math.max(
+          ...recent.map(
+            c => c.high
+          )
+        ) + buffer;
 
-    const risk = Math.abs(entry - stop);
+    const risk =
+      Math.abs(entry - stop);
 
-    const riskPct = 100 * risk / entry;
+    const riskPct =
+      100 * risk / entry;
 
     if (
+      !Number.isFinite(entry) ||
+      !Number.isFinite(stop) ||
+      entry <= 0 ||
+      stop <= 0 ||
       risk <= 0 ||
       riskPct < 0.02 ||
-      riskPct > 0.6
-    ) {
-
-      return {
-        status: "ESPERANDO CONFIRMACIÓN",
-        reason:
-          "Stop estructural fuera del rango " +
-          "permitido por la estrategia."
-      };
-    }
-
-    const direction = isLong ? 1 : -1;
-
-    const targets = [50, 100, 200].map(roi => {
-
-      const price =
-        entry * (
-          1 +
-          direction *
-          roi / (100 * asset.leverage)
-        );
-
-      return {
-        roi,
-        price,
-        rr: Math.abs(price - entry) / risk
-      };
-    });
-
-    if (
-      targets.some(t =>
-        !Number.isFinite(t.price) ||
-        t.price <= 0
+      riskPct > 0.6 ||
+      (
+        isLong
+          ? stop >= entry
+          : stop <= entry
       )
     ) {
+      return waiting(
+        "Stop estructural fuera " +
+        "del rango permitido."
+      );
+    }
 
-      return {
-        status: "ESPERANDO CONFIRMACIÓN",
-        reason: "Objetivos no válidos."
-      };
+    const direction =
+      isLong ? 1 : -1;
+
+    const targets =
+      [50, 100, 200].map(
+        roi => {
+          const price =
+            entry * (
+              1 +
+              direction *
+              roi /
+              (
+                100 *
+                asset.leverage
+              )
+            );
+
+          return {
+            roi,
+            price,
+            rr:
+              Math.abs(
+                price - entry
+              ) / risk
+          };
+        }
+      );
+
+    if (
+      targets.some(
+        t =>
+          !Number.isFinite(t.price) ||
+          t.price <= 0
+      )
+    ) {
+      return waiting(
+        "Objetivos teóricos inválidos."
+      );
     }
 
     return {
       status: "CONFIGURACIÓN DETECTADA",
       reason:
-        "Ruptura, retesteo, volumen " +
-        "y tendencia alineados.",
+        "Tendencia alineada en 1m, " +
+        "5m y 15m. Ruptura, " +
+        "retesteo y volumen " +
+        "confirmados.",
       side,
       entry,
       stop,
       riskPct,
       targets,
       at: last.time,
-      precision: asset.precision
+      precision: asset.precision,
+      breakoutTime:
+        setup.breakout.time,
+      level: setup.level
     };
   }
 
   function addStyles() {
-
-    if ($("clQuickScalpCSS")) return;
+    if ($("clQuickScalpCSS")) {
+      return;
+    }
 
     const style = el("style");
     style.id = "clQuickScalpCSS";
 
     style.textContent = `
       .cl-quick-scalp {
-        margin: 16px 0;
-        padding: 15px;
-        background: #0e1730;
-        color: #e7eeff;
-        border: 1px solid #344269;
-        border-radius: 15px;
+        margin:16px 0;
+        padding:15px;
+        background:#0e1730;
+        color:#e7eeff;
+        border:1px solid #344269;
+        border-radius:15px;
       }
 
       .clqs-top {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        flex-wrap: wrap;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        flex-wrap:wrap;
       }
 
       .clqs-top h2 {
-        font-size: 18px;
-        color: #ffe15a;
-        margin: 0;
+        font-size:18px;
+        color:#ffe15a;
+        margin:0;
       }
 
       .clqs-refresh {
-        background: #29214c;
-        color: white;
-        border: 1px solid #7657ac;
-        border-radius: 9px;
-        padding: 9px 13px;
-        cursor: pointer;
+        background:#29214c;
+        color:#fff;
+        border:1px solid #7657ac;
+        border-radius:9px;
+        padding:9px 13px;
+        cursor:pointer;
+      }
+
+      .clqs-refresh:disabled {
+        opacity:.55;
+        cursor:wait;
       }
 
       .clqs-note {
-        font-size: 12px;
-        color: #acbad6;
-        line-height: 1.6;
-        margin: 12px 0;
+        font-size:12px;
+        color:#acbad6;
+        line-height:1.6;
+        margin:12px 0;
       }
 
       .clqs-grid {
-        display: grid;
+        display:grid;
         grid-template-columns:
           repeat(
             auto-fit,
-            minmax(min(100%, 280px), 1fr)
+            minmax(min(100%,280px),1fr)
           );
-        gap: 12px;
+        gap:12px;
       }
 
       .clqs-asset {
-        background: #111d36;
-        border: 1px solid #35496b;
-        border-radius: 12px;
-        padding: 12px;
-        min-width: 0;
+        background:#111d36;
+        border:1px solid #35496b;
+        border-radius:12px;
+        padding:12px;
+        min-width:0;
       }
 
       .clqs-title {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 8px;
-        margin-bottom: 12px;
-        font-weight: 700;
-        font-size: 15px;
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:8px;
+        margin-bottom:12px;
+        font-weight:700;
+        font-size:15px;
       }
 
       .clqs-lev {
-        color: #ffe15a;
-        font-size: 15px;
+        color:#ffe15a;
+        font-size:15px;
       }
 
       .clqs-sides {
-        display: grid;
+        display:grid;
         grid-template-columns:
-          repeat(2, minmax(0, 1fr));
-        gap: 8px;
+          repeat(2,minmax(0,1fr));
+        gap:8px;
       }
 
       .clqs-side {
-        padding: 10px 8px;
-        border-radius: 10px;
-        min-width: 0;
-        background: #0b1429;
-        border: 1px solid #2a3a56;
+        padding:10px 8px;
+        border-radius:10px;
+        min-width:0;
+        background:#0b1429;
+        border:1px solid #2a3a56;
       }
 
       .clqs-side.long {
-        border-top: 3px solid #00f5a0;
+        border-top:3px solid #00f5a0;
       }
 
       .clqs-side.short {
-        border-top: 3px solid #ff476c;
+        border-top:3px solid #ff476c;
       }
 
       .clqs-side h4 {
-        font-size: 14px;
-        margin: 0 0 10px;
+        font-size:14px;
+        margin:0 0 10px;
       }
 
       .clqs-side.long h4 {
-        color: #00f5a0;
+        color:#00f5a0;
       }
 
       .clqs-side.short h4 {
-        color: #ff476c;
+        color:#ff476c;
       }
 
       .clqs-status {
-        font-size: 11px;
-        color: #ffe15a;
-        line-height: 1.5;
-        margin-bottom: 8px;
-        overflow-wrap: anywhere;
+        font-size:11px;
+        color:#ffe15a;
+        line-height:1.5;
+        margin-bottom:8px;
+        overflow-wrap:anywhere;
       }
 
       .clqs-line {
-        font-size: 11px;
-        line-height: 1.6;
-        margin: 5px 0;
-        overflow-wrap: anywhere;
+        font-size:11px;
+        line-height:1.6;
+        margin:5px 0;
+        overflow-wrap:anywhere;
       }
 
       .clqs-target {
-        color: #00f5a0;
+        color:#00f5a0;
       }
 
       .clqs-reason {
-        font-size: 11px;
-        color: #aebbd4;
-        line-height: 1.5;
-        margin-top: 10px;
-        overflow-wrap: anywhere;
+        font-size:11px;
+        color:#aebbd4;
+        line-height:1.5;
+        margin-top:10px;
+        overflow-wrap:anywhere;
       }
 
-      @media (max-width: 370px) {
+      @media(max-width:370px) {
         .clqs-sides {
-          grid-template-columns: 1fr;
+          grid-template-columns:1fr;
         }
       }
     `;
@@ -640,17 +875,31 @@
     document.head.appendChild(style);
   }
 
-  function build() {
+  function paneId(asset, side) {
+    return (
+      "clqs-" +
+      asset.symbol.replace(
+        /[^a-z0-9]/gi,
+        "_"
+      ) +
+      "-" +
+      side
+    );
+  }
 
+  function build() {
     const host =
       $("clQuickScalpHost") ||
       $("clScreenScanner") ||
       $("clScanner") ||
       document.querySelector("main");
 
-    if (!host) return false;
+    if (!host) {
+      return false;
+    }
 
-    let section = $("clQuickScalp");
+    let section =
+      $("clQuickScalp");
 
     if (section) {
       if (
@@ -670,12 +919,18 @@
       "cl-quick-scalp"
     );
 
-    section.id = "clQuickScalp";
+    section.id =
+      "clQuickScalp";
 
-    const top = el("div", "clqs-top");
+    const top =
+      el("div", "clqs-top");
 
     top.append(
-      el("h2", "", "⚡ SCALPING RÁPIDO")
+      el(
+        "h2",
+        "",
+        "⚡ SCALPING RÁPIDO"
+      )
     );
 
     const refresh = el(
@@ -685,6 +940,7 @@
     );
 
     refresh.type = "button";
+    refresh.id = "clqsRefresh";
 
     refresh.addEventListener(
       "click",
@@ -698,34 +954,43 @@
       el(
         "p",
         "clqs-note",
-        "BTC y oro 100x · Petróleo WTI 50x. " +
-        "Análisis informativo de uno y cinco minutos. " +
-        "Solo futuros perpetuos BingX."
+        "BTC y oro 100x · " +
+        "Petróleo WTI 50x. " +
+        "Análisis informativo con " +
+        "velas cerradas de 1m, " +
+        "5m y 15m. " +
+        "Futuros perpetuos BingX."
       )
     );
 
-    const grid = el("div", "clqs-grid");
-    grid.id = "clQuickScalpGrid";
+    const grid =
+      el("div", "clqs-grid");
+
+    grid.id =
+      "clQuickScalpGrid";
 
     section.append(grid);
 
     for (const asset of ASSETS) {
+      const card =
+        el(
+          "article",
+          "clqs-asset"
+        );
 
-      const card = el(
-        "article",
-        "clqs-asset"
-      );
-
-      const title = el(
-        "div",
-        "clqs-title"
-      );
+      const title =
+        el(
+          "div",
+          "clqs-title"
+        );
 
       title.append(
         el(
           "span",
           "",
-          asset.icon + " " + asset.name
+          asset.icon +
+          " " +
+          asset.name
         ),
         el(
           "span",
@@ -736,27 +1001,27 @@
 
       card.append(title);
 
-      const sides = el(
-        "div",
-        "clqs-sides"
-      );
-
-      for (
-        const side of ["LONG", "SHORT"]
-      ) {
-
-        const pane = el(
+      const sides =
+        el(
           "div",
-          "clqs-side " + side.toLowerCase()
+          "clqs-sides"
         );
 
+      for (
+        const side of [
+          "LONG",
+          "SHORT"
+        ]
+      ) {
+        const pane =
+          el(
+            "div",
+            "clqs-side " +
+            side.toLowerCase()
+          );
+
         pane.id =
-          "clqs-" +
-          asset.symbol.replace(
-            /[^a-z0-9]/gi,
-            "_"
-          ) +
-          "-" + side;
+          paneId(asset, side);
 
         sides.append(pane);
       }
@@ -765,13 +1030,15 @@
       grid.append(card);
     }
 
-    const status = el(
-      "p",
-      "clqs-note",
-      "Preparando análisis..."
-    );
+    const status =
+      el(
+        "p",
+        "clqs-note",
+        "Preparando análisis..."
+      );
 
-    status.id = "clQuickScalpStatus";
+    status.id =
+      "clQuickScalpStatus";
 
     section.append(status);
 
@@ -782,19 +1049,18 @@
     return true;
   }
 
-  function renderPane(asset, side, data) {
+  function renderPane(
+    asset,
+    side,
+    data
+  ) {
+    const pane = $(
+      paneId(asset, side)
+    );
 
-    const id =
-      "clqs-" +
-      asset.symbol.replace(
-        /[^a-z0-9]/gi,
-        "_"
-      ) +
-      "-" + side;
-
-    const pane = $(id);
-
-    if (!pane) return;
+    if (!pane) {
+      return;
+    }
 
     pane.replaceChildren();
 
@@ -821,13 +1087,15 @@
       data &&
       Number.isFinite(data.entry)
     ) {
-
       pane.append(
         el(
           "div",
           "clqs-line",
-          "Entrada: " +
-          fmt(data.entry, data.precision)
+          "Entrada teórica: " +
+          fmt(
+            data.entry,
+            data.precision
+          )
         )
       );
 
@@ -836,48 +1104,60 @@
           "div",
           "clqs-line",
           "Stop: " +
-          fmt(data.stop, data.precision)
-        )
-      );
-
-      pane.append(
-        el(
-          "div",
-          "clqs-line",
-          "Riesgo precio: " +
-          fmt(data.riskPct, 3) + "%"
-        )
-      );
-
-      pane.append(
-        el(
-          "div",
-          "clqs-line",
-          "Riesgo teórico sobre margen: " +
           fmt(
-            data.riskPct * asset.leverage,
+            data.stop,
+            data.precision
+          )
+        )
+      );
+
+      pane.append(
+        el(
+          "div",
+          "clqs-line",
+          "Distancia al stop: " +
+          fmt(
+            data.riskPct,
+            3
+          ) +
+          "%"
+        )
+      );
+
+      pane.append(
+        el(
+          "div",
+          "clqs-line",
+          "Pérdida bruta teórica " +
+          "sobre margen: " +
+          fmt(
+            data.riskPct *
+            asset.leverage,
             1
-          ) + "%"
+          ) +
+          "%"
         )
       );
 
       for (
         const target of data.targets
       ) {
-
         pane.append(
           el(
             "div",
             "clqs-line clqs-target",
             "TP +" +
             target.roi +
-            "% margen: " +
+            "% ROI bruto: " +
             fmt(
               target.price,
               data.precision
             ) +
             " · R/B " +
-            fmt(target.rr, 2)
+            fmt(
+              target.rr,
+              2
+            )
           )
         );
       }
@@ -886,54 +1166,33 @@
         el(
           "div",
           "clqs-line",
-          "Evaluado: " +
+          "Vela de confirmación: " +
           new Date(
             data.at * 1000
-          ).toLocaleTimeString("es-MX")
+          ).toLocaleTimeString(
+            "es-MX"
+          )
         )
       );
 
     } else {
-
-      pane.append(
-        el(
-          "div",
-          "clqs-line",
-          "Entrada: —"
-        )
-      );
-
-      pane.append(
-        el(
-          "div",
-          "clqs-line",
-          "Stop: —"
-        )
-      );
-
-      pane.append(
-        el(
-          "div",
-          "clqs-line",
-          "TP 50%: —"
-        )
-      );
-
-      pane.append(
-        el(
-          "div",
-          "clqs-line",
-          "TP 100%: —"
-        )
-      );
-
-      pane.append(
-        el(
-          "div",
-          "clqs-line",
-          "TP 200%: —"
-        )
-      );
+      for (
+        const label of [
+          "Entrada",
+          "Stop",
+          "TP 50%",
+          "TP 100%",
+          "TP 200%"
+        ]
+      ) {
+        pane.append(
+          el(
+            "div",
+            "clqs-line",
+            label + ": —"
+          )
+        );
+      }
     }
 
     pane.append(
@@ -947,18 +1206,20 @@
   }
 
   function render() {
-
     for (const asset of ASSETS) {
-
       for (
-        const side of ["LONG", "SHORT"]
+        const side of [
+          "LONG",
+          "SHORT"
+        ]
       ) {
-
         renderPane(
           asset,
           side,
           state.get(
-            asset.symbol + "|" + side
+            asset.symbol +
+            "|" +
+            side
           )
         );
       }
@@ -966,115 +1227,191 @@
   }
 
   async function run(force = false) {
+    if (!build()) {
+      return;
+    }
 
-    if (!build()) return;
+    if (document.hidden) {
+      return;
+    }
 
-    if (busy || document.hidden) return;
+    if (busy) {
+      if (force) {
+        rerun = true;
+      }
+
+      return;
+    }
 
     if (
       !force &&
-      Date.now() - lastRun < 45000
-    ) return;
+      Date.now() - lastRun <
+      45000
+    ) {
+      return;
+    }
 
     busy = true;
     lastRun = Date.now();
 
-    const status = $("clQuickScalpStatus");
+    const status =
+      $("clQuickScalpStatus");
+
+    const button =
+      $("clqsRefresh");
+
+    if (button) {
+      button.disabled = true;
+      button.textContent =
+        "Analizando...";
+    }
 
     if (status) {
       status.textContent =
-        "Analizando velas cerradas...";
+        "Analizando velas cerradas " +
+        "de uno, cinco y quince minutos...";
     }
 
     try {
-
-      for (const asset of ASSETS) {
-
-        try {
-
-          const [one, five] =
-            await Promise.all([
-              getCandles(asset, "1m"),
-              getCandles(asset, "5m")
-            ]);
-
-          for (
-            const side of ["LONG", "SHORT"]
-          ) {
-
-            state.set(
-              asset.symbol + "|" + side,
-              analyze(
-                asset,
-                one,
-                five,
-                side
-              )
-            );
-          }
-
-        } catch (error) {
-
-          for (
-            const side of ["LONG", "SHORT"]
-          ) {
-
-            state.set(
-              asset.symbol + "|" + side,
-              {
-                status:
-                  "DATOS NO DISPONIBLES",
-                reason:
-                  String(
-                    error.message || error
+      const results =
+        await Promise.all(
+          ASSETS.map(
+            async asset => {
+              try {
+                const [
+                  one,
+                  five,
+                  fifteen
+                ] = await Promise.all([
+                  getCandles(
+                    asset,
+                    "1m"
+                  ),
+                  getCandles(
+                    asset,
+                    "5m"
+                  ),
+                  getCandles(
+                    asset,
+                    "15m"
                   )
-              }
-            );
-          }
-        }
+                ]);
 
-        render();
+                return {
+                  asset,
+                  long: analyze(
+                    asset,
+                    one,
+                    five,
+                    fifteen,
+                    "LONG"
+                  ),
+                  short: analyze(
+                    asset,
+                    one,
+                    five,
+                    fifteen,
+                    "SHORT"
+                  )
+                };
+
+              } catch (error) {
+                const unavailable = {
+                  status:
+                    "DATOS NO DISPONIBLES",
+                  reason: String(
+                    error?.message ||
+                    error
+                  )
+                };
+
+                return {
+                  asset,
+                  long: unavailable,
+                  short: unavailable
+                };
+              }
+            }
+          )
+        );
+
+      for (const result of results) {
+        state.set(
+          result.asset.symbol +
+          "|LONG",
+          result.long
+        );
+
+        state.set(
+          result.asset.symbol +
+          "|SHORT",
+          result.short
+        );
       }
 
-      if (status) {
+      render();
 
+      if (status) {
         status.textContent =
           "Última revisión: " +
           new Date().toLocaleTimeString(
             "es-MX"
           ) +
           " · Datos públicos BingX. " +
-          "No son órdenes ejecutadas. " +
-          "Los cálculos no incluyen " +
+          "ROI teórico bruto, sin " +
           "comisiones, financiación " +
-          "ni deslizamiento.";
+          "ni deslizamiento. " +
+          "No ejecuta órdenes.";
+      }
+
+    } catch (error) {
+      if (status) {
+        status.textContent =
+          "Error del análisis: " +
+          String(
+            error?.message ||
+            error
+          );
       }
 
     } finally {
-
       busy = false;
+
+      if (button) {
+        button.disabled = false;
+        button.textContent =
+          "Actualizar";
+      }
+
+      if (rerun) {
+        rerun = false;
+
+        setTimeout(
+          () => run(true),
+          300
+        );
+      }
     }
   }
 
   function init() {
-
-    if (!build()) {
-      console.warn(
-        "CRYPTOLEXUZ: no se encontró " +
-        "el contenedor de scalping."
-      );
+    if (initialized) {
       return;
     }
 
+    if (!build()) {
+      setTimeout(init, 500);
+      return;
+    }
+
+    initialized = true;
+
     run(true);
 
-    if (!timer) {
-
-      timer = setInterval(
-        () => run(),
-        60000
-      );
-    }
+    timer = setInterval(
+      () => run(),
+      60000
+    );
 
     document.addEventListener(
       "visibilitychange",
@@ -1092,20 +1429,41 @@
         build();
       }
     );
+
+    window.addEventListener(
+      "beforeunload",
+      () => {
+        if (timer) {
+          clearInterval(timer);
+          timer = null;
+        }
+      }
+    );
+
+    console.info(
+      "CRYPTOLEXUZ PRO — " +
+      "Scalping Rápido V3 cargado"
+    );
   }
+
+  window.CryptolexuzScalpingRapido = {
+    version: "3",
+    refresh: () => run(true),
+    getState: () =>
+      Object.fromEntries(state),
+    getAssets: () =>
+      ASSETS.map(a => ({ ...a }))
+  };
 
   if (
     document.readyState === "loading"
   ) {
-
     document.addEventListener(
       "DOMContentLoaded",
-      init
+      init,
+      { once: true }
     );
-
   } else {
-
     init();
   }
-
 })();
