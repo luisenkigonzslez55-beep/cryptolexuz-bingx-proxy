@@ -1739,3 +1739,26 @@ body::before {
 #aoChart {
   background-color: #000 !important;
 }
+
+/* CRYPTOLEXUZ PRO — PRUEBA DE FONDO V28 */
+
+html {
+  background: #050716 !important;
+}
+
+body {
+  background: #050716 !important;
+}
+
+body::before {
+  content: none !important;
+}
+
+.app-header,
+.cl-bottom-nav,
+.cl-module,
+.market-card,
+.chart-card,
+.cl-screen {
+  background-image: none !important;
+}
