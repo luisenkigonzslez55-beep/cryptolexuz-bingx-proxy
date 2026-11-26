@@ -1,26 +1,39 @@
 
 /*
- CRYPTOLEXUZ PRO — FIBONACCI.JS V8
- Compatible con app.js V19 y Lightweight Charts 4.2.2.
+ CRYPTOLEXUZ PRO — FIBONACCI.JS V9 COMPLETO
 
+ Compatible con:
+ - Lightweight Charts 4.2.2
+ - APP.JS V24
+ - STYLES.CSS V25
+ - INDEX.HTML V32
+
+ Correcciones:
+ - Primer punto visible al dibujar.
+ - Dibujo táctil y arrastre de anclas.
+ - Captura y liberación segura del puntero.
+ - Persistencia por mercado, activo y temporalidad.
+ - Migración de datos V8, V7 y V2.
+ - Actualización al cambiar velas y temporalidades.
+ - Desplazamiento vertical libre al desactivar dibujo.
  - Sin caja verde BitLobo.
- - Niveles Fibonacci configurables.
- - Dibujo y edición táctil.
- - Anclas guardadas por tiempo de vela.
- - Persistencia por exchange, mercado, activo y temporalidad.
- - Gráfica libre cuando el modo dibujo está desactivado.
- - Compatible con eventos de CRYPTOLEXUZ PRO.
+ - Niveles configurables.
+ - No duplica barras de herramientas.
 */
 
 "use strict";
 
 (() => {
-  if (window.CryptolexuzFibonacci?.version === "8") return;
+  if (window.CryptolexuzFibonacci?.version === "9") {
+    return;
+  }
 
   const $ = id => document.getElementById(id);
 
-  const STORE = "cryptolexuz_fibonacci_v8";
+  const STORE = "cryptolexuz_fibonacci_v9";
+
   const OLD_STORES = [
+    "cryptolexuz_fibonacci_v8",
     "cryptolexuz_fibonacci_v7",
     "cryptolexuz_fibonacci_v2"
   ];
@@ -33,11 +46,16 @@
     2.618, 3.618, 4.236
   ];
 
-  const HIGHLIGHT = [
+  const HIGHLIGHT = new Set([
     0.618, 0.786, 0.88, 1.618
-  ];
+  ]);
 
-  const DEFAULT_COLOR = "#bb52ff";
+  const PURPLE = "#bb52ff";
+  const ORANGE = "#ffb347";
+
+  const MIN_LEVEL = -20;
+  const MAX_LEVEL = 20;
+  const MAX_LEVELS = 80;
 
   function defaults() {
     return {
@@ -45,17 +63,14 @@
       showLabels: true,
       reverse: false,
       lineWidth: 1,
-      color: DEFAULT_COLOR,
-
-      // La caja verde fue retirada.
+      color: PURPLE,
       showBox: false,
-
       levels: BASE_LEVELS.map(value => ({
         value,
         visible: true,
-        color: HIGHLIGHT.includes(value)
-          ? "#ffb347"
-          : DEFAULT_COLOR
+        color: HIGHLIGHT.has(value)
+          ? ORANGE
+          : PURPLE
       }))
     };
   }
@@ -75,31 +90,80 @@
   let first = null;
   let dragging = null;
   let pointerId = null;
+  let dragKey = null;
 
   let raf = 0;
   let initialized = false;
   let subscribedChart = null;
+  let resizeObserver = null;
 
   function clone(value) {
     if (value === undefined) return null;
-    return JSON.parse(JSON.stringify(value));
+
+    try {
+      return JSON.parse(JSON.stringify(value));
+    } catch {
+      return null;
+    }
   }
 
   function finite(value) {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : null;
+    if (
+      value === null ||
+      value === undefined ||
+      value === ""
+    ) {
+      return null;
+    }
+
+    const number = Number(value);
+
+    return Number.isFinite(number)
+      ? number
+      : null;
   }
 
-  function validColor(value, fallback = DEFAULT_COLOR) {
-    return /^#[0-9a-f]{6}$/i.test(String(value))
+  function validColor(
+    value,
+    fallback = PURPLE
+  ) {
+    return /^#[0-9a-f]{6}$/i.test(
+      String(value)
+    )
       ? value
       : fallback;
+  }
+
+  function normalizeLevel(item) {
+    const value = finite(item?.value);
+
+    if (
+      value === null ||
+      value < MIN_LEVEL ||
+      value > MAX_LEVEL
+    ) {
+      return null;
+    }
+
+    return {
+      value,
+      visible: item.visible !== false,
+      color: validColor(
+        item.color,
+        HIGHLIGHT.has(value)
+          ? ORANGE
+          : PURPLE
+      )
+    };
   }
 
   function normalizeSettings(source) {
     const base = defaults();
 
-    if (!source || typeof source !== "object") {
+    if (
+      !source ||
+      typeof source !== "object"
+    ) {
       return base;
     }
 
@@ -112,86 +176,81 @@
       color: validColor(source.color),
       lineWidth: Math.max(
         1,
-        Math.min(5, finite(source.lineWidth) || 1)
+        Math.min(
+          5,
+          finite(source.lineWidth) ?? 1
+        )
       )
     };
 
     if (Array.isArray(source.levels)) {
-      result.levels = source.levels
-        .map(item => {
-          const value = finite(item?.value);
+      const seen = new Set();
 
-          if (value === null || value < -20 || value > 20) {
-            return null;
+      result.levels = source.levels
+        .map(normalizeLevel)
+        .filter(level => {
+          if (!level) return false;
+
+          if (seen.has(level.value)) {
+            return false;
           }
 
-          const oldGreen =
-            String(item.color || "").toLowerCase() ===
-            "#22c55e";
-
-          return {
-            value,
-            visible: item.visible !== false,
-            color: oldGreen
-              ? "#ffb347"
-              : validColor(item.color, result.color)
-          };
+          seen.add(level.value);
+          return true;
         })
-        .filter(Boolean)
+        .slice(0, MAX_LEVELS)
         .sort((a, b) => a.value - b.value);
     }
 
     return result;
   }
 
-  function load() {
+  function readJSON(key) {
     try {
-      let source = JSON.parse(
-        localStorage.getItem(STORE) || "null"
+      return JSON.parse(
+        localStorage.getItem(key) || "null"
       );
-
-      if (!source) {
-        for (const key of OLD_STORES) {
-          source = JSON.parse(
-            localStorage.getItem(key) || "null"
-          );
-
-          if (source) break;
-        }
-      }
-
-      settings = normalizeSettings(source);
-
-      let savedDrawings = JSON.parse(
-        localStorage.getItem(STORE + "_drawings") ||
-        "null"
-      );
-
-      if (!savedDrawings) {
-        for (const key of OLD_STORES) {
-          savedDrawings = JSON.parse(
-            localStorage.getItem(key + "_drawings") ||
-            "null"
-          );
-
-          if (savedDrawings) break;
-        }
-      }
-
-      if (
-        savedDrawings &&
-        typeof savedDrawings === "object" &&
-        !Array.isArray(savedDrawings)
-      ) {
-        drawings = savedDrawings;
-      }
-
-    } catch (error) {
-      console.warn(
-        "Fibonacci: error al cargar configuración",
-        error
-      );
+    } catch {
+      return null;
     }
+  }
+
+  function load() {
+    let source = readJSON(STORE);
+
+    if (!source) {
+      for (const key of OLD_STORES) {
+        source = readJSON(key);
+
+        if (source) break;
+      }
+    }
+
+    settings = normalizeSettings(source);
+
+    let saved = readJSON(
+      STORE + "_drawings"
+    );
+
+    if (!saved) {
+      for (const key of OLD_STORES) {
+        saved = readJSON(
+          key + "_drawings"
+        );
+
+        if (saved) break;
+      }
+    }
+
+    if (
+      saved &&
+      typeof saved === "object" &&
+      !Array.isArray(saved)
+    ) {
+      drawings = saved;
+    }
+
+    persist();
   }
 
   function persist() {
@@ -207,52 +266,64 @@
       );
     } catch (error) {
       console.warn(
-        "Fibonacci: error al guardar",
+        "Fibonacci: no se pudo guardar",
         error
       );
     }
   }
 
   function selection() {
-    if (typeof getSelection === "function") {
+    let selected = null;
+
+    if (
+      typeof getSelection === "function"
+    ) {
       try {
-        const selected = getSelection();
-
-        if (selected && typeof selected === "object") {
-          const symbol =
-            selected.symbol || $("symbol")?.value || "BTC-USDT";
-
-          return {
-            exchange: selected.exchange ||
-              $("exchange")?.value || "bingx",
-
-            market: selected.market ||
-              $("market")?.value || "perpetual",
-
-            symbol,
-
-            tf: selected.tf ||
-              selected.interval ||
-              $("interval")?.value || "15m"
-          };
-        }
+        selected = getSelection();
       } catch (_) {}
     }
 
-    const symbol = $("symbol")?.value || "BTC-USDT";
-    const commodity = /^NCCO/.test(symbol);
+    selected =
+      selected &&
+      typeof selected === "object"
+        ? selected
+        : {};
+
+    const symbol = String(
+      selected.symbol ||
+      $("symbol")?.value ||
+      "BTC-USDT"
+    );
+
+    const commodity = /^NCCO/i.test(
+      symbol
+    );
 
     return {
       exchange: commodity
         ? "bingx"
-        : $("exchange")?.value || "bingx",
+        : String(
+            selected.exchange ||
+            $("exchange")?.value ||
+            "bingx"
+          ),
 
       market: commodity
         ? "perpetual"
-        : $("market")?.value || "perpetual",
+        : String(
+            selected.market ||
+            $("market")?.value ||
+            "perpetual"
+          ),
 
       symbol,
-      tf: $("interval")?.value || "15m"
+
+      tf: String(
+        selected.tf ||
+        selected.interval ||
+        $("interval")?.value ||
+        "15m"
+      )
     };
   }
 
@@ -269,23 +340,32 @@
 
   function rows() {
     try {
-      const result = getRows();
-      return Array.isArray(result) ? result : [];
-    } catch (_) {
+      const data = getRows();
+
+      return Array.isArray(data)
+        ? data
+        : [];
+    } catch {
       return [];
     }
   }
 
   function timeNumber(value) {
     if (typeof value === "number") {
-      return Number.isFinite(value) ? value : null;
+      if (!Number.isFinite(value)) {
+        return null;
+      }
+
+      return value > 1e11
+        ? Math.floor(value / 1000)
+        : value;
     }
 
     if (typeof value === "string") {
       const numeric = Number(value);
 
       if (Number.isFinite(numeric)) {
-        return numeric;
+        return timeNumber(numeric);
       }
 
       const parsed = Date.parse(value);
@@ -318,26 +398,32 @@
     const x = timeNumber(a);
     const y = timeNumber(b);
 
-    return x !== null && y !== null && x === y;
+    return (
+      x !== null &&
+      y !== null &&
+      x === y
+    );
   }
 
   function timeIndex(time) {
-    const data = rows();
-
-    return data.findIndex(
-      item => sameTime(item.time, time)
+    return rows().findIndex(
+      item => sameTime(
+        item.time,
+        time
+      )
     );
   }
 
   function nearestIndex(logical) {
     const data = rows();
 
-    if (!data.length || !Number.isFinite(logical)) {
+    if (
+      !data.length ||
+      !Number.isFinite(logical)
+    ) {
       return -1;
     }
 
-    // En la serie de velas el índice lógico corresponde
-    // a la posición de la vela en los datos cargados.
     return Math.max(
       0,
       Math.min(
@@ -351,9 +437,16 @@
     if (!point) return null;
 
     const data = rows();
-    const index = nearestIndex(point.logical);
+    const index = nearestIndex(
+      point.logical
+    );
 
-    if (index < 0 || !data[index]) {
+    if (
+      index < 0 ||
+      !data[index] ||
+      !Number.isFinite(point.price) ||
+      point.price <= 0
+    ) {
       return null;
     }
 
@@ -364,13 +457,19 @@
   }
 
   function migrateAnchor(anchor) {
-    if (!anchor || typeof anchor !== "object") {
+    if (
+      !anchor ||
+      typeof anchor !== "object"
+    ) {
       return null;
     }
 
     const price = finite(anchor.price);
 
-    if (price === null || price <= 0) {
+    if (
+      price === null ||
+      price <= 0
+    ) {
       return null;
     }
 
@@ -384,13 +483,21 @@
       };
     }
 
-    const logical = finite(anchor.logical);
+    const logical = finite(
+      anchor.logical
+    );
 
     if (logical !== null) {
-      const index = nearestIndex(logical);
+      const index = nearestIndex(
+        logical
+      );
+
       const data = rows();
 
-      if (index >= 0 && data[index]) {
+      if (
+        index >= 0 &&
+        data[index]
+      ) {
         return {
           time: data[index].time,
           price
@@ -424,42 +531,54 @@
   }
 
   function saveDrawing(value) {
-    drawings[currentKey()] = value;
+    if (
+      !value?.a ||
+      !value?.b
+    ) {
+      return;
+    }
+
+    drawings[currentKey()] = {
+      a: clone(value.a),
+      b: clone(value.b)
+    };
+
     persist();
     redraw();
   }
 
   function priceAt(start, end, ratio) {
-    return start + (end - start) * ratio;
+    return start +
+      (end - start) * ratio;
   }
 
   function calculate() {
-    const d = active();
+    const saved = active();
 
-    if (!d) return null;
+    if (!saved) return null;
 
     const start = settings.reverse
-      ? d.b.price
-      : d.a.price;
+      ? saved.b.price
+      : saved.a.price;
 
     const end = settings.reverse
-      ? d.a.price
-      : d.b.price;
-
-    const levels = settings.levels
-      .filter(level => level.visible)
-      .map(level => ({
-        ...level,
-        price: priceAt(
-          start,
-          end,
-          Number(level.value)
-        )
-      }));
+      ? saved.a.price
+      : saved.b.price;
 
     return {
-      anchors: d,
-      levels,
+      anchors: saved,
+
+      levels: settings.levels
+        .filter(level => level.visible)
+        .map(level => ({
+          ...level,
+          price: priceAt(
+            start,
+            end,
+            level.value
+          )
+        })),
+
       box: null
     };
   }
@@ -469,39 +588,52 @@
 
     const scale = chart.timeScale();
 
-    // Se usa primero la conversión temporal nativa.
     try {
-      const x = scale.timeToCoordinate(time);
+      const x = scale.timeToCoordinate(
+        time
+      );
 
       if (Number.isFinite(x)) {
         return x;
       }
     } catch (_) {}
 
-    // Alternativa para datos cuyo tiempo coincida
-    // con una vela cargada.
     const index = timeIndex(time);
 
     if (index < 0) return null;
 
     try {
-      const x = scale.logicalToCoordinate(index);
+      const x = scale.logicalToCoordinate(
+        index
+      );
 
-      return Number.isFinite(x) ? x : null;
-    } catch (_) {
+      return Number.isFinite(x)
+        ? x
+        : null;
+    } catch {
       return null;
     }
   }
 
   function coordinateForAnchor(anchor) {
-    if (!anchor || !candle) return null;
+    if (
+      !anchor ||
+      !chart ||
+      !candle
+    ) {
+      return null;
+    }
 
-    const x = coordinateForTime(anchor.time);
+    const x = coordinateForTime(
+      anchor.time
+    );
 
     let y = null;
 
     try {
-      y = candle.priceToCoordinate(anchor.price);
+      y = candle.priceToCoordinate(
+        anchor.price
+      );
     } catch (_) {}
 
     if (
@@ -531,31 +663,72 @@
   }
 
   function formatPrice(value) {
-    const n = Number(value);
+    const number = Number(value);
 
-    if (!Number.isFinite(n)) return "—";
+    if (!Number.isFinite(number)) {
+      return "—";
+    }
 
-    return n.toLocaleString("en-US", {
-      maximumFractionDigits: n < 1 ? 8 : 6
-    });
+    return number.toLocaleString(
+      "en-US",
+      {
+        maximumFractionDigits:
+          Math.abs(number) < 1
+            ? 8
+            : 6
+      }
+    );
+  }
+
+  function drawHandle(ctx, point, color) {
+    if (!point) return;
+
+    ctx.beginPath();
+
+    ctx.arc(
+      point.x,
+      point.y,
+      7,
+      0,
+      Math.PI * 2
+    );
+
+    ctx.fillStyle = "#171327";
+    ctx.fill();
+
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
   }
 
   function paint() {
     if (!canvas) return;
 
-    const rect = canvas.getBoundingClientRect();
+    const rect =
+      canvas.getBoundingClientRect();
+
     const width = rect.width;
     const height = rect.height;
 
-    if (width <= 0 || height <= 0) return;
+    if (
+      width <= 0 ||
+      height <= 0
+    ) {
+      return;
+    }
 
     const ratio = Math.min(
       window.devicePixelRatio || 1,
       2
     );
 
-    const pixelWidth = Math.round(width * ratio);
-    const pixelHeight = Math.round(height * ratio);
+    const pixelWidth = Math.round(
+      width * ratio
+    );
+
+    const pixelHeight = Math.round(
+      height * ratio
+    );
 
     if (
       canvas.width !== pixelWidth ||
@@ -566,35 +739,23 @@
     }
 
     const ctx = canvas.getContext("2d");
+
     if (!ctx) return;
 
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    ctx.clearRect(0, 0, width, height);
+    ctx.setTransform(
+      ratio, 0, 0, ratio, 0, 0
+    );
 
-    if (!settings.visible || !chart || !candle) {
+    ctx.clearRect(
+      0, 0, width, height
+    );
+
+    if (
+      !chart ||
+      !candle
+    ) {
       return;
     }
-
-    const result = calculate();
-
-    if (!result) return;
-
-    const a = coordinateForAnchor(result.anchors.a);
-    const b = coordinateForAnchor(result.anchors.b);
-
-    if (!a || !b) return;
-
-    const left = Math.max(
-      0,
-      Math.min(a.x, b.x)
-    );
-
-    const right = Math.min(
-      width,
-      Math.max(a.x, b.x)
-    );
-
-    if (right <= left) return;
 
     ctx.save();
 
@@ -602,118 +763,153 @@
     ctx.rect(0, 0, width, height);
     ctx.clip();
 
-    ctx.lineWidth = Math.max(
-      1,
-      Math.min(5, Number(settings.lineWidth) || 1)
-    );
+    const result = settings.visible
+      ? calculate()
+      : null;
 
-    // Únicamente niveles Fibonacci.
-    // No se dibuja ninguna caja verde.
-    for (const level of result.levels) {
-      let y = null;
-
-      try {
-        y = candle.priceToCoordinate(level.price);
-      } catch (_) {}
-
-      if (
-        !Number.isFinite(y) ||
-        y < -20 ||
-        y > height + 20
-      ) {
-        continue;
-      }
-
-      const color = validColor(
-        level.color,
-        settings.color
+    if (result) {
+      const a = coordinateForAnchor(
+        result.anchors.a
       );
 
-      ctx.strokeStyle = color;
-      ctx.beginPath();
-      ctx.moveTo(left, y);
-      ctx.lineTo(right, y);
-      ctx.stroke();
+      const b = coordinateForAnchor(
+        result.anchors.b
+      );
 
-      if (settings.showLabels) {
-        const label =
-          formatLevel(level.value) +
-          " · " +
-          formatPrice(level.price);
-
-        ctx.font = "11px system-ui";
-
-        const textWidth =
-          ctx.measureText(label).width;
-
-        const x = Math.max(
-          4,
-          Math.min(
-            width - textWidth - 5,
-            right - textWidth - 5
-          )
+      if (a && b) {
+        const left = Math.max(
+          0,
+          Math.min(a.x, b.x)
         );
 
-        ctx.fillStyle = "rgba(8,9,12,.92)";
-
-        ctx.fillRect(
-          x - 2,
-          y - 14,
-          textWidth + 5,
-          15
+        const right = Math.min(
+          width,
+          Math.max(a.x, b.x)
         );
 
-        ctx.fillStyle = color;
-        ctx.fillText(label, x, y - 3);
+        if (right > left) {
+          ctx.lineWidth = Math.max(
+            1,
+            Math.min(
+              5,
+              Number(settings.lineWidth) || 1
+            )
+          );
+
+          for (const level of result.levels) {
+            let y = null;
+
+            try {
+              y = candle.priceToCoordinate(
+                level.price
+              );
+            } catch (_) {}
+
+            if (
+              !Number.isFinite(y) ||
+              y < -20 ||
+              y > height + 20
+            ) {
+              continue;
+            }
+
+            const color = validColor(
+              level.color,
+              settings.color
+            );
+
+            ctx.strokeStyle = color;
+
+            ctx.beginPath();
+            ctx.moveTo(left, y);
+            ctx.lineTo(right, y);
+            ctx.stroke();
+
+            if (settings.showLabels) {
+              const label =
+                formatLevel(level.value) +
+                " · " +
+                formatPrice(level.price);
+
+              ctx.font = "11px system-ui";
+
+              const textWidth =
+                ctx.measureText(label).width;
+
+              const x = Math.max(
+                4,
+                Math.min(
+                  width - textWidth - 5,
+                  right - textWidth - 5
+                )
+              );
+
+              ctx.fillStyle =
+                "rgba(8,9,12,.92)";
+
+              ctx.fillRect(
+                x - 2,
+                y - 14,
+                textWidth + 5,
+                15
+              );
+
+              ctx.fillStyle = color;
+
+              ctx.fillText(
+                label,
+                x,
+                y - 3
+              );
+            }
+          }
+        }
+
+        ctx.strokeStyle = "#e4eaff";
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 4]);
+
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+
+        ctx.setLineDash([]);
+
+        drawHandle(
+          ctx,
+          a,
+          "#ffffff"
+        );
+
+        drawHandle(
+          ctx,
+          b,
+          "#ffffff"
+        );
       }
     }
 
-    // Directriz entre anclas.
-    ctx.strokeStyle = "#e4eaff";
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([5, 4]);
+    /*
+     Corrección V9:
+     El primer punto se muestra incluso
+     cuando todavía no existe el segundo.
+    */
 
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-
-    ctx.setLineDash([]);
-
-    // Extremos ajustables.
-    for (const point of [a, b]) {
-      ctx.beginPath();
-      ctx.arc(
-        point.x,
-        point.y,
-        7,
-        0,
-        Math.PI * 2
+    if (
+      first &&
+      drawing
+    ) {
+      const point = coordinateForAnchor(
+        first
       );
-
-      ctx.fillStyle = "#171327";
-      ctx.fill();
-
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
-
-    if (first) {
-      const point = coordinateForAnchor(first);
 
       if (point) {
-        ctx.beginPath();
-        ctx.arc(
-          point.x,
-          point.y,
-          7,
-          0,
-          Math.PI * 2
+        drawHandle(
+          ctx,
+          point,
+          ORANGE
         );
-
-        ctx.fillStyle = DEFAULT_COLOR;
-        ctx.fill();
       }
     }
 
@@ -721,11 +917,16 @@
   }
 
   function pointerPoint(event) {
-    if (!canvas || !chart || !candle) {
+    if (
+      !canvas ||
+      !chart ||
+      !candle
+    ) {
       return null;
     }
 
-    const rect = canvas.getBoundingClientRect();
+    const rect =
+      canvas.getBoundingClientRect();
 
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
@@ -738,7 +939,7 @@
         .coordinateToLogical(x);
 
       price = candle.coordinateToPrice(y);
-    } catch (_) {
+    } catch {
       return null;
     }
 
@@ -759,11 +960,42 @@
   }
 
   function status(message) {
-    const target = $("fibStatus");
+    const element = $("fibStatus");
 
-    if (target) {
-      target.textContent = message;
+    if (element) {
+      element.textContent = message;
     }
+  }
+
+  function capturePointer(event) {
+    pointerId = event.pointerId;
+
+    try {
+      canvas?.setPointerCapture(
+        pointerId
+      );
+    } catch (_) {}
+  }
+
+  function releasePointer() {
+    if (
+      canvas &&
+      pointerId !== null
+    ) {
+      try {
+        if (
+          canvas.hasPointerCapture(
+            pointerId
+          )
+        ) {
+          canvas.releasePointerCapture(
+            pointerId
+          );
+        }
+      } catch (_) {}
+    }
+
+    pointerId = null;
   }
 
   function begin(event) {
@@ -772,6 +1004,13 @@
       !chart ||
       !candle ||
       !canvas
+    ) {
+      return;
+    }
+
+    if (
+      pointerId !== null ||
+      event.isPrimary === false
     ) {
       return;
     }
@@ -787,14 +1026,15 @@
 
     if (!point) return;
 
+    const saved = active();
+
     dragging = null;
+    dragKey = null;
 
-    const existing = active();
-
-    if (existing) {
+    if (saved) {
       for (const key of ["a", "b"]) {
         const handle = coordinateForAnchor(
-          existing[key]
+          saved[key]
         );
 
         if (
@@ -805,21 +1045,22 @@
           ) <= 26
         ) {
           dragging = key;
+          dragKey = currentKey();
           break;
         }
       }
     }
 
     if (dragging) {
-      pointerId = event.pointerId;
+      capturePointer(event);
 
-      try {
-        canvas.setPointerCapture(pointerId);
-      } catch (_) {}
-
-      status("Moviendo extremo del Fibonacci...");
+      status(
+        "Moviendo extremo del Fibonacci..."
+      );
     } else {
-      const anchor = anchorFromPoint(point);
+      const anchor = anchorFromPoint(
+        point
+      );
 
       if (!anchor) return;
 
@@ -838,7 +1079,7 @@
         first = null;
 
         status(
-          "Fibonacci guardado. Puedes ajustar sus extremos."
+          "Fibonacci guardado. Arrastra los extremos para ajustarlo."
         );
       }
     }
@@ -848,12 +1089,19 @@
   }
 
   function move(event) {
-    if (!drawing || !dragging) return;
-
     if (
-      pointerId !== null &&
+      !drawing ||
+      !dragging ||
+      pointerId === null ||
       event.pointerId !== pointerId
     ) {
+      return;
+    }
+
+    if (
+      dragKey !== currentKey()
+    ) {
+      end();
       return;
     }
 
@@ -861,17 +1109,19 @@
 
     if (!point) return;
 
-    const existing = active();
+    const saved = active();
 
-    if (!existing) return;
+    if (!saved) return;
 
-    const anchor = anchorFromPoint(point);
+    const anchor = anchorFromPoint(
+      point
+    );
 
     if (!anchor) return;
 
-    existing[dragging] = anchor;
+    saved[dragging] = anchor;
 
-    drawings[currentKey()] = existing;
+    drawings[currentKey()] = saved;
 
     redraw();
     event.preventDefault();
@@ -879,8 +1129,8 @@
 
   function end(event) {
     if (
-      pointerId !== null &&
       event &&
+      pointerId !== null &&
       event.pointerId !== pointerId
     ) {
       return;
@@ -891,19 +1141,10 @@
     }
 
     dragging = null;
+    dragKey = null;
 
-    if (
-      canvas &&
-      pointerId !== null
-    ) {
-      try {
-        if (canvas.hasPointerCapture(pointerId)) {
-          canvas.releasePointerCapture(pointerId);
-        }
-      } catch (_) {}
-    }
-
-    pointerId = null;
+    releasePointer();
+    redraw();
   }
 
   function setDrawingMode(enabled) {
@@ -913,13 +1154,17 @@
     end();
 
     if (canvas) {
-      canvas.style.pointerEvents = drawing
-        ? "auto"
-        : "none";
+      canvas.style.setProperty(
+        "pointer-events",
+        drawing ? "auto" : "none",
+        "important"
+      );
 
-      canvas.style.touchAction = drawing
-        ? "none"
-        : "auto";
+      canvas.style.setProperty(
+        "touch-action",
+        drawing ? "none" : "pan-y",
+        "important"
+      );
     }
 
     const button = $("fibDraw");
@@ -933,12 +1178,17 @@
         "aria-pressed",
         String(drawing)
       );
+
+      button.classList.toggle(
+        "active",
+        drawing
+      );
     }
 
     status(
       drawing
         ? "Selecciona dos velas. Arrastra los extremos para ajustar."
-        : "Dibujo desactivado. La gráfica vuelve a estar libre."
+        : "Dibujo desactivado. La gráfica está libre."
     );
 
     redraw();
@@ -954,7 +1204,13 @@
     parent,
     callback
   ) {
-    const button = document.createElement("button");
+    let button = $(id);
+
+    if (button) return button;
+
+    button = document.createElement(
+      "button"
+    );
 
     button.type = "button";
     button.id = id;
@@ -967,7 +1223,8 @@
       "border-radius:8px",
       "padding:9px 10px",
       "font:inherit",
-      "cursor:pointer"
+      "cursor:pointer",
+      "touch-action:manipulation"
     ].join(";");
 
     button.addEventListener(
@@ -985,7 +1242,9 @@
     label,
     key
   ) {
-    const line = document.createElement("label");
+    const line = document.createElement(
+      "label"
+    );
 
     line.style.cssText = [
       "display:flex",
@@ -994,17 +1253,24 @@
       "margin:9px 0"
     ].join(";");
 
-    const input = document.createElement("input");
+    const input = document.createElement(
+      "input"
+    );
 
     input.type = "checkbox";
-    input.checked = Boolean(settings[key]);
+    input.checked = Boolean(
+      settings[key]
+    );
 
-    input.addEventListener("change", () => {
-      settings[key] = input.checked;
+    input.addEventListener(
+      "change",
+      () => {
+        settings[key] = input.checked;
 
-      persist();
-      redraw();
-    });
+        persist();
+        redraw();
+      }
+    );
 
     line.append(
       input,
@@ -1019,7 +1285,9 @@
     label,
     key
   ) {
-    const line = document.createElement("label");
+    const line = document.createElement(
+      "label"
+    );
 
     line.style.cssText = [
       "display:flex",
@@ -1029,7 +1297,9 @@
       "margin:9px 0"
     ].join(";");
 
-    const input = document.createElement("input");
+    const input = document.createElement(
+      "input"
+    );
 
     input.type = "number";
     input.min = "1";
@@ -1046,13 +1316,21 @@
       "color:#fff"
     ].join(";");
 
-    input.addEventListener("change", () => {
-      const n = finite(input.value);
+    input.addEventListener(
+      "change",
+      () => {
+        const number = finite(
+          input.value
+        );
 
-      if (n !== null) {
+        if (number === null) {
+          input.value = settings[key];
+          return;
+        }
+
         settings[key] = Math.max(
           1,
-          Math.min(5, n)
+          Math.min(5, number)
         );
 
         input.value = settings[key];
@@ -1060,7 +1338,7 @@
         persist();
         redraw();
       }
-    });
+    );
 
     line.append(
       document.createTextNode(label),
@@ -1078,7 +1356,9 @@
     host.replaceChildren();
 
     for (const level of settings.levels) {
-      const row = document.createElement("div");
+      const row = document.createElement(
+        "div"
+      );
 
       row.style.cssText = [
         "display:flex",
@@ -1087,19 +1367,26 @@
         "margin:7px 0"
       ].join(";");
 
-      const check = document.createElement("input");
+      const check = document.createElement(
+        "input"
+      );
 
       check.type = "checkbox";
-      check.checked = Boolean(level.visible);
+      check.checked = level.visible;
 
-      check.addEventListener("change", () => {
-        level.visible = check.checked;
+      check.addEventListener(
+        "change",
+        () => {
+          level.visible = check.checked;
 
-        persist();
-        redraw();
-      });
+          persist();
+          redraw();
+        }
+      );
 
-      const input = document.createElement("input");
+      const input = document.createElement(
+        "input"
+      );
 
       input.type = "number";
       input.step = "any";
@@ -1115,32 +1402,52 @@
         "color:#fff"
       ].join(";");
 
-      input.addEventListener("change", () => {
-        const n = finite(input.value);
+      input.addEventListener(
+        "change",
+        () => {
+          const number = finite(
+            input.value
+          );
 
-        if (
-          n === null ||
-          n < -20 ||
-          n > 20
-        ) {
-          input.value = level.value;
-          return;
+          if (
+            number === null ||
+            number < MIN_LEVEL ||
+            number > MAX_LEVEL
+          ) {
+            input.value = level.value;
+            return;
+          }
+
+          const duplicate =
+            settings.levels.some(
+              item =>
+                item !== level &&
+                item.value === number
+            );
+
+          if (duplicate) {
+            input.value = level.value;
+            return;
+          }
+
+          level.value = number;
+
+          settings.levels.sort(
+            (a, b) => a.value - b.value
+          );
+
+          persist();
+          renderLevels();
+          redraw();
         }
+      );
 
-        level.value = n;
-
-        settings.levels.sort(
-          (a, b) => a.value - b.value
-        );
-
-        persist();
-        renderLevels();
-        redraw();
-      });
-
-      const color = document.createElement("input");
+      const color = document.createElement(
+        "input"
+      );
 
       color.type = "color";
+
       color.value = validColor(
         level.color,
         settings.color
@@ -1154,14 +1461,19 @@
         "background:transparent"
       ].join(";");
 
-      color.addEventListener("input", () => {
-        level.color = color.value;
+      color.addEventListener(
+        "input",
+        () => {
+          level.color = color.value;
 
-        persist();
-        redraw();
-      });
+          persist();
+          redraw();
+        }
+      );
 
-      const remove = document.createElement("button");
+      const remove = document.createElement(
+        "button"
+      );
 
       remove.type = "button";
       remove.textContent = "✕";
@@ -1174,15 +1486,19 @@
         "color:#ff9aa9"
       ].join(";");
 
-      remove.addEventListener("click", () => {
-        settings.levels = settings.levels.filter(
-          item => item !== level
-        );
+      remove.addEventListener(
+        "click",
+        () => {
+          settings.levels =
+            settings.levels.filter(
+              item => item !== level
+            );
 
-        persist();
-        renderLevels();
-        redraw();
-      });
+          persist();
+          renderLevels();
+          redraw();
+        }
+      );
 
       row.append(
         check,
@@ -1199,16 +1515,21 @@
     if (initialized) return;
 
     const area = $("priceChartArea");
-    const host = $("clFibonacciHost") ||
+
+    const host =
+      $("clFibonacciHost") ||
       $("chartSection");
 
-    if (!area || !host) return;
+    if (!area || !host) {
+      return;
+    }
 
     initialized = true;
 
     area.style.position = "relative";
 
-    canvas = $("fibonacciCanvas") ||
+    canvas =
+      $("fibonacciCanvas") ||
       document.createElement("canvas");
 
     canvas.id = "fibonacciCanvas";
@@ -1219,11 +1540,11 @@
       "width:100%",
       "height:100%",
       "z-index:50",
-      "pointer-events:none",
-      "touch-action:auto"
+      "pointer-events:none!important",
+      "touch-action:pan-y!important"
     ].join(";");
 
-    if (!canvas.parentElement) {
+    if (canvas.parentElement !== area) {
       area.appendChild(canvas);
     }
 
@@ -1247,17 +1568,30 @@
       end
     );
 
-    const toolbar = document.createElement("div");
+    canvas.addEventListener(
+      "lostpointercapture",
+      end
+    );
 
-    toolbar.id = "fibToolbar";
+    let toolbar = $("fibToolbar");
 
-    toolbar.style.cssText = [
-      "display:flex",
-      "flex-wrap:wrap",
-      "gap:7px",
-      "margin:10px 0",
-      "font:12px system-ui"
-    ].join(";");
+    if (!toolbar) {
+      toolbar = document.createElement(
+        "div"
+      );
+
+      toolbar.id = "fibToolbar";
+
+      toolbar.style.cssText = [
+        "display:flex",
+        "flex-wrap:wrap",
+        "gap:7px",
+        "margin:10px 0",
+        "font:12px system-ui"
+      ].join(";");
+
+      host.appendChild(toolbar);
+    }
 
     makeButton(
       "✏️ Dibujar / mover",
@@ -1271,6 +1605,8 @@
       "fibSettingsButton",
       toolbar,
       () => {
+        if (!panel) return;
+
         panel.hidden = !panel.hidden;
 
         if (!panel.hidden) {
@@ -1284,7 +1620,8 @@
       "fibVisible",
       toolbar,
       () => {
-        settings.visible = !settings.visible;
+        settings.visible =
+          !settings.visible;
 
         persist();
         redraw();
@@ -1296,11 +1633,7 @@
       "fibErase",
       toolbar,
       () => {
-        delete drawings[currentKey()];
-        first = null;
-
-        persist();
-        redraw();
+        clearDrawing();
 
         status(
           "Fibonacci eliminado de este activo y temporalidad."
@@ -1308,107 +1641,140 @@
       }
     );
 
-    const info = document.createElement("span");
+    let info = $("fibStatus");
 
-    info.id = "fibStatus";
+    if (!info) {
+      info = document.createElement(
+        "span"
+      );
 
-    info.style.cssText = [
-      "width:100%",
-      "color:#b9a5d1",
-      "line-height:1.5"
-    ].join(";");
+      info.id = "fibStatus";
 
-    info.textContent =
-      "Pulsa Dibujar / mover para colocar Fibonacci.";
+      info.style.cssText = [
+        "width:100%",
+        "color:#b9a5d1",
+        "line-height:1.5"
+      ].join(";");
 
-    toolbar.appendChild(info);
+      info.textContent =
+        "Pulsa Dibujar / mover para colocar Fibonacci.";
 
-    panel = document.createElement("div");
+      toolbar.appendChild(info);
+    }
 
-    panel.id = "fibPanel";
-    panel.hidden = true;
+    panel = $("fibPanel");
 
-    panel.style.cssText = [
-      "background:#171323",
-      "color:#f2e5ff",
-      "border:1px solid #5c4177",
-      "border-radius:12px",
-      "padding:12px",
-      "margin:8px 0",
-      "font:13px system-ui"
-    ].join(";");
+    if (!panel) {
+      panel = document.createElement(
+        "div"
+      );
 
-    const heading = document.createElement("strong");
+      panel.id = "fibPanel";
+      panel.hidden = true;
 
-    heading.textContent =
-      "Fibonacci V8 · Configuración";
+      panel.style.cssText = [
+        "background:#171323",
+        "color:#f2e5ff",
+        "border:1px solid #5c4177",
+        "border-radius:12px",
+        "padding:12px",
+        "margin:8px 0",
+        "font:13px system-ui"
+      ].join(";");
 
-    panel.appendChild(heading);
+      const heading =
+        document.createElement("strong");
 
-    addCheckbox(
-      panel,
-      "Mostrar etiquetas",
-      "showLabels"
-    );
+      heading.textContent =
+        "Fibonacci V9 · Configuración";
 
-    addCheckbox(
-      panel,
-      "Invertir dirección",
-      "reverse"
-    );
+      panel.appendChild(heading);
 
-    addNumber(
-      panel,
-      "Grosor de línea",
-      "lineWidth"
-    );
+      addCheckbox(
+        panel,
+        "Mostrar etiquetas",
+        "showLabels"
+      );
 
-    const levels = document.createElement("div");
+      addCheckbox(
+        panel,
+        "Invertir dirección",
+        "reverse"
+      );
 
-    levels.id = "fibLevels";
-    levels.style.marginTop = "13px";
+      addNumber(
+        panel,
+        "Grosor de línea",
+        "lineWidth"
+      );
 
-    panel.appendChild(levels);
+      const levels =
+        document.createElement("div");
 
-    makeButton(
-      "+ Agregar nivel",
-      "fibAdd",
-      panel,
-      () => {
-        settings.levels.push({
-          value: 1.414,
-          visible: true,
-          color: settings.color
-        });
+      levels.id = "fibLevels";
+      levels.style.marginTop = "13px";
 
-        settings.levels.sort(
-          (a, b) => a.value - b.value
-        );
+      panel.appendChild(levels);
 
-        persist();
-        renderLevels();
-        redraw();
-      }
-    );
+      makeButton(
+        "+ Agregar nivel",
+        "fibAdd",
+        panel,
+        () => {
+          if (
+            settings.levels.length >=
+            MAX_LEVELS
+          ) {
+            status(
+              "Se alcanzó el máximo de niveles."
+            );
+            return;
+          }
 
-    makeButton(
-      "Restablecer niveles",
-      "fibReset",
-      panel,
-      () => {
-        settings = defaults();
+          let value = 1.414;
 
-        persist();
-        renderLevels();
-        redraw();
-      }
-    );
+          while (
+            settings.levels.some(
+              item => item.value === value
+            )
+          ) {
+            value = Number(
+              (value + 0.001).toFixed(4)
+            );
+          }
 
-    host.appendChild(toolbar);
-    host.appendChild(panel);
+          settings.levels.push({
+            value,
+            visible: true,
+            color: settings.color
+          });
+
+          settings.levels.sort(
+            (a, b) => a.value - b.value
+          );
+
+          persist();
+          renderLevels();
+          redraw();
+        }
+      );
+
+      makeButton(
+        "Restablecer niveles",
+        "fibReset",
+        panel,
+        resetSettings
+      );
+
+      host.appendChild(panel);
+    }
 
     if (window.ResizeObserver) {
-      new ResizeObserver(redraw).observe(area);
+      resizeObserver = new ResizeObserver(
+        redraw
+      );
+
+      resizeObserver.observe(area);
     }
 
     window.addEventListener(
@@ -1422,23 +1788,24 @@
       "market",
       "exchange"
     ]) {
-      $(id)?.addEventListener("change", () => {
-        first = null;
-        end();
+      $(id)?.addEventListener(
+        "change",
+        () => {
+          first = null;
 
-        // Al cambiar el activo, desactivar la
-        // edición para no bloquear la gráfica.
-        setDrawingMode(false);
+          setDrawingMode(false);
 
-        status(
-          "Mercado cambiado. Se cargará su Fibonacci guardado."
-        );
+          status(
+            "Mercado cambiado. Se cargará su Fibonacci guardado."
+          );
 
-        redraw();
-      });
+          redraw();
+        }
+      );
     }
 
     renderLevels();
+    setDrawingMode(false);
     redraw();
   }
 
@@ -1447,7 +1814,12 @@
     newCandle,
     options = {}
   ) {
-    if (!newChart || !newCandle) return;
+    if (
+      !newChart ||
+      !newCandle
+    ) {
+      return;
+    }
 
     if (
       subscribedChart &&
@@ -1455,19 +1827,27 @@
     ) {
       try {
         subscribedChart.timeScale()
-          .unsubscribeVisibleLogicalRangeChange(redraw);
+          .unsubscribeVisibleLogicalRangeChange(
+            redraw
+          );
       } catch (_) {}
+
+      subscribedChart = null;
     }
 
     chart = newChart;
     candle = newCandle;
 
-    if (typeof options.getRows === "function") {
+    if (
+      typeof options.getRows ===
+      "function"
+    ) {
       getRows = options.getRows;
     }
 
     if (
-      typeof options.getSelection === "function"
+      typeof options.getSelection ===
+      "function"
     ) {
       getSelection = options.getSelection;
     }
@@ -1475,18 +1855,23 @@
     if (subscribedChart !== newChart) {
       try {
         chart.timeScale()
-          .subscribeVisibleLogicalRangeChange(redraw);
+          .subscribeVisibleLogicalRangeChange(
+            redraw
+          );
 
         subscribedChart = newChart;
       } catch (error) {
         console.warn(
-          "Fibonacci: no se pudo suscribir al gráfico",
+          "Fibonacci: suscripción al gráfico",
           error
         );
       }
     }
 
-    if (document.readyState === "loading") {
+    if (
+      document.readyState ===
+      "loading"
+    ) {
       document.addEventListener(
         "DOMContentLoaded",
         buildUI,
@@ -1504,32 +1889,41 @@
 
     if (!api) return false;
 
-    const nextChart =
+    const newChart =
       api.chart ||
       api.chartApi ||
       window.chartApi;
 
-    const nextCandle =
+    const newCandle =
       api.candle ||
       api.candleSeries;
 
-    if (!nextChart || !nextCandle) {
+    if (
+      !newChart ||
+      !newCandle
+    ) {
       return false;
     }
 
-    attach(nextChart, nextCandle, {
-      getRows:
-        typeof api.getRows === "function"
-          ? api.getRows
-          : typeof api.getCandles === "function"
-            ? api.getCandles
-            : undefined,
+    attach(
+      newChart,
+      newCandle,
+      {
+        getRows:
+          typeof api.getRows === "function"
+            ? api.getRows
+            : typeof api.getCandles ===
+              "function"
+              ? api.getCandles
+              : undefined,
 
-      getSelection:
-        typeof api.getSelection === "function"
-          ? api.getSelection
-          : undefined
-    });
+        getSelection:
+          typeof api.getSelection ===
+          "function"
+            ? api.getSelection
+            : undefined
+      }
+    );
 
     return true;
   }
@@ -1542,35 +1936,56 @@
     redraw();
   }
 
-  function setLevel(value, changes = {}) {
+  function setLevel(
+    value,
+    changes = {}
+  ) {
     const number = finite(value);
 
     if (
       number === null ||
-      number < -20 ||
-      number > 20
+      number < MIN_LEVEL ||
+      number > MAX_LEVEL
     ) {
-      return;
+      return false;
     }
 
     let level = settings.levels.find(
-      item => Number(item.value) === number
+      item => item.value === number
     );
 
-    if (level) {
-      Object.assign(level, changes);
+    if (!level) {
+      if (
+        settings.levels.length >=
+        MAX_LEVELS
+      ) {
+        return false;
+      }
 
-      level.color = validColor(
-        level.color,
-        settings.color
-      );
-    } else {
-      settings.levels.push({
+      level = {
         value: number,
         visible: true,
-        color: settings.color,
-        ...changes
-      });
+        color: settings.color
+      };
+
+      settings.levels.push(level);
+    }
+
+    if (
+      changes.visible !== undefined
+    ) {
+      level.visible = Boolean(
+        changes.visible
+      );
+    }
+
+    if (
+      changes.color !== undefined
+    ) {
+      level.color = validColor(
+        changes.color,
+        settings.color
+      );
     }
 
     settings.levels.sort(
@@ -1580,13 +1995,21 @@
     persist();
     renderLevels();
     redraw();
+
+    return true;
   }
 
   function removeLevel(value) {
-    settings.levels = settings.levels.filter(
-      item =>
-        Number(item.value) !== Number(value)
-    );
+    const number = finite(value);
+
+    if (number === null) {
+      return;
+    }
+
+    settings.levels =
+      settings.levels.filter(
+        item => item.value !== number
+      );
 
     persist();
     renderLevels();
@@ -1597,6 +2020,7 @@
     delete drawings[currentKey()];
 
     first = null;
+    end();
 
     persist();
     redraw();
@@ -1605,19 +2029,21 @@
   load();
 
   window.CryptolexuzFibonacci = {
-    version: "8",
+    version: "9",
 
     attach,
     redraw,
     calculate,
     priceAt,
 
-    getSettings: () => clone(settings),
+    getSettings: () =>
+      clone(settings),
 
     updateSettings: changes => {
       settings = normalizeSettings({
         ...settings,
-        ...changes
+        ...changes,
+        showBox: false
       });
 
       persist();
@@ -1629,33 +2055,51 @@
     setLevel,
     removeLevel,
 
-    getDrawing: () => clone(active()),
+    getDrawing: () =>
+      clone(active()),
+
     clearDrawing,
 
-    startDrawing: () => setDrawingMode(true),
-    stopDrawing: () => setDrawingMode(false),
+    startDrawing: () =>
+      setDrawingMode(true),
 
-    isDrawing: () => drawing
+    stopDrawing: () =>
+      setDrawingMode(false),
+
+    isDrawing: () => drawing,
+
+    getSelection: () =>
+      clone(selection())
   };
 
   window.addEventListener(
     "cryptolexuz:chart-ready",
     event => {
-      const detail = event.detail || {};
+      const detail =
+        event.detail || {};
 
-      attach(
-        detail.chart || detail.chartApi,
-        detail.candle || detail.candleSeries,
-        {
-          getRows: detail.getRows,
-          getSelection: detail.getSelection
-        }
-      );
+      const newChart =
+        detail.chart ||
+        detail.chartApi;
+
+      const newCandle =
+        detail.candle ||
+        detail.candleSeries;
 
       if (
-        typeof detail.getRows !== "function" ||
-        typeof detail.getSelection !== "function"
+        newChart &&
+        newCandle
       ) {
+        attach(
+          newChart,
+          newCandle,
+          {
+            getRows: detail.getRows,
+            getSelection:
+              detail.getSelection
+          }
+        );
+      } else {
         attachFromGlobal();
       }
     }
@@ -1664,9 +2108,12 @@
   window.addEventListener(
     "cryptolexuz:candles-updated",
     event => {
-      const detail = event.detail || {};
+      const detail =
+        event.detail || {};
 
-      if (Array.isArray(detail.rows)) {
+      if (
+        Array.isArray(detail.rows)
+      ) {
         getRows = () => detail.rows;
       }
 
@@ -1677,13 +2124,25 @@
   window.addEventListener(
     "cryptolexuz:screen-change",
     event => {
-      if (event.detail?.screen === "charts") {
-        requestAnimationFrame(redraw);
+      const screen =
+        event.detail?.screen;
+
+      if (
+        screen === "charts" ||
+        screen === "graficas" ||
+        screen === "chart"
+      ) {
+        requestAnimationFrame(
+          redraw
+        );
       }
     }
   );
 
-  if (document.readyState === "loading") {
+  if (
+    document.readyState ===
+    "loading"
+  ) {
     document.addEventListener(
       "DOMContentLoaded",
       () => {
@@ -1698,6 +2157,6 @@
   }
 
   console.info(
-    "CRYPTOLEXUZ PRO — Fibonacci V8 cargado"
+    "CRYPTOLEXUZ PRO — Fibonacci V9 cargado"
   );
 })();
