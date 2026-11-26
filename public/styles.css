@@ -1701,3 +1701,41 @@ body {
   }
   body { isolation: isolate; }
 }
+
+/* CRYPTOLEXUZ PRO — CORRECCIÓN TÁCTIL V27 */
+
+.cl-market-filters,
+.cl-chart-tabs,
+.cl-timeframes,
+.cl-indicator-strip,
+.cl-pattern-strip,
+.cl-book-tabs,
+#clFixedTimeframes,
+#clFixedIndicators,
+#clFixedPatterns {
+  touch-action: pan-x pan-y !important;
+}
+
+html,
+body,
+.app-container,
+.cl-screen,
+.chart-card,
+.market-card {
+  touch-action: pan-y pinch-zoom;
+}
+
+/* Mantener el fondo sin bloquear los dedos */
+body::before {
+  pointer-events: none !important;
+}
+
+/* Conservar la gráfica negra */
+#priceChartArea,
+#chart,
+#volumeChart,
+#rsiChart,
+#adxChart,
+#aoChart {
+  background-color: #000 !important;
+}
