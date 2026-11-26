@@ -7,21 +7,38 @@
 <meta name="theme-color" content="#000000">
 <meta name="description" content="CRYPTOLEXUZ PRO: mercados, gráficas, indicadores, escáner y resultados informativos.">
 <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
-<!-- CRYPTOLEXUZ PRO — INDEX.HTML V32 COMPLETO -->
-<link rel="stylesheet" href="styles.css?v=23">
+
+<!-- CRYPTOLEXUZ PRO — INDEX.HTML V33 COMPLETO -->
+
+<link rel="stylesheet" href="styles.css?v=25">
 
 <style>
 [hidden]{display:none!important}
 *{box-sizing:border-box}
-html{background:#000}
-body{min-width:0}
-.cl-screen{display:none;min-width:0}
+html{
+ background:#000!important;
+ min-width:0;
+}
+body{
+ min-width:0;
+ background:#000!important;
+ background-image:none!important;
+}
+body::before,
+body::after{
+ background-image:none!important;
+}
+.cl-screen{
+ display:none;
+ min-width:0;
+}
 .cl-screen.cl-active{display:block}
 
 #priceChartArea{
  position:relative;
  isolation:isolate;
  background:#000!important;
+ background-image:none!important;
 }
 #chart,
 #volumeChart,
@@ -39,11 +56,13 @@ body{min-width:0}
 #volumeChart{height:115px}
 #rsiChart,#adxChart,#aoChart,#squeezeChart{height:145px}
 #priceChartArea canvas{max-width:none}
+
 #zonesCanvas{
  position:absolute;
  inset:0;
  pointer-events:none!important;
 }
+
 .cl-tool-content,
 .cl-module,
 #clRangeBoxesHost,
@@ -95,6 +114,10 @@ body{min-width:0}
  margin:12px 0;
  width:100%;
  min-width:0;
+ position:relative;
+ z-index:5;
+ isolation:isolate;
+ pointer-events:auto;
 }
 .cl-control-row{
  display:flex;
@@ -102,6 +125,8 @@ body{min-width:0}
  gap:4px;
  min-width:0;
  width:100%;
+ position:relative;
+ pointer-events:auto;
 }
 .cl-control-label{
  font-size:11px;
@@ -110,6 +135,7 @@ body{min-width:0}
  letter-spacing:.05em;
  text-transform:uppercase;
 }
+
 .cl-timeframes,
 .cl-indicator-strip,
 .cl-pattern-strip{
@@ -125,13 +151,17 @@ body{min-width:0}
  touch-action:pan-x;
  min-width:0;
  width:100%;
+ position:relative;
+ z-index:6;
+ pointer-events:auto;
 }
+
 .cl-timeframes button,
 .cl-indicator-strip button,
 .cl-pattern-strip button{
  flex:0 0 auto;
- min-height:34px;
- padding:7px 11px;
+ min-height:38px;
+ padding:8px 12px;
  border:1px solid #34364c;
  border-radius:8px;
  background:#171a25;
@@ -140,28 +170,53 @@ body{min-width:0}
  font-weight:600;
  white-space:nowrap;
  cursor:pointer;
+ position:relative;
+ z-index:7;
+ pointer-events:auto;
+ touch-action:manipulation;
+ -webkit-tap-highlight-color:rgba(165,108,255,.25);
+ user-select:none;
+ -webkit-user-select:none;
+ appearance:none;
+ -webkit-appearance:none;
 }
+
 .cl-timeframes button.active,
 .cl-timeframes button[aria-pressed="true"],
 .cl-indicator-strip button.active,
-.cl-indicator-strip button[aria-pressed="true"],
-.cl-pattern-strip button[aria-pressed="true"]{
+.cl-indicator-strip button[aria-pressed="true"]{
  background:#48216c;
  color:#fff;
  border-color:#c477ff;
 }
+
+.cl-timeframes button:active,
+.cl-indicator-strip button:active{
+ transform:scale(.97);
+ filter:brightness(1.3);
+}
+
+.cl-timeframes button:focus-visible,
+.cl-indicator-strip button:focus-visible{
+ outline:2px solid #c477ff;
+ outline-offset:2px;
+}
+
 .cl-pattern-strip button:disabled{
  opacity:.48;
  cursor:not-allowed;
+ pointer-events:none;
 }
 .cl-pattern-strip [data-pattern="fallingwedge"]{
  border-color:#9e6aff;
 }
+
 .cl-chart-gear{
  position:relative;
- z-index:2;
+ z-index:8;
  cursor:pointer;
 }
+
 #aoSection{
  margin-top:14px;
  padding:10px 0;
@@ -356,11 +411,7 @@ body.cl-settings-open{overflow:hidden}
 <script defer src="fibonacci.js?v=8"></script>
 <script defer src="patterns.js?v=2"></script>
 <script defer src="patterns-bridge.js?v=1"></script>
-
-<!-- MOTOR PRINCIPAL ACTUALIZADO -->
 <script defer src="app.js?v=24"></script>
-
-<!-- CONTROLES: SE UTILIZAN LOS DEL INDEX, SIN DUPLICAR FILAS -->
 <script defer src="liquidity.js?v=12"></script>
 <script defer src="trade-plans.js?v=4"></script>
 <script defer src="scalping-rapido.js?v=2"></script>
@@ -420,9 +471,7 @@ type="button" aria-label="Cerrar menú" hidden></button>
 
 <main class="app-container">
 
-<!-- ========================= -->
 <!-- MERCADOS -->
-<!-- ========================= -->
 
 <div id="clScreenMarkets" class="cl-screen cl-active"
 data-cl-screen="markets">
@@ -457,9 +506,7 @@ data-cl-screen="markets">
  </p>
 </div>
 
-<!-- ========================= -->
 <!-- GRÁFICAS -->
-<!-- ========================= -->
 
 <div id="clScreenCharts" class="cl-screen"
 data-cl-screen="charts">
@@ -539,31 +586,31 @@ data-cl-screen="charts">
 
  <div id="clGraphContent">
 
-  <!-- FILA UNO: TEMPORALIDADES -->
+  <!-- CONTROLES FUNCIONALES V33 -->
+
   <div class="cl-chart-control-stack" id="clTradingControlRows">
 
    <div class="cl-control-row">
     <span class="cl-control-label">Temporalidades</span>
     <div class="cl-timeframes" id="clMainTimeframes">
-     <button type="button" data-tf="1m">1m</button>
-     <button type="button" data-tf="3m">3m</button>
-     <button type="button" data-tf="5m">5m</button>
-     <button class="active" type="button" data-tf="15m">15m</button>
-     <button type="button" data-tf="30m">30m</button>
-     <button type="button" data-tf="1h">1h</button>
-     <button type="button" data-tf="2h">2h</button>
-     <button type="button" data-tf="4h">4h</button>
-     <button type="button" data-tf="6h">6h</button>
-     <button type="button" data-tf="8h">8h</button>
-     <button type="button" data-tf="12h">12h</button>
-     <button type="button" data-tf="1d">1d</button>
-     <button type="button" data-tf="3d">3d</button>
-     <button type="button" data-tf="1w">1w</button>
-     <button type="button" data-tf="1M">1M</button>
+     <button type="button" data-tf="1m" aria-pressed="false">1m</button>
+     <button type="button" data-tf="3m" aria-pressed="false">3m</button>
+     <button type="button" data-tf="5m" aria-pressed="false">5m</button>
+     <button class="active" type="button" data-tf="15m" aria-pressed="true">15m</button>
+     <button type="button" data-tf="30m" aria-pressed="false">30m</button>
+     <button type="button" data-tf="1h" aria-pressed="false">1h</button>
+     <button type="button" data-tf="2h" aria-pressed="false">2h</button>
+     <button type="button" data-tf="4h" aria-pressed="false">4h</button>
+     <button type="button" data-tf="6h" aria-pressed="false">6h</button>
+     <button type="button" data-tf="8h" aria-pressed="false">8h</button>
+     <button type="button" data-tf="12h" aria-pressed="false">12h</button>
+     <button type="button" data-tf="1d" aria-pressed="false">1d</button>
+     <button type="button" data-tf="3d" aria-pressed="false">3d</button>
+     <button type="button" data-tf="1w" aria-pressed="false">1w</button>
+     <button type="button" data-tf="1M" aria-pressed="false">1M</button>
     </div>
    </div>
 
-   <!-- FILA DOS: INDICADORES -->
    <div class="cl-control-row">
     <span class="cl-control-label">Indicadores</span>
     <div id="indicatorButtons" class="indicator-buttons cl-indicator-strip">
@@ -583,7 +630,6 @@ data-cl-screen="charts">
     </div>
    </div>
 
-   <!-- FILA TRES: PATRONES -->
    <div class="cl-control-row">
     <span class="cl-control-label">Patrones automáticos</span>
     <div id="patternButtons" class="indicator-buttons cl-pattern-strip">
@@ -780,9 +826,7 @@ data-cl-screen="charts">
 
 </div>
 
-<!-- ========================= -->
 <!-- ESCÁNER -->
-<!-- ========================= -->
 
 <div id="clScreenScanner" class="cl-screen"
 data-cl-screen="scanner">
@@ -846,9 +890,7 @@ data-cl-screen="scanner">
 
 </div>
 
-<!-- ========================= -->
 <!-- RESULTADOS -->
-<!-- ========================= -->
 
 <div id="clScreenResults" class="cl-screen"
 data-cl-screen="results">
@@ -988,21 +1030,22 @@ data-cl-screen="results">
 
 /*
  CRYPTOLEXUZ PRO
- INDEX CONTROLLER V32
+ INDEX CONTROLLER V33
 
  - Navegación móvil
  - Mercados y favoritos
- - Temporalidades sincronizadas
- - Ajustes de indicadores
+ - Temporalidades con respuesta táctil
+ - Indicadores con controles funcionales
+ - Ajustes sincronizados
  - Paneles RSI / ADX / AO
  - Compatibilidad con APP.JS V24
- - Sin generación de filas duplicadas
+ - Sin filas duplicadas
 */
 
 (() => {
 
-if(window.__CL_INDEX_V32__)return;
-window.__CL_INDEX_V32__=true;
+if(window.__CL_INDEX_V33__)return;
+window.__CL_INDEX_V33__=true;
 
 const $=id=>document.getElementById(id);
 const qa=s=>Array.from(document.querySelectorAll(s));
@@ -1365,7 +1408,7 @@ qa("[data-market-filter]").forEach(b=>{
  });
 });
 
-/* TEMPORALIDADES */
+/* TEMPORALIDADES V33 */
 
 function syncTimeframes(){
  const interval=$("interval");
@@ -1383,12 +1426,67 @@ function syncTimeframes(){
  }
 }
 
-/*
- APP.JS V24 gestiona los cambios del selector #interval.
- Los botones visuales utilizan el selector como fuente de verdad.
-*/
+function changeTimeframe(tf){
+ const interval=$("interval");
+
+ if(!interval)return;
+
+ const option=Array.from(interval.options)
+  .find(x=>x.value===tf);
+
+ if(!option)return;
+
+ if(interval.value!==tf){
+  interval.value=tf;
+  interval.dispatchEvent(
+   new Event("change",{bubbles:true})
+  );
+ }
+
+ syncTimeframes();
+}
 
 $("interval")?.addEventListener("change",syncTimeframes);
+
+$("symbol")?.addEventListener("change",syncTimeframes);
+
+/* CONTROLES TÁCTILES V33 */
+
+function bindTradingControls(){
+ const timeframes=$("clMainTimeframes");
+ const indicators=$("indicatorButtons");
+
+ /*
+  Se utiliza captura para que los controles
+  superiores tengan un único controlador.
+
+  APP.JS sigue recibiendo el evento change
+  del selector de temporalidad y el evento
+  de actualización de indicadores.
+ */
+
+ timeframes?.addEventListener("click",event=>{
+  const button=event.target.closest?.("[data-tf]");
+
+  if(!button||!timeframes.contains(button))return;
+
+  event.preventDefault();
+  event.stopImmediatePropagation();
+
+  changeTimeframe(button.dataset.tf);
+ },true);
+
+ indicators?.addEventListener("click",event=>{
+  const button=event.target.closest?.("[data-indicator]");
+
+  if(!button||!indicators.contains(button))return;
+
+  event.preventDefault();
+  event.stopImmediatePropagation();
+
+  toggleMainIndicator(button.dataset.indicator);
+ },true);
+}
 
 qa("[data-chart-view]").forEach(b=>{
  b.addEventListener("click",()=>{
@@ -1495,7 +1593,11 @@ let prefs={
   ADX:false,
   AO:false,
   FVG:true,
-  IFVG:false
+  IFVG:false,
+  liquidity:false,
+  sweeps:false,
+  support:false,
+  resistance:false
  }
 };
 
@@ -1540,6 +1642,84 @@ function notify(){
  ));
 }
 
+/* ACTIVACIÓN DIRECTA DE INDICADORES V33 */
+
+function toggleLine(key,period,group){
+ const lines=prefs[key];
+
+ if(!Array.isArray(lines))return false;
+
+ let line=lines.find(x=>Number(x.period)===period);
+
+ if(!line){
+  line={
+   period,
+   color:group==="EMA"?"#bb52ff":
+    period===55?"#ff9a35":
+    period===100?"#ff476c":"#36c5ff",
+   width:2,
+   enabled:false
+  };
+
+  lines.push(line);
+ }
+
+ line.enabled=!Boolean(line.enabled);
+
+ if(line.enabled){
+  prefs.indicators[group]=true;
+ }
+
+ return true;
+}
+
+function toggleMainIndicator(name){
+ if(!name)return;
+
+ let changed=false;
+
+ if(name==="ema21"){
+  changed=toggleLine("emaLines",21,"EMA");
+ }else if(/^ma(55|100|200)$/.test(name)){
+  changed=toggleLine(
+   "maLines",
+   Number(name.slice(2)),
+   "MA"
+  );
+ }else{
+  const map={
+   rsi:"RSI",
+   adx:"ADX",
+   ao:"AO",
+   volume:"VOL",
+   fvg:"FVG",
+   ifvg:"IFVG",
+   liquidity:"liquidity",
+   sweeps:"sweeps",
+   support:"support",
+   resistance:"resistance"
+  };
+
+  const key=map[name];
+
+  if(key){
+   prefs.indicators[key]=!Boolean(prefs.indicators[key]);
+   changed=true;
+  }
+ }
+
+ if(!changed)return;
+
+ persist();
+ syncPanels();
+ notify();
+
+ window.dispatchEvent(new CustomEvent(
+  "cryptolexuz:indicator-state-updated",
+  {detail:{indicator:name,settings:prefs}}
+ ));
+}
+
 function syncIndicatorButtons(){
  const map={
   rsi:"RSI",
@@ -1558,13 +1738,15 @@ function syncIndicatorButtons(){
   let active;
 
   if(/^ma\d+$/.test(id)){
-   active=prefs.maLines.some(
-    x=>Number(x.period)===Number(id.slice(2))&&x.enabled
-   );
+   active=prefs.indicators.MA!==false&&
+    prefs.maLines.some(
+     x=>Number(x.period)===Number(id.slice(2))&&x.enabled
+    );
   }else if(/^ema\d+$/.test(id)){
-   active=prefs.emaLines.some(
-    x=>Number(x.period)===Number(id.slice(3))&&x.enabled
-   );
+   active=prefs.indicators.EMA!==false&&
+    prefs.emaLines.some(
+     x=>Number(x.period)===Number(id.slice(3))&&x.enabled
+    );
   }else{
    const key=map[id];
 
@@ -2124,9 +2306,11 @@ window.addEventListener(
 
 window.addEventListener(
  "cryptolexuz:indicator-state-updated",
- ()=>{
+ event=>{
   try{
-   const current=window.CryptolexuzIndicators?.getSettings?.();
+   const current=
+    event.detail?.settings||
+    window.CryptolexuzIndicators?.getSettings?.();
 
    if(current&&typeof current==="object"){
     prefs={
@@ -2161,14 +2345,16 @@ function init(){
    Math.max(240,Math.min(600,Number(prefs.height)||360))+"px";
  }
 
+ bindTradingControls();
+
  renderMarkets();
  organizeModules();
  syncTimeframes();
  syncPanels();
 
  /*
-  Se observan únicamente nuevos nodos del DOM
-  para reorganizar los módulos sin eliminar sus controles.
+  Se observan nuevos nodos para organizar
+  módulos sin eliminar sus controles.
  */
  const observer=new MutationObserver(scheduleOrganize);
 
@@ -2200,6 +2386,14 @@ function init(){
  });
 
  window.addEventListener("resize",refreshCharts);
+
+ window.CryptolexuzIndexControls={
+  changeTimeframe,
+  toggleIndicator:toggleMainIndicator,
+  syncTimeframes,
+  syncIndicators:syncIndicatorButtons,
+  getSettings:()=>prefs
+ };
 }
 
 if(document.readyState==="loading"){
@@ -2213,3 +2407,5 @@ if(document.readyState==="loading"){
 
 </body>
 </html>
+
+<!-- FIN — CRYPTOLEXUZ PRO INDEX.HTML V33 -->
