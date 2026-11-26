@@ -1619,3 +1619,85 @@ footer.cl-notice {
 }
 
 /* FIN — CRYPTOLEXUZ PRO STYLES.CSS V25 */
+/* CRYPTOLEXUZ PRO — CAPA VISUAL UNIVERSO V26
+   Agregar al FINAL de styles.css V25.
+   Requiere universo.jpg en la misma carpeta que styles.css.
+   Mantiene los gráficos de Lightweight Charts con fondo negro.
+*/
+:root { --bg: #050716; --surface: transparent; --surface-2: transparent; }
+html { background: #050716; }
+body {
+  background-color: #050716;
+  background-image: url("universo.jpg");
+  background-position: center center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+}
+/* El fondo está en BODY, no en tarjetas ni en imágenes repetidas. */
+.app-header, .cl-bottom-nav, .sidebar,
+.cl-module, .market-card, .chart-card, .liquidity-card,
+.indicator-summary, .market-settings, .signals-section,
+.history-section, .cl-tool-panel, .cl-module-placeholder,
+.market-bottom > div, .indicator-values > div,
+.signal-card, .cl-trade-card, .cl-stat,
+.cl-settings-sheet, .cl-settings-tile,
+#clRangeControls {
+  background: transparent !important;
+  background-color: transparent !important;
+}
+/* Botones y entradas transparentes, pero con contraste visual. */
+.menu-toggle, .sidebar-head button, .indicator-buttons button,
+.cl-search, .cl-chip, .compact-field select, .cl-extra-select select,
+.cl-chart-gear, .chart-controls button, #rsiSpeak,
+.cl-timeframes button, .cl-indicator-strip button,
+.cl-pattern-strip button, .cl-chart-tabs button,
+#clFixedTimeframes button, #clFixedIndicators button,
+#clFixedPatterns button, .cl-purple-box-button,
+.cl-ma-grid input, .cl-ma-grid select,
+.cl-settings-save, .cl-nav-button {
+  background: transparent !important;
+  background-color: transparent !important;
+  text-shadow: 0 1px 3px #000;
+}
+/* Selección perceptible sin bloquear el fondo del universo. */
+.cl-chip.active, .cl-chip[aria-pressed="true"],
+.cl-timeframes button.active, .cl-timeframes button[aria-pressed="true"],
+.cl-indicator-strip button.active, .cl-indicator-strip button[aria-pressed="true"],
+#clFixedTimeframes button.active, #clFixedIndicators button.active,
+.cl-nav-button.active, .cl-nav-button[aria-current="page"],
+.indicator-buttons button.active, .indicator-buttons button[aria-pressed="true"] {
+  background: rgba(117, 44, 177, .26) !important;
+  border-color: #d4a1ff;
+  color: #fff;
+}
+/* Mantener las gráficas realmente opacas y negras. */
+#priceChartArea, #chart, #volumeChart, #rsiChart,
+#adxChart, #aoChart, #squeezeChart {
+  background: #000 !important;
+  background-color: #000 !important;
+}
+/* Los canvas de capas deben seguir transparentes sobre la gráfica negra. */
+#zonesCanvas, #fibonacciCanvas, #clVpCanvas, #clRangeOverlay {
+  background: transparent !important;
+}
+/* Texto visible incluso sobre estrellas brillantes. */
+.cl-screen-title, .chart-heading, .cl-control-label,
+.market-price, .market-bottom, .signal-card, .cl-stat,
+.cl-module, .market-card, .chart-card, .cl-nav-button {
+  text-shadow: 0 1px 4px rgba(0,0,0,.9);
+}
+/* En móviles, background-attachment: fixed puede ser irregular.
+   El pseudo-elemento fijo mantiene una sola imagen sin tapar botones. */
+@media (max-width: 899px) {
+  body { background-image: none; }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: #050716 url("universo.jpg") center center / cover no-repeat;
+  }
+  body { isolation: isolate; }
+}
