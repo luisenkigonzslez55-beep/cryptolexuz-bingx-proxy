@@ -94,9 +94,6 @@
   function setIndicator(name,active){name=String(name||'').toLowerCase();if(namedLines[name]){const [method,period]=namedLines[name],group=method==='ema'?'EMA':'MA',list=method==='ema'?prefs.emaLines:prefs.maLines;let line=list.find(x=>x.period===period);if(!line){const d=(method==='ema'?EMA_DEFAULT:MA_DEFAULT).find(x=>x.period===period);line={...(d||{period,color:C.purple,width:2,enabled:false})};list.push(line);}line.enabled=Boolean(active);if(active)prefs.indicators[group]=true;}else{const k=indicatorMap[name];if(!k)return;prefs.indicators[k]=Boolean(active);}saveSettings();updateButtons();updatePanelVisibility();if(rows.length)updateIndicators(true);emit('cryptolexuz:indicator-state-updated',{settings:prefs});}
   function toggleIndicator(name){setIndicator(name,!indicatorActive(name));}
   function applySavedIndicators(){prefs=readSettings();updateButtons();updatePanelVisibility();if($('chart'))$('chart').style.height=prefs.height+'px';if(rows.length)updateIndicators(true);scheduleResize();}
-
-function applySavedIndicators(){prefs=readSettings();updateButtons();updatePanelVisibility();if($('chart'))$('chart').style.height=prefs.height+'px';if(rows.length)updateIndicators(true);scheduleResize();}JavaScript
-
   function createCharts(){if(!window.LightweightCharts||!$('chart')){put('message','No se pudo cargar Lightweight Charts.');connection('Error de gráfica',C.red);return false;}charts.price=LightweightCharts.createChart($('chart'),chartOptions(prefs.height));series.price=charts.price.addCandlestickSeries({upColor:C.green,downColor:C.red,wickUpColor:C.green,wickDownColor:C.red,borderVisible:false});rebuildMoving();for(const [name,id,height] of [['volume','volumeChart',115],['rsi','rsiChart',145],['adx','adxChart',145],['ao','aoChart',145]])if($(id))charts[name]=LightweightCharts.createChart($(id),chartOptions(height));if(charts.volume){series.volume=charts.volume.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:''});series.volume.priceScale().applyOptions({scaleMargins:{top:.12,bottom:0}});}if(charts.rsi){series.rsi=charts.rsi.addLineSeries({color:C.purple,lineWidth:2,priceLineVisible:false});for(const level of [30,50,70])series.rsi.createPriceLine({price:level,color:'#657399',lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true});}if(charts.adx)for(const [name,color] of [['adx',C.yellow],['plus',C.green],['minus',C.red]])series[name]=charts.adx.addLineSeries({color,lineWidth:2,priceLineVisible:false});if(charts.ao){series.ao=charts.ao.addHistogramSeries({priceFormat:{type:'price',precision:5,minMove:.00001},priceScaleId:''});series.ao.createPriceLine({price:0,color:'#657399',lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true});}charts.price.timeScale().subscribeVisibleLogicalRangeChange(syncRanges);$('chart').style.touchAction='pan-y';if($('zonesCanvas'))$('zonesCanvas').style.pointerEvents='none';if(window.ResizeObserver){const observer=new ResizeObserver(scheduleResize);for(const id of ['chart','volumeChart','rsiChart','adxChart','aoChart'])if($(id))observer.observe($(id));}window.addEventListener('resize',scheduleResize);try{window.CryptolexuzFibonacci?.attach?.(charts.price,series.price,{getRows:()=>rows,getSelection:selection});}catch(e){console.warn('Fibonacci:',e);}announceReady();attachProfile();setTimeout(scheduleResize,150);return true;}
   function detectPivots(data){const result=[];for(let i=4;i<data.length-4;i++){const neighbors=data.slice(i-4,i+5);if(neighbors.every((c,j)=>j===4||c.high<data[i].high))result.push({index:i,price:data[i].high,type:'high'});if(neighbors.every((c,j)=>j===4||c.low>data[i].low))result.push({index:i,price:data[i].low,type:'low'});}return result.slice(-40);}
   function detectFVG(data){const result=[];for(let i=2;i<data.length;i++){const bull=data[i].low>data[i-2].high,bear=data[i].high<data[i-2].low;if(!bull&&!bear)continue;const top=bull?data[i].low:data[i-2].low,bottom=bull?data[i-2].high:data[i].high;if((top-bottom)/((top+bottom)/2)<.00035)continue;let end=data.length-1,filled=false,inverted=false;for(let j=i+1;j<data.length;j++){const touched=bull?data[j].low<=bottom:data[j].high>=top;if(touched){end=j;filled=true;inverted=bull?data[j].close<bottom:data[j].close>top;break;}}result.push({start:i-2,end,top,bottom,bull,filled,inverted});}return result.slice(-80);}
@@ -124,132 +121,7 @@ function applySavedIndicators(){prefs=readSettings();updateButtons();updatePanel
   async function frames(market){const result={};for(const tf of SCAN_TF){const s={...market,tf},cacheKey=key(s),ttl=SEC[tf]>=3600?180000:SEC[tf]>=900?90000:50000,stored=cache.get(cacheKey);if(stored&&Date.now()-stored.at<ttl){result[tf]=stored.data;continue;}const data=normalize(await getJSON(candleURL(s,300)));if(closed(data,tf).length<60)throw Error(tf+': historial insuficiente');result[tf]=data;cache.set(cacheKey,{at:Date.now(),data});}return result;}
   // V27: Confirmaciones estrictas basadas exclusivamente en velas cerradas.
   const V27={minScore:85,minADX:25,minVolume:1.35,cooldownSeconds:15*60,maxPendingSeconds:30*60,minimumRR:1.8};
-  function rank(market,framesData){
-    const metrics={};for(const tf of SCAN_TF)metrics[tf]=metric(framesData[tf]||[],tf);
-    const fast=metrics['1m'],m5=metrics['5m'],m15=metrics['15m'],m1h=metrics['1h'];
-    if(!fast||!m5||!m15)return {market,score:0,state:'SIN DATOS',direction:'NEUTRAL',confirmations:'Historial insuficiente'};
-    const long=m15.bull>=3&&m5.bull>=3&&m15.bull>m15.bear&&m5.bull>m5.bear;
-    const short=m15.bear>=3&&m5.bear>=3&&m15.bear>m15.bull&&m5.bear>m5.bull;
-    const direction=long&&!short?'LONG':short&&!long?'SHORT':'NEUTRAL';
-    const valid=direction!=='NEUTRAL';
-    const momentum=valid&&(direction==='LONG'?m5.aoBull&&fast.aoBull:m5.aoBear&&fast.aoBear);
-    const trend=valid&&(direction==='LONG'?m1h?.bull>=3:m1h?.bear>=3);
-    const volume=m5.volRatio>=V27.minVolume;
-    const strength=m5.adx>=V27.minADX&&m15.adx>=20;
-    const rsiOK=valid&&(direction==='LONG'?m5.rsi>=52&&m5.rsi<=68:m5.rsi>=32&&m5.rsi<=48);
-    const breakout=valid&&(direction==='LONG'?m5.breakHigh:m5.breakLow);
-    const timing=valid&&(direction==='LONG'?fast.bull>=3:fast.bear>=3);
-    const atrOK=Number.isFinite(m5.atr)&&m5.atr>0;
-    const score=(valid?25:0)+(trend?12:0)+(strength?15:0)+(volume?12:0)+(momentum?12:0)+(rsiOK?10:0)+(breakout?8:0)+(timing?6:0);
-    const confirmed=valid&&trend&&strength&&volume&&momentum&&rsiOK&&breakout&&timing&&atrOK&&score>=V27.minScore;
-    const flags=[`15m/5m ${valid?'alineados':'sin alinear'}`,`1h ${trend?'✓':'×'}`,`ADX ${strength?'✓':'×'}`,`VOL ${volume?'✓':'×'}`,`AO ${momentum?'✓':'×'}`,`RSI ${rsiOK?'✓':'×'}`,`ruptura 5m ${breakout?'✓':'×'}`];
-    return {market,score,direction,state:confirmed?'CONFIRMADA':score>=70?'EN OBSERVACIÓN':'SIN ENTRADA',confirmations:flags.join(' · '),closedTime:m5.closedTime,price:m5.close,atr:m5.atr,tf:'5m',reason:'V27: 15m/5m alineados; 1h, ADX, volumen, AO, RSI y ruptura 5m',strategyVersion:'V27'};
-  }
-  // Mantener los registros V26 en su propia clave. No alterar ni mezclar sus métricas.
-  const legacyHistory=safeJSON(localStorage.getItem(LEGACY_HISTORY_KEY),[]);
-  history=safeJSON(localStorage.getItem(HISTORY_KEY),[]);
-  if(!Array.isArray(history))history=[];
-  history=history.slice(0,300);
-  function saveHistory(){try{localStorage.setItem(HISTORY_KEY,JSON.stringify(history.slice(0,300)));}catch(e){console.warn('Historial:',e);}}
-  function hasActiveSignal(result){return history.some(x=>x.symbol===result.market.symbol&&x.exchange===result.market.exchange&&x.market===result.market.market&&x.direction===result.direction&&['PENDIENTE','ACTIVADA'].includes(x.state));}
-  function inCooldown(result){const recent=history.find(x=>x.symbol===result.market.symbol&&x.exchange===result.market.exchange&&x.market===result.market.market&&x.direction===result.direction&&x.ended);return Boolean(recent&&now()-recent.ended<V27.cooldownSeconds);}
-  function addSignal(result){
-    if(result.state!=='CONFIRMADA'||!result.closedTime||!Number.isFinite(result.atr)||result.atr<=0||hasActiveSignal(result)||inCooldown(result))return false;
-    const id=['V27',result.market.exchange,result.market.market,result.market.symbol,result.direction,result.closedTime].join('|');
-    if(history.some(x=>x.id===id))return false;
-    const entry=result.price,distance=result.atr,side=result.direction;
-    if(!Number.isFinite(entry)||entry<=0||!Number.isFinite(distance)||distance<=0)return false;
-    history.unshift({id,version:'V27',symbol:result.market.symbol,exchange:result.market.exchange,market:result.market.market,tf:result.tf||'5m',direction:side,created:result.closedTime,entry,stop:side==='LONG'?entry-distance:entry+distance,target:side==='LONG'?entry+2*distance:entry-2*distance,state:'PENDIENTE',activated:null,ended:null,reason:result.reason,score:result.score,lastChecked:result.closedTime});
-    history=history.slice(0,300);saveHistory();renderHistory();return true;
-  }
-  function evaluateSignal(signal,data){
-    if(!['PENDIENTE','ACTIVADA'].includes(signal.state))return false;
-    let changed=false;
-    const valid=closed(data,signal.tf);
-    for(const candle of valid){
-      if(candle.time<=signal.lastChecked||candle.time<=signal.created)continue;
-      signal.lastChecked=candle.time;changed=true;
-      if(signal.state==='PENDIENTE'){
-        if(candle.time-signal.created>V27.maxPendingSeconds){signal.state='NO ACTIVADA';signal.ended=candle.time;break;}
-        if(!(candle.low<=signal.entry&&candle.high>=signal.entry))continue;
-        signal.state='ACTIVADA';signal.activated=candle.time;
-      }
-      const stop=signal.direction==='LONG'?candle.low<=signal.stop:candle.high>=signal.stop;
-      const target=signal.direction==='LONG'?candle.high>=signal.target:candle.low<=signal.target;
-      if(stop&&target){signal.state='NO VERIFICABLE';signal.ended=candle.time;break;}
-      if(stop||target){signal.state=candle.time===signal.activated?'NO VERIFICABLE':target?'OBJETIVO':'STOP';signal.ended=candle.time;break;}
-    }
-    if(signal.state==='PENDIENTE'&&now()-signal.created>V27.maxPendingSeconds+(SEC[signal.tf]||300)){
-      signal.state='NO ACTIVADA';signal.ended=now();changed=true;
-    }
-    return changed;
-  }
-  async function verifySignals(){
-    if(verifyBusy)return;verifyBusy=true;
-    try{
-      const groups=new Map();
-      for(const signal of history.filter(x=>['PENDIENTE','ACTIVADA'].includes(x.state))){const k=key(signal);if(!groups.has(k))groups.set(k,[]);groups.get(k).push(signal);}
-      let dirty=false;
-      for(const group of groups.values()){
-        const first=group[0];
-        try{
-          const data=normalize(await getJSON(candleURL(first,300))),valid=closed(data,first.tf);
-          if(!valid.length)continue;
-          for(const item of group){
-            if(item.lastChecked<valid[0].time-(SEC[item.tf]||300)){item.state='NO VERIFICABLE';item.ended=now();dirty=true;continue;}
-            if(evaluateSignal(item,data))dirty=true;
-          }
-        }catch(e){console.warn('Verificación:',e.message);}
-      }
-      if(dirty){saveHistory();renderHistory();}
-    }finally{verifyBusy=false;}
-  }
-  function priceText(value){if(!Number.isFinite(Number(value)))return '—';const v=Math.abs(Number(value));return fmt(value,v<0.01?8:v<1?6:v<10?5:v<100?4:2);}
-  function renderHistory(){
-    const wins=history.filter(x=>x.state==='OBJETIVO').length,losses=history.filter(x=>x.state==='STOP').length;
-    put('clTotalSignals',history.length);put('clTargetsHit',wins);put('clStopsHit',losses);put('clWinRate',wins+losses?fmt(wins/(wins+losses)*100,1)+'%':'—');
-    let details=$('clV27Stats');
-    if(!details){const host=$('historySection')||$('clScreenResults');if(host){details=document.createElement('p');details.id='clV27Stats';details.style.cssText='padding:12px;color:#b9c5df;font-size:13px;line-height:1.6';host.prepend(details);}}
-    if(details){const pending=history.filter(x=>x.state==='PENDIENTE').length,active=history.filter(x=>x.state==='ACTIVADA').length,uncertain=history.filter(x=>x.state==='NO VERIFICABLE').length,notActivated=history.filter(x=>x.state==='NO ACTIVADA').length;details.textContent=`Motor V27 · Pendientes ${pending} · Activadas ${active} · No activadas ${notActivated} · No verificables ${uncertain} · Historial V26 separado: ${Array.isArray(legacyHistory)?legacyHistory.length:0} registros. Estadísticas V27 únicamente.`;}
-    const body=$('signalLog');if(!body)return;body.replaceChildren();
-    if(!history.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=7;td.textContent='Sin señales V27 todavía. El historial anterior se conserva por separado.';tr.append(td);body.append(tr);return;}
-    for(const signal of history.slice(0,30)){const tr=document.createElement('tr');for(const value of [new Date(signal.created*1000).toLocaleString('es-MX'),signal.tf,signal.symbol,signal.direction,priceText(signal.entry),signal.reason+' · TP '+priceText(signal.target)+' · SL '+priceText(signal.stop),signal.state]){const td=document.createElement('td');td.textContent=value;tr.append(td);}body.append(tr);}
-  }
-  function notifySignal(result){if(result.state!=='CONFIRMADA'||!('Notification'in window)||Notification.permission!=='granted')return;try{new Notification('CRYPTOLEXUZ V27 · '+result.market.label+' · '+result.direction,{body:'Señal técnica '+result.score+'/100 · Precio '+priceText(result.price),tag:result.market.symbol+'|'+result.direction+'|'+result.closedTime});}catch(e){console.warn('Notificación:',e);}}
-  async function scan(force=false){
-    if(document.hidden)return;if(scanBusy){if(force)scanAgain=true;return;}if(!force&&Date.now()-scanLast<55000)return;
-    scanBusy=true;const id=scanRequest,items=markets(),results=[],errors=[];put('clScanStatus','V27 · Analizando ocho activos...');let cursor=0;
-    async function worker(){while(cursor<items.length){const market=items[cursor++];try{results.push(rank(market,await frames(market)));}catch(e){errors.push(market.label+': '+e.message);}}}
-    try{
-      await Promise.all([worker(),worker()]);if(id!==scanRequest)return;
-      results.sort((a,b)=>b.score-a.score);const body=$('clScanBody');
-      if(body){body.replaceChildren();for(const [i,r] of results.entries()){const tr=document.createElement('tr');for(const value of [i+1,r.market.label,r.direction,r.score+'/100',r.state,r.confirmations]){const td=document.createElement('td');td.textContent=value;td.style.padding='9px 6px';tr.append(td);}body.append(tr);}if(!results.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=6;td.textContent='Sin resultados disponibles.';tr.append(td);body.append(tr);}}
-      put('clScanErrors',errors.length?'Sin datos: '+errors.join(' · '):'');put('clScanStatus','V27 · Última revisión: '+new Date().toLocaleTimeString('es-MX')+' · '+results.length+'/'+items.length+' activos');scanLast=Date.now();
-      // Primero actualizar estados; después decidir si puede abrirse una nueva señal.
-      await verifySignals();for(const r of results)if(addSignal(r))notifySignal(r);
-    }catch(e){put('clScanStatus','Error del escáner: '+e.message);console.warn('Escáner:',e);}finally{scanBusy=false;if(scanAgain){scanAgain=false;queueMicrotask(()=>scan(true));}}
-  }
-  function clearMarket(){chartRequest++;tickerRequest++;monitorRequest++;scanRequest++;scanLast=0;monitorLast=0;currentKey='';rows=[];zones=[];pivots=[];lastWS=0;levelSignature='';markerSignature='';series.price?.setData([]);series.volume?.setData([]);if(series.volume)seriesCache.delete(series.volume);for(const line of moving.values()){line.setData([]);seriesCache.delete(line);}for(const name of ['rsi','adx','plus','minus','ao']){series[name]?.setData([]);if(series[name])seriesCache.delete(series[name]);}for(const line of levelLines)try{series.price?.removePriceLine(line);}catch{}levelLines.length=0;series.price?.setMarkers([]);lastProfileRows=null;updateModules(true);put('price','—');put('message','Cargando nuevo mercado...');scheduleOverlay();}
-  function marketChanged(){syncCommodity();syncTimeframes();clearMarket();connect();refresh();refreshTicker();monitor(true);scan(true);scheduleResize();}
-  function events(){
-    document.addEventListener('click',event=>{const target=event.target instanceof Element?event.target:event.target?.parentElement;if(!target)return;const tf=target.closest('[data-tf]');if(tf&&!tf.closest('#clFixedTimeframes')){setTimeframe(tf.dataset.tf);return;}const indicator=target.closest('[data-indicator]');if(indicator&&!indicator.closest('#clFixedIndicators')){toggleIndicator(indicator.dataset.indicator);return;}const osc=target.closest('[data-osc]');if(osc&&!osc.closest('#clFixedIndicators')){const name=osc.dataset.osc;if(indicatorMap[String(name).toLowerCase()]||namedLines[String(name).toLowerCase()])toggleIndicator(name);}},false);
-    $('refresh')?.addEventListener('click',()=>{refresh();refreshTicker();monitor(true);});
-    $('chartReset')?.addEventListener('click',resetView);
-    $('rsiSpeak')?.addEventListener('click',()=>{if(!('speechSynthesis'in window))return;speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(lastRSI);utterance.lang='es-MX';speechSynthesis.speak(utterance);});
-    if($('rsiSpeak')&&'speechSynthesis'in window)$('rsiSpeak').disabled=false;
-    for(const id of ['symbol','interval','exchange','market'])$(id)?.addEventListener('change',marketChanged);
-    document.addEventListener('visibilitychange',()=>{if(document.hidden)disconnect();else{connect();refresh();refreshTicker();monitor(true);scan(true);}});
-    window.addEventListener('cryptolexuz:screen-change',e=>{if(e.detail?.screen==='charts')setTimeout(scheduleResize,120);if(e.detail?.screen==='results')renderHistory();});
-    window.addEventListener('cryptolexuz:indicator-settings-change',()=>{applySavedIndicators();});
-    window.addEventListener('cryptolexuz:volume-profile-ready',()=>{profileAttached=null;attachProfile();updateModules(true);});
-    syncTimeframes();updateButtons();
-  }
-  window.CryptolexuzIndicators={getSettings:()=>readSettings(),getEnabled:()=>Object.keys(prefs.indicators).filter(k=>prefs.indicators[k]),isEnabled:indicatorActive,setIndicator,toggleIndicator,refresh:()=>{applySavedIndicators();refresh();},awesomeOscillator,sma,ema,rsi,adx};
-  function init(){populateTimeframes();syncCommodity();scannerUI();renderHistory();events();applySavedIndicators();if(!createCharts())return;connect();refresh();refreshTicker();monitor(true);scan(true);for(const [ms,fn] of [[15000,refresh],[10000,refreshTicker],[60000,monitor],[60000,scan],[60000,verifySignals]])timers.push(setInterval(()=>{if(!document.hidden)Promise.resolve(fn()).catch(console.warn);},ms));window.addEventListener('beforeunload',()=>{disconnect();for(const t of timers)clearInterval(t);});console.info('CRYPTOLEXUZ PRO — APP.JS V27 iniciado');}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
-})();
 
- 
   function rank(market,framesData){
     const metrics={};for(const tf of SCAN_TF)metrics[tf]=metric(framesData[tf]||[],tf);
     const fast=metrics['1m'],m5=metrics['5m'],m15=metrics['15m'],m1h=metrics['1h'];
