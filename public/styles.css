@@ -1762,3 +1762,58 @@ body::before {
 .cl-screen {
   background-image: none !important;
 }
+
+/* CRYPTOLEXUZ PRO — CORRECCIÓN DE FONDO V29 */
+
+/* Una sola imagen de universo en toda la pantalla */
+html {
+  background: #050716 !important;
+}
+
+body {
+  background: #050716 url("universo.jpg")
+    center center / cover fixed no-repeat !important;
+}
+
+/* Eliminar fondos divididos de los contenedores */
+body::before,
+body::after,
+.app-container::before,
+.app-container::after,
+.cl-screen::before,
+.cl-screen::after {
+  content: none !important;
+  background: none !important;
+}
+
+/* Paneles transparentes */
+.app-container,
+.cl-screen,
+.app-header,
+.cl-bottom-nav,
+.market-card,
+.chart-card,
+.cl-module,
+.market-bottom > div {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+/* Mantener gráficas negras */
+#priceChartArea,
+#chart,
+#volumeChart,
+#rsiChart,
+#adxChart,
+#aoChart,
+#squeezeChart {
+  background: #000 !important;
+}
+
+/* Mantener movilidad táctil */
+html,
+body,
+.app-container,
+.cl-screen {
+  touch-action: pan-y pinch-zoom;
+}
