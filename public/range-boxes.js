@@ -1,53 +1,81 @@
 
 /*
- CRYPTOLEXUZ PRO — RANGE BOXES V6
- Compatible con Lightweight Charts 4.2.2
+ CRYPTOLEXUZ PRO — RANGE BOXES V7 COMPLETO
 
- - Sin caja verde
- - Cajas moradas editables con un dedo
- - Movimiento y ajuste de cuatro bordes
- - Gráfica libre fuera del modo edición
- - Persistencia por activo y mercado
- - Compatible con app.js V19 y styles.css V21
- - Sin ejecución de órdenes
+ Compatible con Lightweight Charts 4.2.2.
+
+ FUNCIONES:
+ - Sin caja verde.
+ - Cajas moradas editables.
+ - Movimiento táctil con un dedo.
+ - Ajuste de cuatro bordes.
+ - Navegación libre fuera de edición.
+ - Persistencia por activo y mercado.
+ - Conservación de cajas V6, V5 y V3.
+ - Detección opcional de lateralización.
+ - Caja de penúltima vela.
+ - Línea central configurable.
+ - Extensión visual hacia la derecha.
+ - Actualización con velas reales.
+ - Sin ejecución de órdenes.
 */
+
 "use strict";
 
 (() => {
-  if (window.__clRangeBoxesV6) return;
-  window.__clRangeBoxesV6 = true;
 
-  const $ = id => document.getElementById(id);
+  if (window.__clRangeBoxesV7) return;
+  window.__clRangeBoxesV7 = true;
+
+  const $ = id =>
+    document.getElementById(id);
 
   const TF = {
-    "1m":60, "3m":180, "5m":300,
-    "15m":900, "30m":1800,
-    "1h":3600, "2h":7200,
-    "4h":14400, "6h":21600,
-    "8h":28800, "12h":43200,
-    "1d":86400, "3d":259200,
-    "1w":604800, "1M":2592000
+    "1m": 60,
+    "3m": 180,
+    "5m": 300,
+    "15m": 900,
+    "30m": 1800,
+    "1h": 3600,
+    "2h": 7200,
+    "4h": 14400,
+    "6h": 21600,
+    "8h": 28800,
+    "12h": 43200,
+    "1d": 86400,
+    "3d": 259200,
+    "1w": 604800,
+    "1M": 2592000
   };
 
-  const GOLD = "NCCOGOLD2USD-USDT";
-  const OIL = "NCCO1OILWTI2USD-USDT";
+  const GOLD =
+    "NCCOGOLD2USD-USDT";
 
-  const STORE = "cryptolexuz-purple-boxes-v6";
-  const PREVIOUS_STORE = "cryptolexuz-purple-boxes-v5";
-  const LEGACY_STORE = "cryptolexuz-fixed-boxes-v3";
-  const PREFS = "cryptolexuz-purple-prefs-v6";
+  const OIL =
+    "NCCO1OILWTI2USD-USDT";
+
+  const STORE =
+    "cryptolexuz-purple-boxes-v7";
+
+  const OLD_STORES = [
+    "cryptolexuz-purple-boxes-v6",
+    "cryptolexuz-purple-boxes-v5",
+    "cryptolexuz-fixed-boxes-v3"
+  ];
+
+  const PREFS =
+    "cryptolexuz-purple-prefs-v7";
+
+  const OLD_PREFS = [
+    "cryptolexuz-purple-prefs-v6",
+    "cryptolexuz-purple-prefs-v5"
+  ];
 
   const PURPLE = "#bb52ff";
   const PURPLE_LIGHT = "#e4b9ff";
 
-  function readJSON(key, fallback) {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw === null ? fallback : JSON.parse(raw);
-    } catch {
-      return fallback;
-    }
-  }
+  const MAX_BOXES = 300;
+  const HANDLE_SIZE = 16;
 
   const config = {
     fixed: true,
@@ -59,264 +87,142 @@
     lookback: 24
   };
 
-  const savedPrefs = readJSON(
-    PREFS,
-    readJSON("cryptolexuz-purple-prefs-v5", {})
-  );
-
-  if (savedPrefs && typeof savedPrefs === "object") {
-    for (const key of Object.keys(config)) {
-      if (key === "lookback") {
-        const n = Number(savedPrefs[key]);
-        if ([12,24,36,48,72].includes(n)) {
-          config.lookback = n;
-        }
-      } else if (typeof savedPrefs[key] === "boolean") {
-        config[key] = savedPrefs[key];
-      }
-    }
-  }
-
-  function savePrefs() {
-    try {
-      localStorage.setItem(PREFS, JSON.stringify(config));
-    } catch (error) {
-      console.warn("Preferencias de cajas:", error);
-    }
-  }
-
-  const stored = readJSON(
-    STORE,
-    readJSON(
-      PREVIOUS_STORE,
-      readJSON(LEGACY_STORE, [])
-    )
-  );
-
-  let boxes = Array.isArray(stored) ? stored : [];
-
-  boxes = boxes.filter(b =>
-    b &&
-    typeof b.id === "string" &&
-    typeof b.marketKey === "string" &&
-    [b.start,b.end,b.high,b.low]
-      .every(v => Number.isFinite(Number(v))) &&
-    Number(b.high) > Number(b.low) &&
-    Number(b.low) > 0 &&
-    Number(b.end) > Number(b.start)
-  ).map(b => ({
-    ...b,
-    start: Number(b.start),
-    end: Number(b.end),
-    high: Number(b.high),
-    low: Number(b.low),
-    name: "Caja morada"
-  }));
-
-  function saveBoxes() {
-    try {
-      localStorage.setItem(STORE, JSON.stringify(boxes));
-    } catch (error) {
-      console.warn("Guardar cajas:", error);
-    }
-  }
-
   let chart = null;
   let candle = null;
   let rows = [];
+
+  let rowsKey = "";
   let currentKey = "";
-  let attachedChart = null;
+
+  let boxes = [];
   let selectedId = null;
+
   let initialized = false;
   let editing = false;
   let drag = null;
+
   let frame = 0;
   let resizeObserver = null;
+  let subscribedChart = null;
+  let observedHost = null;
 
-  const canvas = document.createElement("canvas");
-  canvas.id = "clRangeOverlay";
+  let recoveryTimer = null;
+  let recoveryAttempts = 0;
 
-  const touchLayer = document.createElement("div");
-  touchLayer.className = "cl-box-touch-layer";
-  touchLayer.hidden = true;
-  touchLayer.setAttribute(
-    "aria-label",
-    "Superficie de edición de caja morada"
-  );
+  const now = () =>
+    Math.floor(Date.now() / 1000);
 
-  const panel = document.createElement("section");
-  panel.id = "clRangeControls";
-  panel.className = "cl-module";
+  function readJSON(key, fallback = null) {
+    try {
+      const raw =
+        localStorage.getItem(key);
 
-  panel.style.cssText = `
-    display:grid;
-    gap:12px;
-    margin:12px 0;
-    padding:14px;
-    border:1px solid #493365;
-    border-radius:13px;
-    background:#151123;
-    color:#f0e5ff;
-    font:12px system-ui,sans-serif;
-  `;
+      return raw === null
+        ? fallback
+        : JSON.parse(raw);
 
-  const heading = document.createElement("div");
-  heading.style.cssText = `
-    display:flex;
-    justify-content:space-between;
-    align-items:center;
-    gap:8px;
-  `;
+    } catch (error) {
+      console.warn(
+        "Range Boxes: lectura",
+        key,
+        error
+      );
 
-  heading.innerHTML = `
-    <strong style="font-size:15px">
-      🟪 Cajas moradas
-    </strong>
-    <span style="color:#b89bd1">V6</span>
-  `;
-
-  const grid = document.createElement("div");
-  grid.style.cssText = `
-    display:grid;
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:8px;
-  `;
-
-  function addToggle(label, key) {
-    const wrapper = document.createElement("label");
-
-    wrapper.style.cssText = `
-      display:flex;
-      align-items:center;
-      gap:7px;
-      min-height:40px;
-      padding:8px;
-      border:1px solid #51366a;
-      border-radius:8px;
-      background:#251b32;
-      cursor:pointer;
-    `;
-
-    const input = document.createElement("input");
-    input.type = "checkbox";
-    input.checked = config[key];
-    input.style.accentColor = PURPLE;
-
-    input.addEventListener("change", () => {
-      config[key] = input.checked;
-      savePrefs();
-      redraw();
-    });
-
-    wrapper.append(
-      input,
-      document.createTextNode(label)
-    );
-
-    grid.append(wrapper);
-    return input;
+      return fallback;
+    }
   }
 
-  const fixedToggle = addToggle(
-    "Mostrar cajas fijas", "fixed"
-  );
+  function readMigrated(
+    current,
+    previous,
+    fallback
+  ) {
+    const direct =
+      readJSON(current, null);
 
-  addToggle("Lateralización", "sideways");
-  addToggle("Penúltima vela", "previous");
-  addToggle("Extender lateral", "extendRight");
-  addToggle("Línea central", "midpoint");
-  addToggle("Mostrar bordes", "boundaries");
+    if (direct !== null) {
+      return direct;
+    }
 
-  function makeButton(text) {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = text;
-    button.className = "cl-purple-box-button";
-    return button;
+    for (const key of previous) {
+      const value =
+        readJSON(key, null);
+
+      if (value !== null) {
+        return value;
+      }
+    }
+
+    return fallback;
   }
 
-  const createButton = makeButton("＋ Crear caja");
-  const candleButton = makeButton("📌 Fijar vela");
-  const deleteButton = makeButton("🗑 Eliminar");
-  const editButton = makeButton("✋ Editar: NO");
+  function saveJSON(key, value) {
+    try {
+      localStorage.setItem(
+        key,
+        JSON.stringify(value)
+      );
 
-  editButton.setAttribute("aria-pressed", "false");
+      return true;
 
-  const selectBox = document.createElement("select");
+    } catch (error) {
+      console.warn(
+        "Range Boxes: guardado",
+        error
+      );
 
-  selectBox.style.cssText = `
-    min-width:0;
-    max-width:100%;
-    padding:10px;
-    border:1px solid #7849a3;
-    border-radius:8px;
-    background:#251b32;
-    color:#fff;
-  `;
-
-  const lookback = document.createElement("select");
-  lookback.style.cssText = selectBox.style.cssText;
-
-  for (const n of [12,24,36,48,72]) {
-    const option = document.createElement("option");
-    option.value = String(n);
-    option.textContent = n + " velas";
-    option.selected = n === config.lookback;
-    lookback.append(option);
+      return false;
+    }
   }
 
-  lookback.addEventListener("change", () => {
-    config.lookback = Number(lookback.value);
-    savePrefs();
-    redraw();
-  });
+  function normalizeSelection(s) {
+    const symbol =
+      String(
+        s?.symbol ||
+        "BTC-USDT"
+      );
 
-  const controls = document.createElement("div");
-  controls.style.cssText = `
-    display:flex;
-    flex-wrap:wrap;
-    align-items:center;
-    gap:8px;
-  `;
-
-  controls.append(
-    createButton,
-    candleButton,
-    deleteButton,
-    selectBox,
-    editButton,
-    lookback
-  );
-
-  const note = document.createElement("p");
-  note.style.cssText = `
-    margin:0;
-    color:#c4aed7;
-    line-height:1.6;
-  `;
-
-  note.textContent =
-    "Crea una caja y activa Editar. " +
-    "Arrastra su interior para moverla; " +
-    "arrastra los bordes para cambiar su tamaño. " +
-    "Desactiva Editar para navegar por las velas.";
-
-  panel.append(heading, grid, controls, note);
-
-  function selection() {
-    const symbol = $("symbol")?.value || "BTC-USDT";
-    const commodity = [GOLD,OIL].includes(symbol);
+    const commodity =
+      [GOLD, OIL].includes(symbol);
 
     return {
       symbol,
-      tf: $("interval")?.value || "15m",
+
+      tf:
+        TF[s?.tf]
+          ? s.tf
+          : "15m",
+
       exchange: commodity
         ? "bingx"
-        : $("exchange")?.value || "bingx",
+        : String(
+            s?.exchange ||
+            "bingx"
+          ).toLowerCase(),
+
       market: commodity
         ? "perpetual"
-        : $("market")?.value || "perpetual"
+        : String(
+            s?.market ||
+            "perpetual"
+          ).toLowerCase()
     };
+  }
+
+  function selection() {
+    return normalizeSelection({
+      symbol:
+        $("symbol")?.value,
+
+      tf:
+        $("interval")?.value,
+
+      exchange:
+        $("exchange")?.value,
+
+      market:
+        $("market")?.value
+    });
   }
 
   function marketKey(s) {
@@ -328,47 +234,593 @@
   }
 
   function dataKey(s) {
-    return marketKey(s) + "|" + s.tf;
+    return (
+      marketKey(s) +
+      "|" +
+      s.tf
+    );
+  }
+
+  function validBox(b) {
+    if (
+      !b ||
+      typeof b.id !== "string" ||
+      typeof b.marketKey !== "string"
+    ) {
+      return false;
+    }
+
+    const values = [
+      b.start,
+      b.end,
+      b.high,
+      b.low
+    ].map(Number);
+
+    return (
+      values.every(Number.isFinite) &&
+      values[0] > 0 &&
+      values[1] > values[0] &&
+      values[3] > 0 &&
+      values[2] > values[3]
+    );
+  }
+
+  function normalizeBox(b) {
+    return {
+      ...b,
+      start: Number(b.start),
+      end: Number(b.end),
+      high: Number(b.high),
+      low: Number(b.low),
+      name: "Caja morada"
+    };
+  }
+
+  function loadBoxes() {
+    const stored = readMigrated(
+      STORE,
+      OLD_STORES,
+      []
+    );
+
+    const source =
+      Array.isArray(stored)
+        ? stored
+        : [];
+
+    const unique = new Map();
+
+    for (const b of source) {
+      if (!validBox(b)) {
+        continue;
+      }
+
+      unique.set(
+        b.id,
+        normalizeBox(b)
+      );
+    }
+
+    boxes = [
+      ...unique.values()
+    ].slice(-MAX_BOXES);
+
+    saveBoxes();
+  }
+
+  function saveBoxes() {
+    return saveJSON(
+      STORE,
+      boxes
+    );
+  }
+
+  function loadPrefs() {
+    const saved = readMigrated(
+      PREFS,
+      OLD_PREFS,
+      {}
+    );
+
+    if (
+      !saved ||
+      typeof saved !== "object"
+    ) {
+      return;
+    }
+
+    for (
+      const key of Object.keys(config)
+    ) {
+      if (key === "lookback") {
+        const value =
+          Number(saved[key]);
+
+        if (
+          [12, 24, 36, 48, 72]
+            .includes(value)
+        ) {
+          config.lookback = value;
+        }
+
+      } else if (
+        typeof saved[key] ===
+        "boolean"
+      ) {
+        config[key] = saved[key];
+      }
+    }
+  }
+
+  function savePrefs() {
+    saveJSON(PREFS, config);
+  }
+
+  loadBoxes();
+  loadPrefs();
+
+  function element(
+    tag,
+    className = "",
+    value
+  ) {
+    const e =
+      document.createElement(tag);
+
+    if (className) {
+      e.className = className;
+    }
+
+    if (value !== undefined) {
+      e.textContent = String(value);
+    }
+
+    return e;
+  }
+
+  const canvas =
+    document.createElement("canvas");
+
+  canvas.id = "clRangeOverlay";
+
+  const touchLayer =
+    document.createElement("div");
+
+  touchLayer.id =
+    "clRangeTouchLayer";
+
+  touchLayer.className =
+    "cl-box-touch-layer";
+
+  touchLayer.hidden = true;
+
+  touchLayer.setAttribute(
+    "aria-label",
+    "Edición de cajas moradas"
+  );
+
+  const panel =
+    element("section", "cl-module");
+
+  panel.id = "clRangeControls";
+
+  const heading =
+    element("div", "clrb-heading");
+
+  heading.append(
+    element(
+      "strong",
+      "",
+      "🟪 Cajas moradas"
+    ),
+    element(
+      "span",
+      "clrb-version",
+      "V7"
+    )
+  );
+
+  const grid =
+    element("div", "clrb-grid");
+
+  const toggleInputs = {};
+
+  function addToggle(label, key) {
+    const wrapper =
+      element("label", "clrb-toggle");
+
+    const input =
+      document.createElement("input");
+
+    input.type = "checkbox";
+    input.checked = config[key];
+    input.style.accentColor = PURPLE;
+
+    input.addEventListener(
+      "change",
+      () => {
+        config[key] = input.checked;
+
+        savePrefs();
+        redraw();
+      }
+    );
+
+    wrapper.append(
+      input,
+      document.createTextNode(label)
+    );
+
+    grid.append(wrapper);
+
+    toggleInputs[key] = input;
+
+    return input;
+  }
+
+  addToggle(
+    "Mostrar cajas fijas",
+    "fixed"
+  );
+
+  addToggle(
+    "Lateralización",
+    "sideways"
+  );
+
+  addToggle(
+    "Penúltima vela",
+    "previous"
+  );
+
+  addToggle(
+    "Extender lateral",
+    "extendRight"
+  );
+
+  addToggle(
+    "Línea central",
+    "midpoint"
+  );
+
+  addToggle(
+    "Mostrar bordes",
+    "boundaries"
+  );
+
+  function button(text) {
+    const b = element(
+      "button",
+      "cl-purple-box-button",
+      text
+    );
+
+    b.type = "button";
+
+    return b;
+  }
+
+  const createButton =
+    button("＋ Crear caja");
+
+  const candleButton =
+    button("📌 Fijar vela");
+
+  const deleteButton =
+    button("🗑 Eliminar");
+
+  const editButton =
+    button("✋ Editar: NO");
+
+  editButton.setAttribute(
+    "aria-pressed",
+    "false"
+  );
+
+  const selectBox =
+    document.createElement("select");
+
+  selectBox.className =
+    "clrb-select";
+
+  selectBox.setAttribute(
+    "aria-label",
+    "Seleccionar caja morada"
+  );
+
+  const lookback =
+    document.createElement("select");
+
+  lookback.className =
+    "clrb-select";
+
+  lookback.setAttribute(
+    "aria-label",
+    "Velas del rango"
+  );
+
+  for (
+    const count of [
+      12, 24, 36, 48, 72
+    ]
+  ) {
+    const option =
+      element(
+        "option",
+        "",
+        count + " velas"
+      );
+
+    option.value =
+      String(count);
+
+    option.selected =
+      count === config.lookback;
+
+    lookback.append(option);
+  }
+
+  const controls =
+    element("div", "clrb-controls");
+
+  controls.append(
+    createButton,
+    candleButton,
+    deleteButton,
+    selectBox,
+    editButton,
+    lookback
+  );
+
+  const note =
+    element(
+      "p",
+      "clrb-note",
+      "Crea una caja morada y activa " +
+      "Editar. Arrastra su interior " +
+      "para moverla o sus cuatro " +
+      "bordes para ajustar el rango. " +
+      "Desactiva Editar para navegar " +
+      "libremente por la gráfica."
+    );
+
+  panel.append(
+    heading,
+    grid,
+    controls,
+    note
+  );
+
+  function addStyles() {
+    if ($("clRangeBoxesCSS")) {
+      return;
+    }
+
+    const style =
+      document.createElement("style");
+
+    style.id = "clRangeBoxesCSS";
+
+    style.textContent = `
+      #clRangeOverlay {
+        position:absolute !important;
+        inset:0 !important;
+        display:block;
+        width:100% !important;
+        height:100% !important;
+        pointer-events:none !important;
+        z-index:15;
+        background:transparent !important;
+      }
+
+      #clRangeTouchLayer {
+        position:absolute !important;
+        inset:0 !important;
+        width:100% !important;
+        height:100% !important;
+        z-index:16;
+        background:transparent;
+        touch-action:none;
+        user-select:none;
+        -webkit-user-select:none;
+        cursor:crosshair;
+      }
+
+      #clRangeTouchLayer[hidden] {
+        display:none !important;
+      }
+
+      #priceChartArea.cl-box-editing {
+        position:relative;
+      }
+
+      #priceChartArea.cl-box-dragging {
+        cursor:grabbing;
+      }
+
+      #clRangeControls {
+        display:grid;
+        gap:12px;
+        margin:12px 0;
+        padding:14px;
+        border:1px solid #493365;
+        border-radius:13px;
+        background:#151123;
+        color:#f0e5ff;
+        font:12px system-ui,sans-serif;
+        min-width:0;
+      }
+
+      .clrb-heading {
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        gap:8px;
+      }
+
+      .clrb-heading strong {
+        font-size:15px;
+      }
+
+      .clrb-version {
+        color:#b89bd1;
+      }
+
+      .clrb-grid {
+        display:grid;
+        grid-template-columns:
+          repeat(2,minmax(0,1fr));
+        gap:8px;
+      }
+
+      .clrb-toggle {
+        display:flex;
+        align-items:center;
+        gap:7px;
+        min-height:40px;
+        padding:8px;
+        border:1px solid #51366a;
+        border-radius:8px;
+        background:#251b32;
+        cursor:pointer;
+        min-width:0;
+      }
+
+      .clrb-toggle input {
+        flex-shrink:0;
+      }
+
+      .clrb-controls {
+        display:flex;
+        flex-wrap:wrap;
+        align-items:center;
+        gap:8px;
+      }
+
+      .cl-purple-box-button {
+        min-height:40px;
+        padding:9px 12px;
+        border:1px solid #7849a3;
+        border-radius:9px;
+        background:#302044;
+        color:#f4eaff;
+        font:600 12px system-ui,sans-serif;
+        cursor:pointer;
+      }
+
+      .cl-purple-box-button.active {
+        background:#7635b4;
+        border-color:#e4b9ff;
+        color:white;
+      }
+
+      .cl-purple-box-button:disabled {
+        opacity:.45;
+        cursor:not-allowed;
+      }
+
+      .clrb-select {
+        min-height:40px;
+        min-width:0;
+        max-width:100%;
+        padding:9px;
+        border:1px solid #7849a3;
+        border-radius:8px;
+        background:#251b32;
+        color:white;
+        font:12px system-ui,sans-serif;
+      }
+
+      .clrb-note {
+        margin:0;
+        color:#c4aed7;
+        line-height:1.6;
+      }
+
+      @media(max-width:370px) {
+        .clrb-grid {
+          grid-template-columns:1fr;
+        }
+
+        .clrb-controls > * {
+          flex:1 1 auto;
+        }
+      }
+    `;
+
+    document.head.append(style);
   }
 
   function visibleBoxes() {
-    const key = marketKey(selection());
-    return boxes.filter(b => b.marketKey === key);
+    const key =
+      marketKey(selection());
+
+    return boxes.filter(
+      b => b.marketKey === key
+    );
   }
 
   function selectedBox() {
-    return visibleBoxes().find(b => b.id === selectedId);
+    return visibleBoxes().find(
+      b => b.id === selectedId
+    ) || null;
   }
 
   function updateSelector() {
     const list = visibleBoxes();
 
-    if (!list.some(b => b.id === selectedId)) {
-      selectedId = list.at(-1)?.id || null;
+    if (
+      !list.some(
+        b => b.id === selectedId
+      )
+    ) {
+      selectedId =
+        list.at(-1)?.id || null;
     }
 
     selectBox.replaceChildren();
 
     if (!list.length) {
-      const option = document.createElement("option");
+      const option =
+        element(
+          "option",
+          "",
+          "Sin cajas"
+        );
+
       option.value = "";
-      option.textContent = "Sin cajas";
+
       selectBox.append(option);
     }
 
-    list.forEach((box, index) => {
-      const option = document.createElement("option");
-      option.value = box.id;
-      option.textContent = "Caja morada " + (index + 1);
-      option.selected = box.id === selectedId;
-      selectBox.append(option);
-    });
+    list.forEach(
+      (box, index) => {
+        const option =
+          element(
+            "option",
+            "",
+            "Caja morada " +
+            (index + 1)
+          );
 
-    deleteButton.disabled = !list.length;
-    editButton.disabled = !list.length;
-    selectBox.disabled = !list.length;
+        option.value = box.id;
 
-    if (!list.length && editing) {
+        option.selected =
+          box.id === selectedId;
+
+        selectBox.append(option);
+      }
+    );
+
+    const empty =
+      list.length === 0;
+
+    deleteButton.disabled = empty;
+    editButton.disabled = empty;
+    selectBox.disabled = empty;
+
+    if (empty && editing) {
       setEditing(false);
     }
   }
@@ -379,138 +831,396 @@
     redraw();
   }
 
-  selectBox.addEventListener("change", () => {
-    selectedId = selectBox.value;
-    redraw();
-  });
+  selectBox.addEventListener(
+    "change",
+    () => {
+      selectedId = selectBox.value;
+      redraw();
+    }
+  );
+
+  lookback.addEventListener(
+    "change",
+    () => {
+      const value =
+        Number(lookback.value);
+
+      if (
+        [12, 24, 36, 48, 72]
+          .includes(value)
+      ) {
+        config.lookback = value;
+
+        savePrefs();
+        redraw();
+      }
+    }
+  );
+
+  function normalizeRows(data) {
+    if (!Array.isArray(data)) {
+      return [];
+    }
+
+    const result = [];
+
+    for (const c of data) {
+      if (
+        !c ||
+        typeof c !== "object"
+      ) {
+        continue;
+      }
+
+      let time =
+        c.time ??
+        c.timestamp ??
+        c.openTime;
+
+      if (
+        typeof time === "object" &&
+        time !== null &&
+        Number.isFinite(time.year) &&
+        Number.isFinite(time.month) &&
+        Number.isFinite(time.day)
+      ) {
+        time = Date.UTC(
+          time.year,
+          time.month - 1,
+          time.day
+        ) / 1000;
+      } else {
+        time = Number(time);
+
+        if (time > 1e12) {
+          time = Math.floor(
+            time / 1000
+          );
+        }
+      }
+
+      const open =
+        Number(c.open ?? c.o);
+
+      const high =
+        Number(c.high ?? c.h);
+
+      const low =
+        Number(c.low ?? c.l);
+
+      const close =
+        Number(c.close ?? c.c);
+
+      if (
+        ![
+          time,
+          open,
+          high,
+          low,
+          close
+        ].every(Number.isFinite)
+      ) {
+        continue;
+      }
+
+      if (
+        time <= 0 ||
+        low <= 0 ||
+        high < Math.max(
+          open,
+          close
+        ) ||
+        low > Math.min(
+          open,
+          close
+        )
+      ) {
+        continue;
+      }
+
+      result.push({
+        time,
+        open,
+        high,
+        low,
+        close,
+        volume:
+          Number(
+            c.volume ??
+            c.vol ??
+            0
+          ) || 0
+      });
+    }
+
+    result.sort(
+      (a, b) => a.time - b.time
+    );
+
+    return [
+      ...new Map(
+        result.map(
+          c => [c.time, c]
+        )
+      ).values()
+    ];
+  }
 
   function closedRows() {
-    const sec = TF[selection().tf] || 60;
-    const now = Date.now() / 1000;
+    const s = selection();
 
-    return rows.filter(c =>
-      Number.isFinite(c.time) &&
-      Number.isFinite(c.high) &&
-      Number.isFinite(c.low) &&
-      c.time + sec <= now - 2
+    if (
+      rowsKey !== dataKey(s)
+    ) {
+      return [];
+    }
+
+    const seconds =
+      TF[s.tf] || 60;
+
+    const current = now();
+
+    return rows.filter(
+      c =>
+        c.time + seconds <=
+        current - 2
     );
   }
 
   function rangeSource() {
-    const data = closedRows().slice(-config.lookback);
+    const data =
+      closedRows().slice(
+        -config.lookback
+      );
 
-    if (data.length < 4) return null;
+    if (data.length < 4) {
+      return null;
+    }
 
     return {
-      start: data[0].time,
-      end: data.at(-1).time,
-      high: Math.max(...data.map(c => c.high)),
-      low: Math.min(...data.map(c => c.low))
+      start:
+        data[0].time,
+
+      end:
+        data.at(-1).time,
+
+      high:
+        Math.max(
+          ...data.map(
+            c => c.high
+          )
+        ),
+
+      low:
+        Math.min(
+          ...data.map(
+            c => c.low
+          )
+        )
     };
   }
 
   function createBox(source) {
-    if (!source) return;
+    if (!source) {
+      return;
+    }
 
     const s = selection();
-    const sec = TF[s.tf] || 60;
+
+    const seconds =
+      TF[s.tf] || 60;
 
     const box = {
-      id: "purple-" + Date.now() + "-" +
-        Math.random().toString(36).slice(2, 8),
-      marketKey: marketKey(s),
-      symbol: s.symbol,
-      exchange: s.exchange,
-      market: s.market,
-      sourceTf: s.tf,
-      name: "Caja morada",
-      start: source.start,
-      end: Math.max(source.end, source.start + sec),
-      high: source.high,
-      low: source.low
+      id:
+        "purple-" +
+        Date.now() +
+        "-" +
+        Math.random()
+          .toString(36)
+          .slice(2, 9),
+
+      marketKey:
+        marketKey(s),
+
+      symbol:
+        s.symbol,
+
+      exchange:
+        s.exchange,
+
+      market:
+        s.market,
+
+      sourceTf:
+        s.tf,
+
+      name:
+        "Caja morada",
+
+      start:
+        Number(source.start),
+
+      end:
+        Math.max(
+          Number(source.end),
+          Number(source.start) +
+          seconds
+        ),
+
+      high:
+        Number(source.high),
+
+      low:
+        Number(source.low)
     };
 
-    if (
-      ![box.start,box.end,box.high,box.low]
-        .every(Number.isFinite) ||
-      box.low <= 0 ||
-      box.high <= box.low
-    ) return;
+    if (!validBox(box)) {
+      note.textContent =
+        "No se pudo crear: " +
+        "rango de precios inválido.";
+
+      return;
+    }
 
     boxes.push(box);
+
+    if (
+      boxes.length > MAX_BOXES
+    ) {
+      boxes.splice(
+        0,
+        boxes.length - MAX_BOXES
+      );
+    }
+
     selectedId = box.id;
 
     config.fixed = true;
-    fixedToggle.checked = true;
+
+    toggleInputs.fixed.checked = true;
 
     savePrefs();
     saveAndRedraw();
 
     note.textContent =
-      "Caja creada. Activa Editar para " +
-      "moverla o ajustar sus cuatro bordes.";
+      "Caja creada. Activa Editar " +
+      "para moverla o ajustar " +
+      "sus cuatro bordes.";
   }
 
-  createButton.addEventListener("click", () => {
-    const source = rangeSource();
+  createButton.addEventListener(
+    "click",
+    () => {
+      const source =
+        rangeSource();
 
-    if (!source) {
-      note.textContent =
-        "Esperando suficientes velas cerradas.";
-      return;
+      if (!source) {
+        note.textContent =
+          "Esperando al menos cuatro " +
+          "velas cerradas del " +
+          "activo y temporalidad actuales.";
+
+        return;
+      }
+
+      createBox(source);
     }
+  );
 
-    createBox(source);
-  });
+  candleButton.addEventListener(
+    "click",
+    () => {
+      const data =
+        closedRows();
 
-  candleButton.addEventListener("click", () => {
-    const data = closedRows();
-    const previous = data.at(-2);
+      const previous =
+        data.at(-2);
 
-    if (!previous) {
-      note.textContent =
-        "Esperando velas cerradas.";
-      return;
+      if (!previous) {
+        note.textContent =
+          "No hay suficientes " +
+          "velas cerradas.";
+
+        return;
+      }
+
+      const seconds =
+        TF[selection().tf] || 60;
+
+      createBox({
+        start:
+          previous.time,
+
+        end:
+          previous.time + seconds,
+
+        high:
+          previous.high,
+
+        low:
+          previous.low
+      });
     }
+  );
 
-    const sec = TF[selection().tf] || 60;
+  deleteButton.addEventListener(
+    "click",
+    () => {
+      const box =
+        selectedBox();
 
-    createBox({
-      start: previous.time,
-      end: previous.time + sec,
-      high: previous.high,
-      low: previous.low
-    });
-  });
+      if (!box) {
+        return;
+      }
 
-  deleteButton.addEventListener("click", () => {
-    const box = selectedBox();
-    if (!box) return;
+      if (
+        !window.confirm(
+          "¿Eliminar la caja morada seleccionada?"
+        )
+      ) {
+        return;
+      }
 
-    if (!confirm("¿Eliminar la caja morada?")) {
-      return;
+      boxes = boxes.filter(
+        b => b.id !== box.id
+      );
+
+      selectedId = null;
+
+      saveAndRedraw();
     }
-
-    boxes = boxes.filter(b => b.id !== box.id);
-    selectedId = null;
-    saveAndRedraw();
-  });
+  );
 
   function setEditing(enabled) {
     editing = Boolean(enabled);
+
     drag = null;
 
-    touchLayer.hidden = !editing;
+    touchLayer.hidden =
+      !editing;
 
-    const host = $("priceChartArea");
-    host?.classList.toggle("cl-box-editing", editing);
-    host?.classList.remove("cl-box-dragging");
+    const host =
+      canvas.parentElement;
 
-    editButton.textContent = editing
-      ? "✋ Editar: SÍ"
-      : "✋ Editar: NO";
+    host?.classList.toggle(
+      "cl-box-editing",
+      editing
+    );
 
-    editButton.classList.toggle("active", editing);
+    host?.classList.remove(
+      "cl-box-dragging"
+    );
+
+    editButton.textContent =
+      editing
+        ? "✋ Editar: SÍ"
+        : "✋ Editar: NO";
+
+    editButton.classList.toggle(
+      "active",
+      editing
+    );
+
     editButton.setAttribute(
       "aria-pressed",
       String(editing)
@@ -519,14 +1229,31 @@
     redraw();
   }
 
-  editButton.addEventListener("click", () => {
-    if (!editing && !visibleBoxes().length) return;
-    setEditing(!editing);
-  });
+  editButton.addEventListener(
+    "click",
+    () => {
+      if (
+        !editing &&
+        !visibleBoxes().length
+      ) {
+        return;
+      }
+
+      setEditing(!editing);
+    }
+  );
 
   function priceY(value) {
     try {
-      return candle?.priceToCoordinate(value);
+      const y =
+        candle?.priceToCoordinate(
+          value
+        );
+
+      return Number.isFinite(y)
+        ? y
+        : null;
+
     } catch {
       return null;
     }
@@ -534,7 +1261,15 @@
 
   function priceAtY(value) {
     try {
-      return candle?.coordinateToPrice(value);
+      const price =
+        candle?.coordinateToPrice(
+          value
+        );
+
+      return Number.isFinite(price)
+        ? price
+        : null;
+
     } catch {
       return null;
     }
@@ -542,206 +1277,469 @@
 
   function timeX(value) {
     try {
-      return chart?.timeScale().timeToCoordinate(value);
+      const x =
+        chart?.timeScale()
+          .timeToCoordinate(value);
+
+      return Number.isFinite(x)
+        ? x
+        : null;
+
     } catch {
       return null;
     }
   }
 
   /*
-   La conversión a índice lógico evita
-   depender de que exista una vela exacta
-   en el extremo de una caja.
+   Conversión de tiempo a coordenada.
+
+   Primero intenta el tiempo exacto.
+   Si no existe una vela exacta,
+   interpola entre velas próximas.
+
+   Esto permite conservar cajas
+   al cambiar de temporalidad.
   */
+
   function timeCoordinate(value) {
-    if (!chart || !rows.length) return null;
+    if (
+      !chart ||
+      !rows.length
+    ) {
+      return null;
+    }
 
-    const exact = timeX(value);
-    if (Number.isFinite(exact)) return exact;
+    const exact =
+      timeX(value);
 
-    const sec = TF[selection().tf] || 60;
-    const scale = chart.timeScale();
+    if (
+      Number.isFinite(exact)
+    ) {
+      return exact;
+    }
 
     let low = 0;
     let high = rows.length;
 
     while (low < high) {
-      const mid = (low + high) >> 1;
+      const mid =
+        Math.floor(
+          (low + high) / 2
+        );
 
-      if (rows[mid].time < value) {
+      if (
+        rows[mid].time < value
+      ) {
         low = mid + 1;
       } else {
         high = mid;
       }
     }
 
-    const before = rows[Math.max(0, low - 1)];
-    const after = rows[Math.min(rows.length - 1, low)];
+    const before =
+      rows[low - 1];
+
+    const after =
+      rows[low];
 
     if (
       before &&
       after &&
-      before.time !== after.time &&
-      value >= before.time &&
-      value <= after.time
+      after.time > before.time
     ) {
-      const x1 = timeX(before.time);
-      const x2 = timeX(after.time);
+      const x1 =
+        timeX(before.time);
+
+      const x2 =
+        timeX(after.time);
 
       if (
         Number.isFinite(x1) &&
         Number.isFinite(x2)
       ) {
-        return x1 + (x2 - x1) *
+        const ratio =
           (value - before.time) /
           (after.time - before.time);
+
+        return (
+          x1 +
+          (x2 - x1) * ratio
+        );
       }
     }
 
-    const edge = value < rows[0].time
-      ? rows[0]
-      : rows.at(-1);
+    const edge =
+      value < rows[0].time
+        ? rows[0]
+        : rows.at(-1);
 
-    const edgeX = timeX(edge.time);
-    if (!Number.isFinite(edgeX)) return null;
+    const edgeX =
+      timeX(edge.time);
+
+    if (
+      !Number.isFinite(edgeX)
+    ) {
+      return null;
+    }
 
     let spacing = 7;
 
     try {
-      spacing = Number(scale.options().barSpacing) || 7;
+      spacing = Number(
+        chart.timeScale()
+          .options().barSpacing
+      ) || 7;
+
     } catch {}
 
-    return edgeX +
-      ((value - edge.time) / sec) * spacing;
+    const seconds =
+      TF[selection().tf] || 60;
+
+    return (
+      edgeX +
+      (
+        (value - edge.time) /
+        seconds
+      ) * spacing
+    );
   }
 
-  function timeAtX(x) {
-    if (!chart || !rows.length) return null;
+  /*
+   Conversión de coordenada a tiempo.
 
-    const scale = chart.timeScale();
-    const sec = TF[selection().tf] || 60;
+   Se usa la escala lógica cuando
+   está disponible y se interpola
+   para evitar saltos bruscos.
+  */
+
+  function timeAtX(x) {
+    if (
+      !chart ||
+      !rows.length
+    ) {
+      return null;
+    }
+
+    const scale =
+      chart.timeScale();
 
     let logical;
 
     try {
-      logical = scale.coordinateToLogical(x);
+      logical =
+        scale.coordinateToLogical(x);
+
     } catch {
       return null;
     }
 
-    if (!Number.isFinite(logical)) return null;
+    if (
+      !Number.isFinite(logical)
+    ) {
+      return null;
+    }
 
-    const index = Math.round(logical);
+    const seconds =
+      TF[selection().tf] || 60;
+
+    const index =
+      Math.floor(logical);
+
+    const fraction =
+      logical - index;
 
     if (index < 0) {
-      return rows[0].time + index * sec;
+      return (
+        rows[0].time +
+        logical * seconds
+      );
     }
 
-    if (index >= rows.length) {
-      return rows.at(-1).time +
-        (index - rows.length + 1) * sec;
+    if (
+      index >= rows.length - 1
+    ) {
+      return (
+        rows.at(-1).time +
+        (
+          logical -
+          (rows.length - 1)
+        ) * seconds
+      );
     }
 
-    return rows[index].time;
+    const before =
+      rows[index];
+
+    const after =
+      rows[index + 1];
+
+    if (
+      !before ||
+      !after
+    ) {
+      return null;
+    }
+
+    return (
+      before.time +
+      (
+        after.time -
+        before.time
+      ) * fraction
+    );
   }
 
   function geometry(box) {
-    const x1 = timeCoordinate(box.start);
-    const x2 = timeCoordinate(box.end);
-    const y1 = priceY(box.high);
-    const y2 = priceY(box.low);
+    const x1 =
+      timeCoordinate(
+        box.start
+      );
 
-    if (![x1,x2,y1,y2].every(Number.isFinite)) {
+    const x2 =
+      timeCoordinate(
+        box.end
+      );
+
+    const y1 =
+      priceY(box.high);
+
+    const y2 =
+      priceY(box.low);
+
+    if (
+      ![
+        x1,
+        x2,
+        y1,
+        y2
+      ].every(Number.isFinite)
+    ) {
       return null;
     }
 
     return {
-      left: Math.min(x1,x2),
-      right: Math.max(x1,x2),
-      top: Math.min(y1,y2),
-      bottom: Math.max(y1,y2)
+      left:
+        Math.min(x1, x2),
+
+      right:
+        Math.max(x1, x2),
+
+      top:
+        Math.min(y1, y2),
+
+      bottom:
+        Math.max(y1, y2)
     };
   }
 
-  function drawBox(ctx, box, label, options = {}) {
-    const g = geometry(box);
-    if (!g) return;
+  function drawBox(
+    ctx,
+    box,
+    label,
+    options = {}
+  ) {
+    const g =
+      geometry(box);
 
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
+    if (!g) {
+      return;
+    }
 
-    const left = Math.max(0, g.left);
-    const right = Math.min(
-      width,
-      options.extend ? width : g.right
-    );
+    const width =
+      canvas.clientWidth;
 
-    const top = Math.max(0, g.top);
-    const bottom = Math.min(height, g.bottom);
+    const height =
+      canvas.clientHeight;
 
-    if (right <= left || bottom <= top) return;
+    const left =
+      Math.max(
+        0,
+        g.left
+      );
+
+    const right =
+      Math.min(
+        width,
+        options.extend
+          ? width
+          : g.right
+      );
+
+    const top =
+      Math.max(
+        0,
+        g.top
+      );
+
+    const bottom =
+      Math.min(
+        height,
+        g.bottom
+      );
+
+    if (
+      right <= left ||
+      bottom <= top
+    ) {
+      return;
+    }
 
     ctx.save();
 
-    ctx.fillStyle = "rgba(187,82,255,.11)";
+    ctx.fillStyle =
+      options.active
+        ? "rgba(187,82,255,.18)"
+        : "rgba(187,82,255,.10)";
+
     ctx.fillRect(
-      left, top,
+      left,
+      top,
       right - left,
       bottom - top
     );
 
-    ctx.strokeStyle = options.active
-      ? PURPLE_LIGHT
-      : PURPLE;
+    ctx.strokeStyle =
+      options.active
+        ? PURPLE_LIGHT
+        : PURPLE;
 
-    ctx.lineWidth = options.active ? 2 : 1.2;
+    ctx.lineWidth =
+      options.active
+        ? 2
+        : 1.2;
 
-    if (config.boundaries) {
+    if (
+      config.boundaries ||
+      options.active
+    ) {
       ctx.strokeRect(
         left + .5,
         top + .5,
-        Math.max(0, right - left - 1),
-        Math.max(0, bottom - top - 1)
+        Math.max(
+          0,
+          right - left - 1
+        ),
+        Math.max(
+          0,
+          bottom - top - 1
+        )
       );
     }
 
     if (config.midpoint) {
-      const mid = (box.high + box.low) / 2;
-      const y = priceY(mid);
+      const mid =
+        (
+          box.high +
+          box.low
+        ) / 2;
 
-      if (Number.isFinite(y)) {
+      const y =
+        priceY(mid);
+
+      if (
+        Number.isFinite(y)
+      ) {
         ctx.beginPath();
-        ctx.strokeStyle = PURPLE_LIGHT;
+
+        ctx.strokeStyle =
+          PURPLE_LIGHT;
+
         ctx.lineWidth = 1;
-        ctx.setLineDash([5,5]);
-        ctx.moveTo(left, y);
-        ctx.lineTo(right, y);
+
+        ctx.setLineDash(
+          [5, 5]
+        );
+
+        ctx.moveTo(
+          left,
+          y
+        );
+
+        ctx.lineTo(
+          right,
+          y
+        );
+
         ctx.stroke();
+
         ctx.setLineDash([]);
       }
     }
 
-    ctx.font = "11px system-ui";
-    ctx.fillStyle = PURPLE_LIGHT;
+    ctx.font =
+      "11px system-ui";
+
+    ctx.fillStyle =
+      PURPLE_LIGHT;
+
     ctx.fillText(
       label,
       left + 5,
-      Math.max(13, top + 13),
-      Math.max(10, right - left - 8)
+      Math.max(
+        13,
+        top + 13
+      ),
+      Math.max(
+        10,
+        right - left - 8
+      )
     );
 
-    if (options.active && editing) {
+    if (
+      options.active &&
+      editing
+    ) {
       const points = [
-        [left, (top + bottom) / 2],
-        [right, (top + bottom) / 2],
-        [(left + right) / 2, top],
-        [(left + right) / 2, bottom]
+        [
+          g.left,
+          (
+            g.top +
+            g.bottom
+          ) / 2
+        ],
+        [
+          g.right,
+          (
+            g.top +
+            g.bottom
+          ) / 2
+        ],
+        [
+          (
+            g.left +
+            g.right
+          ) / 2,
+          g.top
+        ],
+        [
+          (
+            g.left +
+            g.right
+          ) / 2,
+          g.bottom
+        ]
       ];
 
       ctx.fillStyle = "#ffffff";
 
-      for (const [x,y] of points) {
-        ctx.fillRect(x - 5, y - 5, 10, 10);
+      for (
+        const [x, y] of points
+      ) {
+        if (
+          x < 0 ||
+          x > width ||
+          y < 0 ||
+          y > height
+        ) {
+          continue;
+        }
+
+        ctx.fillRect(
+          x - 5,
+          y - 5,
+          10,
+          10
+        );
       }
     }
 
@@ -749,167 +1747,326 @@
   }
 
   function sidewaysSource() {
-    const data = closedRows().slice(-18);
-
-    if (data.length < 12) return null;
-
-    const high = Math.max(...data.map(c => c.high));
-    const low = Math.min(...data.map(c => c.low));
-
-    const avg = data.reduce(
-      (sum,c) => sum + c.high - c.low,
-      0
-    ) / data.length;
+    const data =
+      closedRows().slice(-18);
 
     if (
+      data.length < 12
+    ) {
+      return null;
+    }
+
+    const high =
+      Math.max(
+        ...data.map(
+          c => c.high
+        )
+      );
+
+    const low =
+      Math.min(
+        ...data.map(
+          c => c.low
+        )
+      );
+
+    const averageRange =
+      data.reduce(
+        (sum, c) =>
+          sum +
+          c.high -
+          c.low,
+        0
+      ) / data.length;
+
+    if (
+      averageRange <= 0
+    ) {
+      return null;
+    }
+
+    const ratio =
       (high - low) /
-      Math.max(avg, 1e-12) > 5
-    ) return null;
+      averageRange;
+
+    if (ratio > 5) {
+      return null;
+    }
 
     return {
-      start: data[0].time,
-      end: data.at(-1).time,
+      start:
+        data[0].time,
+
+      end:
+        data.at(-1).time,
+
       high,
       low
     };
   }
 
   function draw() {
-    if (!chart || !candle || !canvas.isConnected) {
+    if (
+      !chart ||
+      !candle ||
+      !canvas.isConnected
+    ) {
       return;
     }
 
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
+    if (
+      rowsKey !==
+      dataKey(selection())
+    ) {
+      return;
+    }
 
-    if (!width || !height) return;
+    const width =
+      canvas.clientWidth;
 
-    const dpr = Math.min(
-      window.devicePixelRatio || 1,
-      2
+    const height =
+      canvas.clientHeight;
+
+    if (
+      width <= 0 ||
+      height <= 0
+    ) {
+      return;
+    }
+
+    const dpr =
+      Math.min(
+        window.devicePixelRatio || 1,
+        2
+      );
+
+    const pixelWidth =
+      Math.round(
+        width * dpr
+      );
+
+    const pixelHeight =
+      Math.round(
+        height * dpr
+      );
+
+    if (
+      canvas.width !== pixelWidth
+    ) {
+      canvas.width =
+        pixelWidth;
+    }
+
+    if (
+      canvas.height !== pixelHeight
+    ) {
+      canvas.height =
+        pixelHeight;
+    }
+
+    const ctx =
+      canvas.getContext("2d");
+
+    if (!ctx) {
+      return;
+    }
+
+    ctx.setTransform(
+      dpr,
+      0,
+      0,
+      dpr,
+      0,
+      0
     );
 
-    const pixelWidth = Math.round(width * dpr);
-    const pixelHeight = Math.round(height * dpr);
-
-    if (canvas.width !== pixelWidth) {
-      canvas.width = pixelWidth;
-    }
-
-    if (canvas.height !== pixelHeight) {
-      canvas.height = pixelHeight;
-    }
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.clearRect(0,0,width,height);
+    ctx.clearRect(
+      0,
+      0,
+      width,
+      height
+    );
 
     if (config.sideways) {
-      const source = sidewaysSource();
+      const source =
+        sidewaysSource();
 
       if (source) {
         drawBox(
           ctx,
           source,
           "Lateralización",
-          {extend: config.extendRight}
+          {
+            extend:
+              config.extendRight
+          }
         );
       }
     }
 
     if (config.previous) {
-      const data = closedRows();
-      const previous = data.at(-2);
+      const data =
+        closedRows();
+
+      const previous =
+        data.at(-2);
 
       if (previous) {
-        const sec = TF[selection().tf] || 60;
+        const seconds =
+          TF[selection().tf] || 60;
 
-        drawBox(ctx, {
-          start: previous.time,
-          end: previous.time + sec,
-          high: previous.high,
-          low: previous.low
-        }, "Penúltima vela");
+        drawBox(
+          ctx,
+          {
+            start:
+              previous.time,
+
+            end:
+              previous.time +
+              seconds,
+
+            high:
+              previous.high,
+
+            low:
+              previous.low
+          },
+          "Penúltima vela"
+        );
       }
     }
 
     if (config.fixed) {
-      visibleBoxes().forEach((box,index) => {
-        drawBox(
-          ctx,
-          box,
-          "Caja morada " + (index + 1),
-          {active: box.id === selectedId}
-        );
-      });
+      visibleBoxes().forEach(
+        (box, index) => {
+          drawBox(
+            ctx,
+            box,
+            "Caja morada " +
+            (index + 1),
+            {
+              active:
+                box.id ===
+                selectedId
+            }
+          );
+        }
+      );
     }
   }
 
   function redraw() {
-    if (frame) return;
+    if (frame) {
+      return;
+    }
 
-    frame = requestAnimationFrame(() => {
-      frame = 0;
-      draw();
-    });
+    frame =
+      requestAnimationFrame(
+        () => {
+          frame = 0;
+          draw();
+        }
+      );
   }
 
   function pointerPosition(event) {
-    const rect = touchLayer.getBoundingClientRect();
+    const rect =
+      touchLayer
+        .getBoundingClientRect();
 
     return {
-      x: event.clientX - rect.left,
-      y: event.clientY - rect.top
+      x:
+        event.clientX -
+        rect.left,
+
+      y:
+        event.clientY -
+        rect.top
     };
   }
 
   function hitTest(point) {
-    const list = visibleBoxes().slice().reverse();
+    const list =
+      visibleBoxes()
+        .slice()
+        .reverse();
 
     for (const box of list) {
-      const g = geometry(box);
-      if (!g) continue;
+      const g =
+        geometry(box);
 
-      const margin = 14;
+      if (!g) {
+        continue;
+      }
+
+      const margin =
+        HANDLE_SIZE;
 
       if (
-        point.x < g.left - margin ||
-        point.x > g.right + margin ||
-        point.y < g.top - margin ||
-        point.y > g.bottom + margin
-      ) continue;
+        point.x <
+          g.left - margin ||
+        point.x >
+          g.right + margin ||
+        point.y <
+          g.top - margin ||
+        point.y >
+          g.bottom + margin
+      ) {
+        continue;
+      }
 
       const nearLeft =
-        Math.abs(point.x - g.left) <= margin;
+        Math.abs(
+          point.x - g.left
+        ) <= margin;
 
       const nearRight =
-        Math.abs(point.x - g.right) <= margin;
+        Math.abs(
+          point.x - g.right
+        ) <= margin;
 
       const nearTop =
-        Math.abs(point.y - g.top) <= margin;
+        Math.abs(
+          point.y - g.top
+        ) <= margin;
 
       const nearBottom =
-        Math.abs(point.y - g.bottom) <= margin;
+        Math.abs(
+          point.y - g.bottom
+        ) <= margin;
 
       if (nearLeft) {
-        return {box, mode:"left"};
+        return {
+          box,
+          mode: "left"
+        };
       }
 
       if (nearRight) {
-        return {box, mode:"right"};
+        return {
+          box,
+          mode: "right"
+        };
       }
 
       if (nearTop) {
-        return {box, mode:"top"};
+        return {
+          box,
+          mode: "top"
+        };
       }
 
       if (nearBottom) {
-        return {box, mode:"bottom"};
+        return {
+          box,
+          mode: "bottom"
+        };
       }
 
-      return {box, mode:"move"};
+      return {
+        box,
+        mode: "move"
+      };
     }
 
     return null;
@@ -918,35 +2075,74 @@
   touchLayer.addEventListener(
     "pointerdown",
     event => {
-      if (!editing || drag) return;
-      if (event.pointerType === "mouse" &&
-          event.button !== 0) return;
+      if (
+        !editing ||
+        drag
+      ) {
+        return;
+      }
 
-      const point = pointerPosition(event);
-      const hit = hitTest(point);
+      if (
+        event.pointerType ===
+          "mouse" &&
+        event.button !== 0
+      ) {
+        return;
+      }
 
-      if (!hit) return;
+      const point =
+        pointerPosition(event);
+
+      const hit =
+        hitTest(point);
+
+      if (!hit) {
+        return;
+      }
 
       event.preventDefault();
 
-      selectedId = hit.box.id;
+      selectedId =
+        hit.box.id;
+
       updateSelector();
 
       drag = {
-        pointerId: event.pointerId,
-        box: hit.box,
-        mode: hit.mode,
-        startPoint: point,
-        original: {...hit.box},
-        startTime: timeAtX(point.x),
-        startPrice: priceAtY(point.y)
+        pointerId:
+          event.pointerId,
+
+        box:
+          hit.box,
+
+        mode:
+          hit.mode,
+
+        startPoint:
+          point,
+
+        original:
+          { ...hit.box },
+
+        startTime:
+          timeAtX(point.x),
+
+        startPrice:
+          priceAtY(point.y),
+
+        key:
+          dataKey(selection())
       };
 
-      touchLayer.setPointerCapture(event.pointerId);
+      try {
+        touchLayer.setPointerCapture(
+          event.pointerId
+        );
+      } catch {}
 
-      $("priceChartArea")?.classList.add(
-        "cl-box-dragging"
-      );
+      canvas.parentElement
+        ?.classList.add(
+          "cl-box-dragging"
+        );
 
       redraw();
     }
@@ -955,47 +2151,99 @@
   touchLayer.addEventListener(
     "pointermove",
     event => {
-      if (!drag ||
-          event.pointerId !== drag.pointerId) {
+      if (
+        !drag ||
+        event.pointerId !==
+          drag.pointerId
+      ) {
         return;
       }
 
       event.preventDefault();
 
-      const point = pointerPosition(event);
-      const box = drag.box;
-      const original = drag.original;
-      const sec = TF[selection().tf] || 60;
+      if (
+        drag.key !==
+        dataKey(selection())
+      ) {
+        cancelDrag();
+        return;
+      }
 
-      const currentTime = timeAtX(point.x);
-      const currentPrice = priceAtY(point.y);
+      const point =
+        pointerPosition(event);
 
-      if (drag.mode === "move") {
+      const box =
+        drag.box;
+
+      const original =
+        drag.original;
+
+      const seconds =
+        TF[selection().tf] || 60;
+
+      const currentTime =
+        timeAtX(point.x);
+
+      const currentPrice =
+        priceAtY(point.y);
+
+      if (
+        drag.mode === "move"
+      ) {
         if (
-          Number.isFinite(drag.startTime) &&
-          Number.isFinite(currentTime)
+          Number.isFinite(
+            drag.startTime
+          ) &&
+          Number.isFinite(
+            currentTime
+          )
         ) {
-          const delta = Math.round(
-            (currentTime - drag.startTime) / sec
-          ) * sec;
+          const delta =
+            Math.round(
+              (
+                currentTime -
+                drag.startTime
+              ) / seconds
+            ) * seconds;
 
-          box.start = original.start + delta;
-          box.end = original.end + delta;
+          box.start =
+            original.start +
+            delta;
+
+          box.end =
+            original.end +
+            delta;
         }
 
         if (
-          Number.isFinite(drag.startPrice) &&
-          Number.isFinite(currentPrice)
+          Number.isFinite(
+            drag.startPrice
+          ) &&
+          Number.isFinite(
+            currentPrice
+          )
         ) {
           const delta =
-            currentPrice - drag.startPrice;
+            currentPrice -
+            drag.startPrice;
 
-          const newLow = original.low + delta;
-          const newHigh = original.high + delta;
+          const newLow =
+            original.low +
+            delta;
 
-          if (newLow > 0) {
-            box.low = newLow;
-            box.high = newHigh;
+          const newHigh =
+            original.high +
+            delta;
+
+          if (
+            newLow > 0 &&
+            newHigh > newLow
+          ) {
+            box.low =
+              newLow;
+
+            box.high =
+              newHigh;
           }
         }
       }
@@ -1004,69 +2252,155 @@
         drag.mode === "left" ||
         drag.mode === "right"
       ) {
-        if (Number.isFinite(currentTime)) {
-          const delta = Math.round(
-            (currentTime - drag.startTime) / sec
-          ) * sec;
+        if (
+          Number.isFinite(
+            drag.startTime
+          ) &&
+          Number.isFinite(
+            currentTime
+          )
+        ) {
+          const delta =
+            Math.round(
+              (
+                currentTime -
+                drag.startTime
+              ) / seconds
+            ) * seconds;
 
-          if (drag.mode === "left") {
-            box.start = Math.min(
-              original.start + delta,
-              original.end - sec
-            );
+          if (
+            drag.mode === "left"
+          ) {
+            box.start =
+              Math.min(
+                original.start +
+                delta,
+                original.end -
+                seconds
+              );
+
           } else {
-            box.end = Math.max(
-              original.end + delta,
-              original.start + sec
-            );
+            box.end =
+              Math.max(
+                original.end +
+                delta,
+                original.start +
+                seconds
+              );
           }
         }
       }
 
       if (
         drag.mode === "top" &&
-        Number.isFinite(currentPrice)
+        Number.isFinite(
+          currentPrice
+        )
       ) {
-        box.high = Math.max(
-          currentPrice,
-          original.low * 1.000001
-        );
+        box.high =
+          Math.max(
+            currentPrice,
+            original.low *
+            1.000001
+          );
       }
 
       if (
         drag.mode === "bottom" &&
-        Number.isFinite(currentPrice)
+        Number.isFinite(
+          currentPrice
+        )
       ) {
-        box.low = Math.max(
-          0.00000001,
-          Math.min(
-            currentPrice,
-            original.high * 0.999999
-          )
-        );
+        box.low =
+          Math.max(
+            0.00000001,
+            Math.min(
+              currentPrice,
+              original.high *
+              0.999999
+            )
+          );
       }
 
       redraw();
     }
   );
 
-  function finishDrag(event) {
-    if (
-      !drag ||
-      event.pointerId !== drag.pointerId
-    ) return;
+  function cancelDrag() {
+    if (!drag) {
+      return;
+    }
 
-    try {
-      touchLayer.releasePointerCapture(
-        event.pointerId
-      );
-    } catch {}
+    Object.assign(
+      drag.box,
+      drag.original
+    );
+
+    const pointerId =
+      drag.pointerId;
 
     drag = null;
 
-    $("priceChartArea")?.classList.remove(
-      "cl-box-dragging"
-    );
+    try {
+      if (
+        touchLayer.hasPointerCapture(
+          pointerId
+        )
+      ) {
+        touchLayer.releasePointerCapture(
+          pointerId
+        );
+      }
+    } catch {}
+
+    canvas.parentElement
+      ?.classList.remove(
+        "cl-box-dragging"
+      );
+
+    redraw();
+  }
+
+  function finishDrag(event) {
+    if (
+      !drag ||
+      event.pointerId !==
+        drag.pointerId
+    ) {
+      return;
+    }
+
+    const pointerId =
+      drag.pointerId;
+
+    const box =
+      drag.box;
+
+    if (!validBox(box)) {
+      Object.assign(
+        box,
+        drag.original
+      );
+    }
+
+    drag = null;
+
+    try {
+      if (
+        touchLayer.hasPointerCapture(
+          pointerId
+        )
+      ) {
+        touchLayer.releasePointerCapture(
+          pointerId
+        );
+      }
+    } catch {}
+
+    canvas.parentElement
+      ?.classList.remove(
+        "cl-box-dragging"
+      );
 
     saveAndRedraw();
   }
@@ -1081,12 +2415,20 @@
     event => {
       if (
         drag &&
-        event.pointerId === drag.pointerId
+        event.pointerId ===
+          drag.pointerId
       ) {
-        Object.assign(drag.box, drag.original);
+        cancelDrag();
       }
+    }
+  );
 
-      finishDrag(event);
+  touchLayer.addEventListener(
+    "lostpointercapture",
+    () => {
+      if (drag) {
+        cancelDrag();
+      }
     }
   );
 
@@ -1095,23 +2437,32 @@
       $("priceChartArea") ||
       $("chart")?.parentElement;
 
-    if (!host) return;
-
-    if (
-      getComputedStyle(host).position === "static"
-    ) {
-      host.style.position = "relative";
+    if (!host) {
+      return false;
     }
 
-    if (canvas.parentElement !== host) {
+    if (
+      getComputedStyle(host)
+        .position === "static"
+    ) {
+      host.style.position =
+        "relative";
+    }
+
+    if (
+      canvas.parentElement !== host
+    ) {
       host.append(canvas);
     }
 
-    if (touchLayer.parentElement !== host) {
+    if (
+      touchLayer.parentElement !== host
+    ) {
       host.append(touchLayer);
     }
 
-    touchLayer.hidden = !editing;
+    touchLayer.hidden =
+      !editing;
 
     const target =
       $("clRangeBoxesHost") ||
@@ -1121,182 +2472,436 @@
       );
 
     if (target) {
-      if (panel.parentElement !== target) {
+      if (
+        panel.parentElement !== target
+      ) {
         target.append(panel);
       }
-    } else if (!panel.isConnected) {
-      const anchor = $("chartSection") || host;
 
-      if (anchor.parentElement) {
-        anchor.parentElement.insertBefore(
-          panel,
-          anchor
-        );
+    } else if (
+      !panel.isConnected
+    ) {
+      const anchor =
+        $("chartSection") ||
+        host;
+
+      if (
+        anchor.parentElement
+      ) {
+        anchor.parentElement
+          .insertBefore(
+            panel,
+            anchor
+          );
       }
     }
+
+    if (
+      window.ResizeObserver &&
+      observedHost !== host
+    ) {
+      resizeObserver?.disconnect();
+
+      resizeObserver =
+        new ResizeObserver(
+          redraw
+        );
+
+      resizeObserver.observe(host);
+
+      observedHost = host;
+    }
+
+    return true;
+  }
+
+  function onVisibleRange() {
+    redraw();
   }
 
   function attach(detail) {
-    if (
-      !detail?.chart ||
-      !(detail.candle || detail.candleSeries)
-    ) return;
+    const nextChart =
+      detail?.chart;
 
-    chart = detail.chart;
-    candle = detail.candle || detail.candleSeries;
+    const nextCandle =
+      detail?.candle ||
+      detail?.candleSeries;
+
+    if (
+      !nextChart ||
+      !nextCandle
+    ) {
+      return;
+    }
+
+    if (
+      subscribedChart &&
+      subscribedChart !== nextChart
+    ) {
+      try {
+        subscribedChart.timeScale()
+          .unsubscribeVisibleLogicalRangeChange(
+            onVisibleRange
+          );
+      } catch {}
+    }
+
+    chart = nextChart;
+    candle = nextCandle;
 
     bindOverlay();
 
-    if (attachedChart !== chart) {
-      attachedChart = chart;
+    if (
+      subscribedChart !== chart
+    ) {
+      subscribedChart = chart;
 
       try {
         chart.timeScale()
           .subscribeVisibleLogicalRangeChange(
-            redraw
+            onVisibleRange
           );
       } catch (error) {
-        console.warn("Rangos visibles:", error);
+        console.warn(
+          "Range Boxes: rango visible",
+          error
+        );
       }
     }
 
     redraw();
   }
 
+  function acceptRows(
+    data,
+    sourceSelection = null
+  ) {
+    if (!Array.isArray(data)) {
+      return;
+    }
+
+    const s =
+      sourceSelection
+        ? normalizeSelection(
+            sourceSelection
+          )
+        : selection();
+
+    const key =
+      dataKey(s);
+
+    if (
+      key !==
+      dataKey(selection())
+    ) {
+      return;
+    }
+
+    const normalized =
+      normalizeRows(data);
+
+    if (!normalized.length) {
+      return;
+    }
+
+    if (
+      currentKey !== key
+    ) {
+      currentKey = key;
+
+      selectedId = null;
+
+      setEditing(false);
+      updateSelector();
+    }
+
+    rows = normalized;
+    rowsKey = key;
+
+    redraw();
+  }
+
+  function recoverChart() {
+    const shared =
+      window.CryptolexuzChart;
+
+    if (!shared?.chart) {
+      return;
+    }
+
+    attach({
+      chart:
+        shared.chart,
+
+      candle:
+        shared.candle ||
+        shared.candleSeries
+    });
+
+    if (
+      typeof shared.getRows ===
+      "function"
+    ) {
+      try {
+        const data =
+          shared.getRows();
+
+        if (
+          Array.isArray(data)
+        ) {
+          acceptRows(data);
+        }
+      } catch (error) {
+        console.warn(
+          "Range Boxes: recuperación",
+          error
+        );
+      }
+    }
+  }
+
+  function scheduleRecovery() {
+    clearTimeout(
+      recoveryTimer
+    );
+
+    recoveryAttempts = 0;
+
+    const attempt = () => {
+      recoverChart();
+
+      recoveryAttempts++;
+
+      if (
+        (
+          !chart ||
+          !rows.length
+        ) &&
+        recoveryAttempts < 12
+      ) {
+        recoveryTimer =
+          setTimeout(
+            attempt,
+            500
+          );
+      }
+    };
+
+    recoveryTimer =
+      setTimeout(
+        attempt,
+        150
+      );
+  }
+
+  function resetSelection() {
+    cancelDrag();
+
+    rows = [];
+    rowsKey = "";
+    currentKey = "";
+    selectedId = null;
+
+    setEditing(false);
+    updateSelector();
+
+    const ctx =
+      canvas.getContext("2d");
+
+    if (ctx) {
+      ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+    }
+
+    scheduleRecovery();
+  }
+
   window.addEventListener(
     "cryptolexuz:chart-ready",
-    event => attach(event.detail)
+    event => {
+      attach(
+        event.detail || {}
+      );
+    }
   );
 
   window.addEventListener(
     "cryptolexuz:candles-updated",
     event => {
-      const detail = event.detail || {};
+      const detail =
+        event.detail || {};
 
       if (
         detail.chart &&
-        (detail.candle || detail.candleSeries)
+        (
+          detail.candle ||
+          detail.candleSeries
+        )
       ) {
         attach(detail);
       }
 
-      const data = detail.rows || detail.candles;
+      const data =
+        detail.rows ||
+        detail.candles;
 
-      if (Array.isArray(data)) {
-        rows = data;
+      if (
+        Array.isArray(data)
+      ) {
+        const source =
+          detail.selection ||
+          (
+            detail.symbol &&
+            detail.interval
+              ? {
+                  symbol:
+                    detail.symbol,
 
-        const key = dataKey(selection());
+                  tf:
+                    detail.interval,
 
-        if (key !== currentKey) {
-          currentKey = key;
-          selectedId = null;
-          setEditing(false);
-          updateSelector();
-        }
+                  exchange:
+                    detail.exchange,
 
-        redraw();
+                  market:
+                    detail.market
+                }
+              : null
+          );
+
+        acceptRows(
+          data,
+          source
+        );
       }
     }
   );
 
-  function recoverChart() {
-    const shared = window.CryptolexuzChart;
-
-    if (!shared?.chart) return;
-
-    attach({
-      chart: shared.chart,
-      candle: shared.candle ||
-        shared.candleSeries
-    });
-
-    if (typeof shared.getRows === "function") {
-      const data = shared.getRows();
-
-      if (Array.isArray(data)) {
-        rows = data;
-        redraw();
-      }
-    }
-  }
-
   function init() {
-    if (initialized) return;
+    if (initialized) {
+      return;
+    }
+
     initialized = true;
 
+    addStyles();
     bindOverlay();
-    recoverChart();
+
     updateSelector();
+    scheduleRecovery();
 
-    for (const id of [
-      "symbol",
-      "interval",
-      "market",
-      "exchange"
-    ]) {
-      $(id)?.addEventListener("change", () => {
-        currentKey = "";
-        rows = [];
-        selectedId = null;
-
-        setEditing(false);
-        updateSelector();
-        redraw();
-
-        setTimeout(recoverChart, 250);
-      });
+    for (
+      const id of [
+        "symbol",
+        "interval",
+        "market",
+        "exchange"
+      ]
+    ) {
+      $(id)?.addEventListener(
+        "change",
+        resetSelection
+      );
     }
 
-    window.addEventListener("resize", redraw);
+    window.addEventListener(
+      "resize",
+      redraw
+    );
 
     window.addEventListener(
       "cryptolexuz:screen-change",
       () => {
+        bindOverlay();
         recoverChart();
         redraw();
       }
     );
 
-    if (window.ResizeObserver) {
-      resizeObserver = new ResizeObserver(redraw);
-
-      const host =
-        $("priceChartArea") ||
-        $("chart")?.parentElement;
-
-      if (host) {
-        resizeObserver.observe(host);
-      }
-    }
-
     document.addEventListener(
       "visibilitychange",
       () => {
         if (!document.hidden) {
+          bindOverlay();
           recoverChart();
           redraw();
         }
       }
     );
 
-    setTimeout(recoverChart, 300);
+    console.info(
+      "CRYPTOLEXUZ PRO — " +
+      "Range Boxes V7 cargado"
+    );
   }
 
   window.CryptolexuzRangeBoxes = {
+    version: "7",
+
     redraw,
-    getBoxes: visibleBoxes,
-    getSelection: selection,
+
+    refresh: () => {
+      recoverChart();
+      redraw();
+    },
+
+    getBoxes: () =>
+      visibleBoxes().map(
+        b => ({ ...b })
+      ),
+
+    getSelection:
+      selection,
+
     setEditing,
-    isEditing: () => editing
+
+    isEditing: () =>
+      editing,
+
+    getConfig: () =>
+      ({ ...config }),
+
+    getStatus: () => ({
+      attached:
+        Boolean(
+          chart &&
+          candle
+        ),
+
+      editing,
+
+      selectedId,
+
+      marketKey:
+        marketKey(selection()),
+
+      timeframe:
+        selection().tf,
+
+      candles:
+        rows.length,
+
+      boxes:
+        visibleBoxes().length
+    })
   };
 
-  if (document.readyState === "loading") {
+  if (
+    document.readyState ===
+    "loading"
+  ) {
     document.addEventListener(
       "DOMContentLoaded",
       init,
-      {once:true}
+      { once: true }
     );
+
   } else {
     init();
   }
+
 })();
