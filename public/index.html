@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#050716">
 <meta name="description" content="CRYPTOLEXUZ PRO: mercados, gráficas, indicadores, escáner y resultados informativos.">
 <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
-<!-- CRYPTOLEXUZ PRO — INDEX.HTML V35 · PERSONALIZACIÓN -->
+<!-- CRYPTOLEXUZ PRO — INDEX.HTML V36 · MOTOR DE SEÑALES -->
 <link rel="stylesheet" href="styles.css?v=31">
 <style>
 [hidden]{display:none!important}.cl-screen{display:none;min-width:0}.cl-screen.cl-active{display:block}
@@ -102,6 +102,8 @@ body.cl-theme-open{overflow:hidden}
 <script defer src="fibonacci.js?v=8"></script>
 <script defer src="patterns.js?v=2"></script>
 <script defer src="patterns-bridge.js?v=1"></script>
+<!-- Motor independiente: se carga antes de app.js; aún no sustituye el escáner. -->
+<script defer src="signals-engine.js?v=1"></script>
 <script defer src="app.js?v=27"></script>
 
 <script defer src="liquidity.js?v=12"></script>
@@ -205,7 +207,7 @@ body.cl-theme-open{overflow:hidden}
 <script>
 (() => {
 "use strict";
-/* CRYPTOLEXUZ PRO — CONTROLADOR INDEX V35 */
+/* CRYPTOLEXUZ PRO — CONTROLADOR INDEX V36 (conserva lógica V35) */
 if(window.__CL_INDEX_V35__)return;
 window.__CL_INDEX_V35__=true;
 const $=id=>document.getElementById(id);
