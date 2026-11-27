@@ -1,108 +1,56 @@
-
 <!doctype html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#050716">
 <meta name="description" content="CRYPTOLEXUZ PRO: mercados, gráficas, indicadores, escáner y resultados informativos.">
 <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
 
-<!--
- CRYPTOLEXUZ PRO
- PUBLIC/INDEX.HTML V34 COMPLETO
-
- Integración prevista: APP.JS V25
- Lightweight Charts 4.2.2
-
- Correcciones:
- - Fondo negro uniforme
- - Selector de temporalidad interno oculto
- - Una sola fila visible de temporalidades
- - Sin doble ejecución de indicadores
- - Sin bloqueo de eventos del motor principal
- - Selección de activos sincronizada
- - Actualizar y Restablecer accesibles
- - Ajustes MA / EMA / RSI / ADX / AO
- - Navegación móvil
- - Conservación de módulos externos
--->
-
-<link rel="stylesheet" href="styles.css?v=25">
+<link rel="stylesheet" href="styles.css?v=29">
 
 <style>
 [hidden] {
- display:none!important;
+  display: none !important;
 }
 
 * {
- box-sizing:border-box;
+  box-sizing: border-box;
 }
 
-html {
- min-width:0;
- background:#000!important;
- background-image:none!important;
-}
-
+html,
 body {
- min-width:0;
- margin:0;
- background:#000!important;
- background-image:none!important;
- color:#f1f3ff;
-}
-
-body::before,
-body::after {
- background:none!important;
- background-image:none!important;
-}
-
-.app-container,
-.app-header,
-.cl-screen,
-.market-card,
-.chart-card,
-.chart-area,
-.chart-controls,
-.cl-module,
-.liquidity-card,
-.indicator-summary,
-.market-settings,
-.signals-section,
-.history-section,
-.volume-section,
-.oscillator-section {
- background-image:none!important;
+  min-width: 0;
+  margin: 0;
+  color: #f1f3ff;
 }
 
 .cl-screen {
- display:none;
- min-width:0;
+  display: none;
+  min-width: 0;
 }
 
 .cl-screen.cl-active {
- display:block;
+  display: block;
 }
 
 .cl-screen-title {
- margin-bottom:14px;
+  margin-bottom: 14px;
 }
 
 .cl-screen-title h1 {
- margin-bottom:5px;
+  margin-bottom: 5px;
 }
 
 #clInternalIntervalField {
- display:none!important;
+  display: none !important;
 }
 
 #priceChartArea {
- position:relative;
- isolation:isolate;
- background:#000!important;
- background-image:none!important;
+  position: relative;
+  isolation: isolate;
+  background: #000 !important;
+  background-image: none !important;
 }
 
 #chart,
@@ -111,458 +59,447 @@ body::after {
 #adxChart,
 #aoChart,
 #squeezeChart {
- position:relative;
- width:100%;
- min-width:0;
- overflow:hidden;
- background:#000!important;
- background-image:none!important;
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  background: #000 !important;
+  background-image: none !important;
 }
 
 #chart {
- height:360px;
+  height: 360px;
 }
 
 #volumeChart {
- height:115px;
+  height: 115px;
 }
 
 #rsiChart,
 #adxChart,
 #aoChart,
 #squeezeChart {
- height:145px;
+  height: 145px;
 }
 
 #priceChartArea canvas {
- max-width:none;
+  max-width: none;
 }
 
 #zonesCanvas {
- position:absolute;
- inset:0;
- pointer-events:none!important;
- z-index:2;
+  position: absolute;
+  inset: 0;
+  pointer-events: none !important;
+  z-index: 2;
 }
 
 .cl-tool-content,
 .cl-module,
 #clRangeBoxesHost,
 #clFibonacciHost {
- min-width:0;
+  min-width: 0;
 }
 
 .cl-market-row {
- display:flex;
- align-items:center;
- min-width:0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
 }
 
 .cl-market-row .cl-favorite {
- flex-shrink:0;
- cursor:pointer;
- border:0;
- background:transparent;
- color:#aebcdd;
- font-size:18px;
- padding:8px;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 0;
+  background: transparent;
+  color: #aebcdd;
+  font-size: 18px;
+  padding: 8px;
 }
 
 .cl-market-row .cl-favorite.is-favorite {
- color:#ffce52;
+  color: #ffce52;
 }
 
 .cl-market-row .cl-market-open {
- flex:1;
- min-width:0;
- display:grid;
- grid-template-columns:
-  minmax(0,1.4fr)
-  minmax(0,1fr)
-  minmax(0,.8fr);
- align-items:center;
- gap:8px;
- text-align:left;
- border:0;
- background:transparent;
- color:inherit;
- padding:10px 2px;
- cursor:pointer;
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, .8fr);
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 10px 2px;
+  cursor: pointer;
 }
 
 .cl-market-row .cl-market-price {
- text-align:right;
- overflow-wrap:anywhere;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .cl-market-row .cl-market-change {
- text-align:center;
+  text-align: center;
 }
 
 .cl-market-row .cl-asset-label strong {
- overflow-wrap:anywhere;
+  overflow-wrap: anywhere;
 }
 
 .cl-chart-control-stack {
- display:flex;
- flex-direction:column;
- gap:9px;
- margin:12px 0;
- width:100%;
- min-width:0;
- position:relative;
- z-index:5;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 12px 0;
+  width: 100%;
+  min-width: 0;
+  position: relative;
+  z-index: 5;
 }
 
 .cl-control-row {
- display:flex;
- flex-direction:column;
- gap:4px;
- min-width:0;
- width:100%;
- position:relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  width: 100%;
+  position: relative;
 }
 
 .cl-control-label {
- font-size:11px;
- color:#b7c3e1;
- font-weight:700;
- letter-spacing:.05em;
- text-transform:uppercase;
+  font-size: 11px;
+  color: #b7c3e1;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
 }
 
 .cl-timeframes,
 .cl-indicator-strip,
 .cl-pattern-strip {
- display:flex;
- gap:6px;
- flex-wrap:nowrap;
- overflow-x:auto;
- overflow-y:hidden;
- overscroll-behavior-x:contain;
- -webkit-overflow-scrolling:touch;
- scrollbar-width:thin;
- padding:5px 0 9px;
- touch-action:pan-x;
- min-width:0;
- width:100%;
- position:relative;
- z-index:6;
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  padding: 5px 0 9px;
+  touch-action: pan-x pan-y;
+  min-width: 0;
+  width: 100%;
+  position: relative;
+  z-index: 6;
 }
 
 .cl-timeframes button,
 .cl-indicator-strip button,
 .cl-pattern-strip button {
- flex:0 0 auto;
- min-height:38px;
- padding:8px 12px;
- border:1px solid #34364c;
- border-radius:8px;
- background:#171a25;
- color:#e6e9ff;
- font-size:12px;
- font-weight:600;
- white-space:nowrap;
- cursor:pointer;
- position:relative;
- z-index:7;
- pointer-events:auto;
- touch-action:manipulation;
- -webkit-tap-highlight-color:rgba(165,108,255,.25);
- user-select:none;
- -webkit-user-select:none;
- appearance:none;
- -webkit-appearance:none;
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #34364c;
+  border-radius: 8px;
+  background: #171a25;
+  color: #e6e9ff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  position: relative;
+  z-index: 7;
+  pointer-events: auto;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(165, 108, 255, .25);
+  user-select: none;
+  -webkit-user-select: none;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .cl-timeframes button.active,
 .cl-timeframes button[aria-pressed="true"],
 .cl-indicator-strip button.active,
 .cl-indicator-strip button[aria-pressed="true"] {
- background:#48216c;
- color:#fff;
- border-color:#c477ff;
+  background: #48216c;
+  color: #fff;
+  border-color: #c477ff;
 }
 
 .cl-timeframes button:active,
 .cl-indicator-strip button:active {
- transform:scale(.97);
- filter:brightness(1.3);
+  transform: scale(.97);
+  filter: brightness(1.3);
 }
 
 .cl-timeframes button:focus-visible,
 .cl-indicator-strip button:focus-visible {
- outline:2px solid #c477ff;
- outline-offset:2px;
+  outline: 2px solid #c477ff;
+  outline-offset: 2px;
 }
 
 .cl-pattern-strip button:disabled {
- opacity:.48;
- cursor:not-allowed;
- pointer-events:none;
+  opacity: .48;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .cl-pattern-strip [data-pattern="fallingwedge"] {
- border-color:#9e6aff;
+  border-color: #9e6aff;
 }
 
 .chart-controls {
- position:relative;
- z-index:8;
+  position: relative;
+  z-index: 8;
 }
 
 #refresh,
 #chartReset {
- position:relative;
- z-index:9;
- cursor:pointer;
- touch-action:manipulation;
- pointer-events:auto;
+  position: relative;
+  z-index: 9;
+  cursor: pointer;
+  touch-action: manipulation;
+  pointer-events: auto;
 }
 
 .cl-chart-gear {
- position:relative;
- z-index:8;
- cursor:pointer;
+  position: relative;
+  z-index: 8;
+  cursor: pointer;
 }
 
 #aoSection {
- margin-top:14px;
- padding:10px 0;
- border-top:1px solid #292d3b;
+  margin-top: 14px;
+  padding: 10px 0;
+  border-top: 1px solid #292d3b;
 }
 
 #aoInterpretation {
- color:#9fa2b0;
- font-size:11px;
- line-height:1.6;
+  color: #9fa2b0;
+  font-size: 11px;
+  line-height: 1.6;
 }
 
 .cl-results-note {
- color:#aebcdd;
- font-size:12px;
- line-height:1.6;
+  color: #aebcdd;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .cl-settings-overlay {
- position:fixed;
- inset:0;
- z-index:20000;
- background:rgba(0,0,0,.78);
- display:flex;
- align-items:center;
- justify-content:center;
- padding:14px;
- backdrop-filter:blur(5px);
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  background: rgba(0, 0, 0, .78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  backdrop-filter: blur(5px);
 }
 
 .cl-settings-sheet {
- width:min(100%,560px);
- max-height:min(88dvh,780px);
- overflow-y:auto;
- overscroll-behavior:contain;
- background:#121522;
- color:#f2f4ff;
- border:1px solid #44405f;
- border-radius:18px;
- padding:18px;
- box-shadow:0 24px 75px rgba(0,0,0,.65);
+  width: min(100%, 560px);
+  max-height: min(88dvh, 780px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #121522;
+  color: #f2f4ff;
+  border: 1px solid #44405f;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 24px 75px rgba(0, 0, 0, .65);
 }
 
 .cl-settings-head {
- display:flex;
- justify-content:space-between;
- align-items:center;
- margin-bottom:12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .cl-settings-head button {
- background:#252b3d;
- color:white;
- border:1px solid #3b4157;
- border-radius:9px;
- padding:9px 15px;
- cursor:pointer;
- font-size:17px;
+  background: #252b3d;
+  color: #fff;
+  border: 1px solid #3b4157;
+  border-radius: 9px;
+  padding: 9px 15px;
+  cursor: pointer;
+  font-size: 17px;
 }
 
 .cl-settings-row,
 .cl-settings-indicator {
- display:block;
- width:100%;
- text-align:left;
- background:#1b2131;
- color:#f1f3ff;
- border:1px solid #343b52;
- border-radius:10px;
- padding:14px;
- margin:7px 0;
- cursor:pointer;
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: #1b2131;
+  color: #f1f3ff;
+  border: 1px solid #343b52;
+  border-radius: 10px;
+  padding: 14px;
+  margin: 7px 0;
+  cursor: pointer;
 }
 
 .cl-settings-indicator {
- display:flex;
- align-items:center;
- justify-content:space-between;
- gap:12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .cl-settings-indicator-status {
- color:#b2a1e8;
- font-size:12px;
+  color: #b2a1e8;
+  font-size: 12px;
 }
 
 .cl-settings-indicator.is-unavailable {
- opacity:.65;
+  opacity: .65;
 }
 
 .cl-settings-save {
- display:block;
- width:100%;
- padding:13px;
- border:0;
- border-radius:10px;
- background:#8845ed;
- color:white;
- font-weight:700;
- margin-top:16px;
- cursor:pointer;
+  display: block;
+  width: 100%;
+  padding: 13px;
+  border: 0;
+  border-radius: 10px;
+  background: #8845ed;
+  color: #fff;
+  font-weight: 700;
+  margin-top: 16px;
+  cursor: pointer;
 }
 
 .cl-settings-grid {
- display:grid;
- grid-template-columns:repeat(2,minmax(0,1fr));
- gap:10px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
 .cl-settings-tile {
- min-height:85px;
- display:flex;
- flex-direction:column;
- align-items:center;
- justify-content:center;
- gap:8px;
- background:#1b2131;
- color:#f1f3ff;
- border:1px solid #343b52;
- border-radius:12px;
- cursor:pointer;
+  min-height: 85px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #1b2131;
+  color: #f1f3ff;
+  border: 1px solid #343b52;
+  border-radius: 12px;
+  cursor: pointer;
 }
 
 .cl-settings-tile span {
- font-size:23px;
+  font-size: 23px;
 }
 
 .cl-settings-check {
- display:flex;
- align-items:center;
- gap:10px;
- padding:12px 4px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 4px;
 }
 
 .cl-settings-check input {
- accent-color:#a56cff;
- width:17px;
- height:17px;
+  accent-color: #a56cff;
+  width: 17px;
+  height: 17px;
 }
 
 .cl-ma-grid {
- display:grid;
- grid-template-columns:
-  minmax(0,1.1fr)
-  minmax(0,.8fr)
-  minmax(0,.8fr)
-  46px;
- gap:8px;
- align-items:center;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .8fr) minmax(0, .8fr) 46px;
+  gap: 8px;
+  align-items: center;
 }
 
 .cl-ma-grid input[type=number],
 .cl-ma-grid select {
- width:100%;
- min-width:0;
- padding:9px 4px;
- background:#22283a;
- color:white;
- border:1px solid #46506b;
- border-radius:7px;
+  width: 100%;
+  min-width: 0;
+  padding: 9px 4px;
+  background: #22283a;
+  color: #fff;
+  border: 1px solid #46506b;
+  border-radius: 7px;
 }
 
 .cl-ma-grid input[type=color] {
- width:42px;
- height:38px;
- padding:2px;
- background:transparent;
- border:0;
+  width: 42px;
+  height: 38px;
+  padding: 2px;
+  background: transparent;
+  border: 0;
 }
 
 .cl-ma-label {
- display:flex;
- align-items:center;
- gap:5px;
- font-size:12px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
 }
 
 .cl-ma-label input {
- accent-color:#a56cff;
+  accent-color: #a56cff;
 }
 
 .cl-settings-actions {
- display:flex;
- flex-wrap:wrap;
- gap:8px;
- margin-top:15px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 15px;
 }
 
 .cl-settings-actions button {
- flex:1;
- min-width:90px;
- padding:10px;
- border:1px solid #46506b;
- background:#22283a;
- color:white;
- border-radius:8px;
- cursor:pointer;
+  flex: 1;
+  min-width: 90px;
+  padding: 10px;
+  border: 1px solid #46506b;
+  background: #22283a;
+  color: #fff;
+  border-radius: 8px;
+  cursor: pointer;
 }
 
 .cl-settings-hint,
 .cl-settings-disabled-note {
- font-size:12px;
- color:#aebcdd;
- line-height:1.6;
+  font-size: 12px;
+  color: #aebcdd;
+  line-height: 1.6;
 }
 
 body.cl-settings-open {
- overflow:hidden;
+  overflow: hidden;
 }
 
-@media(max-width:420px) {
- .cl-settings-overlay {
-  padding:10px;
- }
+@media (max-width: 420px) {
+  .cl-settings-overlay {
+    padding: 10px;
+  }
 
- .cl-settings-sheet {
-  padding:14px;
-  max-height:90dvh;
-  border-radius:15px;
- }
+  .cl-settings-sheet {
+    padding: 14px;
+    max-height: 90dvh;
+    border-radius: 15px;
+  }
 
- .cl-ma-grid {
-  grid-template-columns:
-   minmax(0,1fr)
-   60px
-   62px
-   42px;
-  gap:5px;
- }
+  .cl-ma-grid {
+    grid-template-columns: minmax(0, 1fr) 60px 62px 42px;
+    gap: 5px;
+  }
 
- .cl-ma-grid input[type=color] {
-  width:38px;
- }
+  .cl-ma-grid input[type=color] {
+    width: 38px;
+  }
 
- .cl-ma-label {
-  font-size:11px;
- }
+  .cl-ma-label {
+    font-size: 11px;
+  }
 }
 </style>
 
@@ -572,8 +509,8 @@ body.cl-settings-open {
 <script defer src="patterns.js?v=2"></script>
 <script defer src="patterns-bridge.js?v=1"></script>
 
-<!-- MOTOR PRINCIPAL V25 -->
-<script defer src="app.js?v=25"></script>
+<!-- MOTOR PRINCIPAL V27 -->
+<script defer src="app.js?v=27"></script>
 
 <script defer src="liquidity.js?v=12"></script>
 <script defer src="trade-plans.js?v=4"></script>
@@ -582,3460 +519,1802 @@ body.cl-settings-open {
 <script defer src="volume-profile.js?v=5"></script>
 <script defer src="mercado-pro.js?v=3"></script>
 <script defer src="mercados-live.js?v=2"></script>
-
 </head>
 
 <body>
 
 <header class="app-header">
+  <button
+    id="menuToggle"
+    class="menu-toggle"
+    type="button"
+    aria-label="Abrir herramientas"
+    aria-controls="sidebar"
+    aria-expanded="false"
+  >☰</button>
 
- <button
-  id="menuToggle"
-  class="menu-toggle"
-  type="button"
-  aria-label="Abrir herramientas"
-  aria-controls="sidebar"
-  aria-expanded="false"
- >☰</button>
+  <div class="brand">
+    <img
+      class="logo-3d"
+      src="file_00000000600881fb8ee48d81ba77b640.png"
+      alt="CRYPTOLEXUZ PRO"
+    >
+  </div>
 
- <div class="brand">
-  <img
-   class="logo-3d"
-   src="file_00000000600881fb8ee48d81ba77b640.png"
-   alt="CRYPTOLEXUZ PRO"
-  >
- </div>
-
- <span
-  id="connection"
-  class="connection"
-  role="status"
- >
-  ● Conectando...
- </span>
-
+  <span
+    id="connection"
+    class="connection"
+    role="status"
+  >● Conectando...</span>
 </header>
 
-<!-- MENÚ DE HERRAMIENTAS -->
-
 <aside
- id="sidebar"
- class="sidebar"
- aria-label="Herramientas"
+  id="sidebar"
+  class="sidebar"
+  aria-label="Herramientas"
 >
+  <div class="sidebar-head">
+    <strong>Herramientas</strong>
+    <button
+      id="menuClose"
+      type="button"
+      aria-label="Cerrar menú"
+    >✕</button>
+  </div>
 
- <div class="sidebar-head">
-  <strong>Herramientas</strong>
-  <button
-   id="menuClose"
-   type="button"
-   aria-label="Cerrar menú"
-  >✕</button>
- </div>
+  <nav class="side-nav">
+    <a href="#clScreenMarkets" data-screen="markets">📋 Mercados</a>
+    <a href="#chartSection" data-screen="charts">📈 Gráficas</a>
+    <a href="#clRangeBoxesTools" data-screen="charts">🟪 Cajas moradas</a>
+    <a href="#clFibonacciTools" data-screen="charts">📐 Fibonacci</a>
+    <a href="#clPatternsPanel" data-screen="charts">🧩 Patrones</a>
+    <a href="#liquiditySection" data-screen="charts">🌡️ Liquidez</a>
+    <a href="#orderbookSection" data-screen="charts">📚 Libro de órdenes</a>
+    <a href="#clScannerHost" data-screen="scanner">📡 Escáner</a>
+    <a href="#clQuickScalp" data-screen="scanner">⚡ Scalping</a>
+    <a href="#historySection" data-screen="results">📊 Resultados</a>
+  </nav>
 
- <nav class="side-nav">
+  <div id="patternStatus" role="status">
+    Cargando patrones...
+  </div>
 
-  <a href="#clScreenMarkets" data-screen="markets">
-   📋 Mercados
-  </a>
-
-  <a href="#chartSection" data-screen="charts">
-   📈 Gráficas
-  </a>
-
-  <a href="#clRangeBoxesTools" data-screen="charts">
-   🟪 Cajas moradas
-  </a>
-
-  <a href="#clFibonacciTools" data-screen="charts">
-   📐 Fibonacci
-  </a>
-
-  <a href="#clPatternsPanel" data-screen="charts">
-   🧩 Patrones
-  </a>
-
-  <a href="#liquiditySection" data-screen="charts">
-   🌡️ Liquidez
-  </a>
-
-  <a href="#orderbookSection" data-screen="charts">
-   📚 Libro de órdenes
-  </a>
-
-  <a href="#clScannerHost" data-screen="scanner">
-   📡 Escáner
-  </a>
-
-  <a href="#clQuickScalp" data-screen="scanner">
-   ⚡ Scalping
-  </a>
-
-  <a href="#historySection" data-screen="results">
-   📊 Resultados
-  </a>
-
- </nav>
-
- <div id="patternStatus" role="status">
-  Cargando patrones...
- </div>
-
- <label class="switch-row">
-  Mostrar mapa
-  <input
-   id="liquidityMapToggle"
-   type="checkbox"
-   checked
-   disabled
-  >
- </label>
-
+  <label class="switch-row">
+    Mostrar mapa
+    <input
+      id="liquidityMapToggle"
+      type="checkbox"
+      checked
+      disabled
+    >
+  </label>
 </aside>
 
 <button
- id="menuBackdrop"
- class="menu-backdrop"
- type="button"
- aria-label="Cerrar menú"
- hidden
+  id="menuBackdrop"
+  class="menu-backdrop"
+  type="button"
+  aria-label="Cerrar menú"
+  hidden
 ></button>
 
 <main class="app-container">
 
-<!-- =====================================
- MERCADOS
-===================================== -->
-
-<div
- id="clScreenMarkets"
- class="cl-screen cl-active"
- data-cl-screen="markets"
->
-
- <div class="cl-screen-title">
-  <h1>Mercados</h1>
-  <p>Activos, precios y variaciones del mercado.</p>
- </div>
-
- <input
-  id="clMarketSearch"
-  class="cl-search"
-  type="search"
-  placeholder="Buscar BTC, ETH, GOLD..."
-  aria-label="Buscar activo"
- >
-
- <div class="cl-market-filters">
-
-  <button
-   class="cl-chip active"
-   type="button"
-   data-market-filter="all"
-  >Todos</button>
-
-  <button
-   class="cl-chip"
-   type="button"
-   data-market-filter="favorites"
-  >★ Favoritos</button>
-
-  <button
-   class="cl-chip"
-   type="button"
-   data-market-filter="perpetual"
-  >Futuros</button>
-
-  <button
-   class="cl-chip"
-   type="button"
-   data-market-filter="spot"
-  >Spot</button>
-
-  <button
-   class="cl-chip"
-   type="button"
-   data-market-filter="commodities"
-  >Oro / Petróleo</button>
-
- </div>
-
- <div class="cl-market-head">
-  <span>Nombre / Vol.</span>
-  <span style="text-align:right">Último precio</span>
-  <span style="text-align:center">Var. 24h</span>
- </div>
-
- <div id="clMarketList"></div>
-
- <p
-  id="clMarketListStatus"
-  class="cl-notice"
-  role="status"
- >
-  Consultando precios de mercado...
- </p>
-
-</div>
-
-<!-- =====================================
- GRÁFICAS
-===================================== -->
-
-<div
- id="clScreenCharts"
- class="cl-screen"
- data-cl-screen="charts"
->
-
-<section class="market-card">
-
- <div class="market-top">
-
-  <div class="selectors-row">
-
-   <label class="compact-field">
-    Activo
-
-    <select id="symbol">
-     <option value="BTC-USDT">BTC/USDT</option>
-     <option value="ETH-USDT">ETH/USDT</option>
-     <option value="BNB-USDT">BNB/USDT</option>
-     <option value="SOL-USDT">SOL/USDT</option>
-     <option value="XRP-USDT">XRP/USDT</option>
-     <option value="DOGE-USDT">DOGE/USDT</option>
-     <option value="NCCOGOLD2USD-USDT">GOLD (XAU)</option>
-     <option value="NCCO1OILWTI2USD-USDT">OIL WTI</option>
-    </select>
-
-   </label>
-
-   <!--
-    SELECTOR INTERNO:
-    APP.JS UTILIZA ESTE ID.
-    SE OCULTA PARA EVITAR DUPLICADOS.
-   -->
-
-   <label
-    id="clInternalIntervalField"
-    class="compact-field"
-   >
-    Temporalidad
-
-    <select id="interval">
-     <option value="1m">1 minuto</option>
-     <option value="3m">3 minutos</option>
-     <option value="5m">5 minutos</option>
-     <option value="15m" selected>15 minutos</option>
-     <option value="30m">30 minutos</option>
-     <option value="1h">1 hora</option>
-     <option value="2h">2 horas</option>
-     <option value="4h">4 horas</option>
-     <option value="6h">6 horas</option>
-     <option value="8h">8 horas</option>
-     <option value="12h">12 horas</option>
-     <option value="1d">1 día</option>
-     <option value="3d">3 días</option>
-     <option value="1w">1 semana</option>
-     <option value="1M">1 mes</option>
-    </select>
-
-   </label>
-
-  </div>
-
-  <div class="market-price">
-   <strong id="price">—</strong>
-   <span id="change">—</span>
-  </div>
-
-  <div class="market-bottom">
-
-   <div>
-    <span>Máximo 24h</span>
-    <strong id="high">—</strong>
-   </div>
-
-   <div>
-    <span>Mínimo 24h</span>
-    <strong id="low">—</strong>
-   </div>
-
-   <div>
-    <span>Apertura</span>
-    <strong id="open">—</strong>
-   </div>
-
-   <div>
-    <span>Volumen 24h</span>
-    <strong id="volume">—</strong>
-   </div>
-
-  </div>
-
- </div>
-
-</section>
-
-<section id="chartSection" class="chart-card">
-
- <div class="chart-heading">
-
-  <div>
-   <h2 id="chartTitle">BTC-USDT · 15m</h2>
-   <small>
-    VELAS · MEDIAS · VOLUMEN · INDICADORES
-   </small>
-  </div>
-
-  <button
-   id="clChartSettings"
-   class="cl-chart-gear"
-   type="button"
-   aria-label="Ajustes del gráfico"
-  >⚙</button>
-
- </div>
-
- <div class="cl-chart-tabs">
-
-  <button
-   class="cl-chip active"
-   type="button"
-   data-chart-view="graph"
-  >Gráfico</button>
-
-  <button
-   class="cl-chip"
-   type="button"
-   data-chart-view="coin"
-  >Info de la moneda</button>
-
-  <button
-   class="cl-chip"
-   type="button"
-   data-chart-view="info"
-  >Información</button>
-
- </div>
-
- <div id="clGraphContent">
-
-  <!-- TEMPORALIDADES E INDICADORES -->
-
+  <!-- MERCADOS -->
   <div
-   class="cl-chart-control-stack"
-   id="clTradingControlRows"
+    id="clScreenMarkets"
+    class="cl-screen cl-active"
+    data-cl-screen="markets"
   >
-
-   <div class="cl-control-row">
-
-    <span class="cl-control-label">
-     Temporalidades
-    </span>
-
-    <div
-     class="cl-timeframes"
-     id="clMainTimeframes"
-    >
-
-     <button type="button" data-tf="1m">1m</button>
-     <button type="button" data-tf="3m">3m</button>
-     <button type="button" data-tf="5m">5m</button>
-
-     <button
-      class="active"
-      type="button"
-      data-tf="15m"
-      aria-pressed="true"
-     >15m</button>
-
-     <button type="button" data-tf="30m">30m</button>
-     <button type="button" data-tf="1h">1h</button>
-     <button type="button" data-tf="2h">2h</button>
-     <button type="button" data-tf="4h">4h</button>
-     <button type="button" data-tf="6h">6h</button>
-     <button type="button" data-tf="8h">8h</button>
-     <button type="button" data-tf="12h">12h</button>
-     <button type="button" data-tf="1d">1d</button>
-     <button type="button" data-tf="3d">3d</button>
-     <button type="button" data-tf="1w">1w</button>
-     <button type="button" data-tf="1M">1M</button>
-
+    <div class="cl-screen-title">
+      <h1>Mercados</h1>
+      <p>Activos, precios y variaciones del mercado.</p>
     </div>
 
-   </div>
-
-   <div class="cl-control-row">
-
-    <span class="cl-control-label">
-     Indicadores
-    </span>
-
-    <div
-     id="indicatorButtons"
-     class="indicator-buttons cl-indicator-strip"
+    <input
+      id="clMarketSearch"
+      class="cl-search"
+      type="search"
+      placeholder="Buscar BTC, ETH, GOLD..."
+      aria-label="Buscar activo"
     >
 
-     <button type="button" data-indicator="ema21">
-      EMA 21
-     </button>
-
-     <button type="button" data-indicator="ma55">
-      MA 55
-     </button>
-
-     <button type="button" data-indicator="ma100">
-      MA 100
-     </button>
-
-     <button type="button" data-indicator="ma200">
-      MA 200
-     </button>
-
-     <button type="button" data-indicator="rsi">
-      RSI
-     </button>
-
-     <button type="button" data-indicator="adx">
-      ADX
-     </button>
-
-     <button type="button" data-indicator="ao">
-      AO
-     </button>
-
-     <button type="button" data-indicator="fvg">
-      FVG
-     </button>
-
-     <button type="button" data-indicator="ifvg">
-      IFVG
-     </button>
-
-     <button type="button" data-indicator="liquidity">
-      Liquidez
-     </button>
-
-     <button type="button" data-indicator="sweeps">
-      Barridos
-     </button>
-
-     <button type="button" data-indicator="support">
-      Soportes
-     </button>
-
-     <button type="button" data-indicator="resistance">
-      Resistencias
-     </button>
-
+    <div class="cl-market-filters">
+      <button class="cl-chip active" type="button" data-market-filter="all">Todos</button>
+      <button class="cl-chip" type="button" data-market-filter="favorites">★ Favoritos</button>
+      <button class="cl-chip" type="button" data-market-filter="perpetual">Futuros</button>
+      <button class="cl-chip" type="button" data-market-filter="spot">Spot</button>
+      <button class="cl-chip" type="button" data-market-filter="commodities">Oro / Petróleo</button>
     </div>
 
-   </div>
-
-   <div class="cl-control-row">
-
-    <span class="cl-control-label">
-     Patrones automáticos
-    </span>
-
-    <div
-     id="patternButtons"
-     class="indicator-buttons cl-pattern-strip"
-    >
-
-     <button type="button" data-pattern="fallingwedge" disabled>
-      Cuña descendente
-     </button>
-
-     <button type="button" data-pattern="divergences" disabled>
-      Divergencias RSI
-     </button>
-
-     <button type="button" data-pattern="squeeze" disabled>
-      Squeeze
-     </button>
-
-     <button type="button" data-pattern="orderblocks" disabled>
-      Order Blocks
-     </button>
-
-     <button type="button" data-pattern="impulses" disabled>
-      Ondas 1-2-3
-     </button>
-
-     <button type="button" data-pattern="abc" disabled>
-      ABC
-     </button>
-
-     <button type="button" data-pattern="abcde" disabled>
-      ABCDE
-     </button>
-
-     <button type="button" data-pattern="zigzag" disabled>
-      Zig-Zag
-     </button>
-
-     <button type="button" data-pattern="flat" disabled>
-      Flat
-     </button>
-
-     <button type="button" data-pattern="diagonal" disabled>
-      Diagonal
-     </button>
-
-     <button type="button" data-pattern="doubletop" disabled>
-      Doble techo
-     </button>
-
-     <button type="button" data-pattern="doublebottom" disabled>
-      Doble suelo
-     </button>
-
-     <button type="button" data-pattern="headshoulders" disabled>
-      HCH
-     </button>
-
-     <button type="button" data-pattern="inversehs" disabled>
-      HCH invertido
-     </button>
-
-     <button type="button" data-pattern="risingwedge" disabled>
-      Cuña ascendente
-     </button>
-
-     <button type="button" data-pattern="triple" disabled>
-      Triple techo/suelo
-     </button>
-
+    <div class="cl-market-head">
+      <span>Nombre / Vol.</span>
+      <span style="text-align:right">Último precio</span>
+      <span style="text-align:center">Var. 24h</span>
     </div>
 
-   </div>
+    <div id="clMarketList"></div>
 
+    <p
+      id="clMarketListStatus"
+      class="cl-notice"
+      role="status"
+    >Consultando precios de mercado...</p>
   </div>
 
-  <!-- ACCIONES DEL GRÁFICO -->
-
-  <div class="chart-controls">
-
-   <button id="refresh" type="button">
-    ↻ Actualizar
-   </button>
-
-   <button id="chartReset" type="button">
-    ⟲ Restablecer
-   </button>
-
-   <span
-    id="chartTouchStatus"
-    class="chart-control-note"
-   >
-    Desliza las velas y utiliza dos dedos para el zoom.
-   </span>
-
-  </div>
-
-  <!-- GRÁFICA PRINCIPAL -->
-
+  <!-- GRÁFICAS -->
   <div
-   id="priceChartArea"
-   class="chart-area"
+    id="clScreenCharts"
+    class="cl-screen"
+    data-cl-screen="charts"
   >
-
-   <div id="chart"></div>
-
-   <canvas
-    id="zonesCanvas"
-    aria-hidden="true"
-   ></canvas>
-
-  </div>
-
-  <!-- VOLUMEN -->
-
-  <div class="volume-section">
-
-   <div class="volume-heading">
-    <strong>Volumen</strong>
-    <span id="volumeLabel">BTC</span>
-   </div>
-
-   <div id="volumeChart"></div>
-
-   <p id="volumeInterpretation">
-    Esperando volumen...
-   </p>
-
-  </div>
-
-  <!-- RSI -->
-
-  <div
-   id="rsiSection"
-   class="oscillator-section"
-  >
-
-   <div class="oscillator-heading">
-    <strong>RSI 14</strong>
-    <span id="rsiChartValue">—</span>
-   </div>
-
-   <div id="rsiChart"></div>
-
-   <p id="rsiInterpretation">
-    Esperando RSI...
-   </p>
-
-   <button
-    id="rsiSpeak"
-    type="button"
-    disabled
-   >
-    🔊 Escuchar RSI
-   </button>
-
-  </div>
-
-  <!-- ADX -->
-
-  <div
-   id="adxSection"
-   class="oscillator-section"
-   hidden
-  >
-
-   <div class="oscillator-heading">
-    <strong>ADX 14 / +DI / −DI</strong>
-    <span id="adxChartValue">—</span>
-   </div>
-
-   <div id="adxChart"></div>
-
-   <p id="adxInterpretation">
-    Esperando ADX...
-   </p>
-
-  </div>
-
-  <!-- AO -->
-
-  <div
-   id="aoSection"
-   class="oscillator-section"
-   hidden
-  >
-
-   <div class="oscillator-heading">
-    <strong>Awesome Oscillator (AO)</strong>
-    <span id="aoValue">—</span>
-   </div>
-
-   <div id="aoChart"></div>
-
-   <p id="aoInterpretation">
-    Esperando cálculo del AO...
-   </p>
-
-  </div>
-
-  <!-- SQUEEZE -->
-
-  <div
-   id="squeezeSection"
-   class="oscillator-section"
-   hidden
-  >
-
-   <strong>Squeeze Momentum</strong>
-
-   <span id="squeezeValue">—</span>
-
-   <div id="squeezeChart"></div>
-
-  </div>
-
-  <p id="message" role="status">
-   Cargando datos...
-  </p>
-
- </div>
-
- <div id="clCoinContent" hidden>
-  <p>Información del activo seleccionado.</p>
- </div>
-
- <div id="clInfoContent" hidden>
-  <p>Información del mercado.</p>
- </div>
-
- <!-- FIBONACCI -->
-
- <details
-  id="clFibonacciTools"
-  class="cl-tool-panel"
- >
-
-  <summary>📐 Fibonacci</summary>
-
-  <div
-   id="clFibonacciHost"
-   class="cl-tool-content"
-  >
-   <div id="fibFallback">
-    Cargando Fibonacci...
-   </div>
-  </div>
-
- </details>
-
- <!-- CAJAS MORADAS -->
-
- <details
-  id="clRangeBoxesTools"
-  class="cl-tool-panel"
-  open
- >
-
-  <summary>🟪 Cajas moradas</summary>
-
-  <div
-   id="clRangeBoxesHost"
-   class="cl-tool-content"
-  >
-
-   <p class="cl-notice">
-    Cajas moradas ajustables. Activa el modo edición
-    para moverlas o cambiar sus bordes.
-   </p>
-
-   <div id="clRangeBoxesControls"></div>
-
-  </div>
-
- </details>
-
-</section>
-
-<!-- PATRONES -->
-
-<section
- id="clPatternsPanel"
- class="cl-module"
->
-
- <h2>🧩 Patrones detectados</h2>
-
- <div id="clPatternsReadout">
-  <p>Esperando patrones...</p>
- </div>
-
-</section>
-
-<!-- MERCADO PRO -->
-
-<section
- id="clMercadoProHost"
- class="cl-module"
->
-
- <h2>📊 Mercado PRO</h2>
-
- <div id="clMercadoProStatus">
-  Cargando mercado...
- </div>
-
-</section>
-
-<!-- LIQUIDEZ -->
-
-<section
- id="liquiditySection"
- class="liquidity-card"
->
-
- <h2>🌡️ Mapa de liquidez</h2>
-
- <div id="liquidityMap">
-  Conectando...
- </div>
-
- <p class="cl-notice">
-  Profundidad de órdenes. No representa
-  liquidaciones reales.
- </p>
-
-</section>
-
-<!-- RESUMEN TÉCNICO -->
-
-<section class="indicator-summary">
-
- <h2>Indicadores técnicos</h2>
-
- <div class="indicator-values">
-
-  <div>
-   <span>EMA 21</span>
-   <strong id="ema21Value">—</strong>
-  </div>
-
-  <div>
-   <span>MA 55</span>
-   <strong id="ma55Value">—</strong>
-  </div>
-
-  <div>
-   <span>RSI 14</span>
-   <strong id="rsiValue">—</strong>
-  </div>
-
-  <div>
-   <span>ADX 14</span>
-   <strong id="adxValue">—</strong>
-  </div>
-
- </div>
-
- <p id="indicatorReadout">
-  Esperando cálculos...
- </p>
-
-</section>
-
-<!-- LIBRO DE ÓRDENES -->
-
-<section
- id="orderbookSection"
- class="cl-module"
->
-
- <div class="cl-book-tabs">
-
-  <button
-   class="cl-chip active"
-   type="button"
-   data-book="book"
-  >Libro de órdenes</button>
-
-  <button
-   class="cl-chip"
-   type="button"
-   data-book="trades"
-  >Trades</button>
-
-  <button
-   class="cl-chip"
-   type="button"
-   data-book="depth"
-  >Profundidad</button>
-
- </div>
-
- <div class="cl-book-bar">
-  <span>B —%</span>
-  <span>—% S</span>
- </div>
-
- <div id="clBookView">
-  Esperando profundidad real...
- </div>
-
- <div
-  id="clBookAlternate"
-  hidden
-  role="status"
- ></div>
-
- <p>
-  Bid:
-  <strong id="bid">—</strong>
- </p>
-
- <p>
-  Ask:
-  <strong id="ask">—</strong>
- </p>
-
- <p id="status">
-  Comprobando conexión...
- </p>
-
- <small>
-  Actualizado:
-  <strong id="updated">—</strong>
- </small>
-
-</section>
-
-<div class="cl-long-short">
-
- <button
-  id="clLongInfo"
-  type="button"
- >▲ LONG</button>
-
- <button
-  id="clShortInfo"
-  type="button"
- >▼ SHORT</button>
-
-</div>
-
-<p class="cl-notice">
- Botones informativos. No ejecutan órdenes.
-</p>
-
-<!-- EXCHANGE Y MERCADO -->
-
-<section
- id="settingsSection"
- class="market-settings"
->
-
- <h2>⚙ Ajustes de mercado</h2>
-
- <div class="cl-extra-select">
-
-  <label>
-   Exchange
-
-   <select id="exchange">
-    <option value="bingx">BingX</option>
-    <option value="binance">Binance</option>
-    <option value="bybit">Bybit</option>
-    <option value="okx">OKX</option>
-   </select>
-
-  </label>
-
-  <label>
-   Mercado
-
-   <select id="market">
-    <option value="perpetual">Perpetuos</option>
-    <option value="spot">Spot</option>
-   </select>
-
-  </label>
-
- </div>
-
-</section>
-
-</div>
-
-<!-- =====================================
- ESCÁNER
-===================================== -->
-
-<div
- id="clScreenScanner"
- class="cl-screen"
- data-cl-screen="scanner"
->
-
- <div class="cl-screen-title">
-
-  <h1>📡 Escáner de mercado</h1>
-
-  <p>
-   Señales LONG y SHORT y análisis multitemporal.
-  </p>
-
- </div>
-
- <div id="clScannerHost"></div>
-
- <section
-  id="clTradePlansHost"
-  class="cl-module"
- >
-
-  <h2>🎯 Planes LONG y SHORT</h2>
-
-  <div class="cl-trade-pair">
-
-   <article class="cl-trade-card long">
-
-    <h3>▲ LONG</h3>
-
-    <p>
-     Entrada:
-     <strong>Esperando análisis</strong>
+    <section class="market-card">
+      <div class="market-top">
+        <div class="selectors-row">
+          <label class="compact-field">
+            Activo
+            <select id="symbol">
+              <option value="BTC-USDT">BTC/USDT</option>
+              <option value="ETH-USDT">ETH/USDT</option>
+              <option value="BNB-USDT">BNB/USDT</option>
+              <option value="SOL-USDT">SOL/USDT</option>
+              <option value="XRP-USDT">XRP/USDT</option>
+              <option value="DOGE-USDT">DOGE/USDT</option>
+              <option value="NCCOGOLD2USD-USDT">GOLD (XAU)</option>
+              <option value="NCCO1OILWTI2USD-USDT">OIL WTI</option>
+            </select>
+          </label>
+
+          <label
+            id="clInternalIntervalField"
+            class="compact-field"
+          >
+            Temporalidad
+            <select id="interval">
+              <option value="1m">1 minuto</option>
+              <option value="3m">3 minutos</option>
+              <option value="5m">5 minutos</option>
+              <option value="15m" selected>15 minutos</option>
+              <option value="30m">30 minutos</option>
+              <option value="1h">1 hora</option>
+              <option value="2h">2 horas</option>
+              <option value="4h">4 horas</option>
+              <option value="6h">6 horas</option>
+              <option value="8h">8 horas</option>
+              <option value="12h">12 horas</option>
+              <option value="1d">1 día</option>
+              <option value="3d">3 días</option>
+              <option value="1w">1 semana</option>
+              <option value="1M">1 mes</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="market-price">
+          <strong id="price">—</strong>
+          <span id="change">—</span>
+        </div>
+
+        <div class="market-bottom">
+          <div>
+            <span>Máximo 24h</span>
+            <strong id="high">—</strong>
+          </div>
+
+          <div>
+            <span>Mínimo 24h</span>
+            <strong id="low">—</strong>
+          </div>
+
+          <div>
+            <span>Apertura</span>
+            <strong id="open">—</strong>
+          </div>
+
+          <div>
+            <span>Volumen 24h</span>
+            <strong id="volume">—</strong>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="chartSection" class="chart-card">
+      <div class="chart-heading">
+        <div>
+          <h2 id="chartTitle">BTC-USDT · 15m</h2>
+          <small>VELAS · MEDIAS · VOLUMEN · INDICADORES</small>
+        </div>
+
+        <button
+          id="clChartSettings"
+          class="cl-chart-gear"
+          type="button"
+          aria-label="Ajustes del gráfico"
+        >⚙</button>
+      </div>
+
+      <div class="cl-chart-tabs">
+        <button class="cl-chip active" type="button" data-chart-view="graph">Gráfico</button>
+        <button class="cl-chip" type="button" data-chart-view="coin">Info de la moneda</button>
+        <button class="cl-chip" type="button" data-chart-view="info">Información</button>
+      </div>
+
+      <div id="clGraphContent">
+        <div
+          class="cl-chart-control-stack"
+          id="clTradingControlRows"
+        >
+          <div class="cl-control-row">
+            <span class="cl-control-label">Temporalidades</span>
+            <div class="cl-timeframes" id="clMainTimeframes">
+              <button type="button" data-tf="1m">1m</button>
+              <button type="button" data-tf="3m">3m</button>
+              <button type="button" data-tf="5m">5m</button>
+              <button class="active" type="button" data-tf="15m" aria-pressed="true">15m</button>
+              <button type="button" data-tf="30m">30m</button>
+              <button type="button" data-tf="1h">1h</button>
+              <button type="button" data-tf="2h">2h</button>
+              <button type="button" data-tf="4h">4h</button>
+              <button type="button" data-tf="6h">6h</button>
+              <button type="button" data-tf="8h">8h</button>
+              <button type="button" data-tf="12h">12h</button>
+              <button type="button" data-tf="1d">1d</button>
+              <button type="button" data-tf="3d">3d</button>
+              <button type="button" data-tf="1w">1w</button>
+              <button type="button" data-tf="1M">1M</button>
+            </div>
+          </div>
+
+          <div class="cl-control-row">
+            <span class="cl-control-label">Indicadores</span>
+            <div id="indicatorButtons" class="indicator-buttons cl-indicator-strip">
+              <button type="button" data-indicator="ema21">EMA 21</button>
+              <button type="button" data-indicator="ma55">MA 55</button>
+              <button type="button" data-indicator="ma100">MA 100</button>
+              <button type="button" data-indicator="ma200">MA 200</button>
+              <button type="button" data-indicator="rsi">RSI</button>
+              <button type="button" data-indicator="adx">ADX</button>
+              <button type="button" data-indicator="ao">AO</button>
+              <button type="button" data-indicator="fvg">FVG</button>
+              <button type="button" data-indicator="ifvg">IFVG</button>
+              <button type="button" data-indicator="liquidity">Liquidez</button>
+              <button type="button" data-indicator="sweeps">Barridos</button>
+              <button type="button" data-indicator="support">Soportes</button>
+              <button type="button" data-indicator="resistance">Resistencias</button>
+            </div>
+          </div>
+
+          <div class="cl-control-row">
+            <span class="cl-control-label">Patrones automáticos</span>
+            <div id="patternButtons" class="indicator-buttons cl-pattern-strip">
+              <button type="button" data-pattern="fallingwedge" disabled>Cuña descendente</button>
+              <button type="button" data-pattern="divergences" disabled>Divergencias RSI</button>
+              <button type="button" data-pattern="squeeze" disabled>Squeeze</button>
+              <button type="button" data-pattern="orderblocks" disabled>Order Blocks</button>
+              <button type="button" data-pattern="impulses" disabled>Ondas 1-2-3</button>
+              <button type="button" data-pattern="abc" disabled>ABC</button>
+              <button type="button" data-pattern="abcde" disabled>ABCDE</button>
+              <button type="button" data-pattern="zigzag" disabled>Zig-Zag</button>
+              <button type="button" data-pattern="flat" disabled>Flat</button>
+              <button type="button" data-pattern="diagonal" disabled>Diagonal</button>
+              <button type="button" data-pattern="doubletop" disabled>Doble techo</button>
+              <button type="button" data-pattern="doublebottom" disabled>Doble suelo</button>
+              <button type="button" data-pattern="headshoulders" disabled>HCH</button>
+              <button type="button" data-pattern="inversehs" disabled>HCH invertido</button>
+              <button type="button" data-pattern="risingwedge" disabled>Cuña ascendente</button>
+              <button type="button" data-pattern="triple" disabled>Triple techo/suelo</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="chart-controls">
+          <button id="refresh" type="button">↻ Actualizar</button>
+          <button id="chartReset" type="button">⟲ Restablecer</button>
+          <span id="chartTouchStatus" class="chart-control-note">
+            Desliza las velas y utiliza dos dedos para el zoom.
+          </span>
+        </div>
+
+        <div id="priceChartArea" class="chart-area">
+          <div id="chart"></div>
+          <canvas id="zonesCanvas" aria-hidden="true"></canvas>
+        </div>
+
+        <div class="volume-section">
+          <div class="volume-heading">
+            <strong>Volumen</strong>
+            <span id="volumeLabel">BTC</span>
+          </div>
+          <div id="volumeChart"></div>
+          <p id="volumeInterpretation">Esperando volumen...</p>
+        </div>
+
+        <div id="rsiSection" class="oscillator-section">
+          <div class="oscillator-heading">
+            <strong>RSI 14</strong>
+            <span id="rsiChartValue">—</span>
+          </div>
+          <div id="rsiChart"></div>
+          <p id="rsiInterpretation">Esperando RSI...</p>
+          <button id="rsiSpeak" type="button" disabled>🔊 Escuchar RSI</button>
+        </div>
+
+        <div id="adxSection" class="oscillator-section" hidden>
+          <div class="oscillator-heading">
+            <strong>ADX 14 / +DI / −DI</strong>
+            <span id="adxChartValue">—</span>
+          </div>
+          <div id="adxChart"></div>
+          <p id="adxInterpretation">Esperando ADX...</p>
+        </div>
+
+        <div id="aoSection" class="oscillator-section" hidden>
+          <div class="oscillator-heading">
+            <strong>Awesome Oscillator (AO)</strong>
+            <span id="aoValue">—</span>
+          </div>
+          <div id="aoChart"></div>
+          <p id="aoInterpretation">Esperando cálculo del AO...</p>
+        </div>
+
+        <div id="squeezeSection" class="oscillator-section" hidden>
+          <strong>Squeeze Momentum</strong>
+          <span id="squeezeValue">—</span>
+          <div id="squeezeChart"></div>
+        </div>
+
+        <p id="message" role="status">Cargando datos...</p>
+      </div>
+
+      <div id="clCoinContent" hidden>
+        <p>Información del activo seleccionado.</p>
+      </div>
+
+      <div id="clInfoContent" hidden>
+        <p>Información del mercado.</p>
+      </div>
+
+      <details id="clFibonacciTools" class="cl-tool-panel">
+        <summary>📐 Fibonacci</summary>
+        <div id="clFibonacciHost" class="cl-tool-content">
+          <div id="fibFallback">Cargando Fibonacci...</div>
+        </div>
+      </details>
+
+      <details id="clRangeBoxesTools" class="cl-tool-panel" open>
+        <summary>🟪 Cajas moradas</summary>
+        <div id="clRangeBoxesHost" class="cl-tool-content">
+          <p class="cl-notice">
+            Cajas moradas ajustables. Activa el modo edición para moverlas o cambiar sus bordes.
+          </p>
+          <div id="clRangeBoxesControls"></div>
+        </div>
+      </details>
+    </section>
+
+    <section id="clPatternsPanel" class="cl-module">
+      <h2>🧩 Patrones detectados</h2>
+      <div id="clPatternsReadout">
+        <p>Esperando patrones...</p>
+      </div>
+    </section>
+
+    <section id="clMercadoProHost" class="cl-module">
+      <h2>📊 Mercado PRO</h2>
+      <div id="clMercadoProStatus">
+        Cargando mercado...
+      </div>
+    </section>
+
+    <section id="liquiditySection" class="liquidity-card">
+      <h2>🌡️ Mapa de liquidez</h2>
+      <div id="liquidityMap">Conectando...</div>
+      <p class="cl-notice">
+        Profundidad de órdenes. No representa liquidaciones reales.
+      </p>
+    </section>
+
+    <section class="indicator-summary">
+      <h2>Indicadores técnicos</h2>
+      <div class="indicator-values">
+        <div>
+          <span>EMA 21</span>
+          <strong id="ema21Value">—</strong>
+        </div>
+        <div>
+          <span>MA 55</span>
+          <strong id="ma55Value">—</strong>
+        </div>
+        <div>
+          <span>RSI 14</span>
+          <strong id="rsiValue">—</strong>
+        </div>
+        <div>
+          <span>ADX 14</span>
+          <strong id="adxValue">—</strong>
+        </div>
+      </div>
+      <p id="indicatorReadout">Esperando cálculos...</p>
+    </section>
+
+    <section id="orderbookSection" class="cl-module">
+      <div class="cl-book-tabs">
+        <button class="cl-chip active" type="button" data-book="book">Libro de órdenes</button>
+        <button class="cl-chip" type="button" data-book="trades">Trades</button>
+        <button class="cl-chip" type="button" data-book="depth">Profundidad</button>
+      </div>
+
+      <div class="cl-book-bar">
+        <span>B —%</span>
+        <span>—% S</span>
+      </div>
+
+      <div id="clBookView">Esperando profundidad real...</div>
+      <div id="clBookAlternate" hidden role="status"></div>
+
+      <p>Bid: <strong id="bid">—</strong></p>
+      <p>Ask: <strong id="ask">—</strong></p>
+      <p id="status">Comprobando conexión...</p>
+      <small>Actualizado: <strong id="updated">—</strong></small>
+    </section>
+
+    <div class="cl-long-short">
+      <button id="clLongInfo" type="button">▲ LONG</button>
+      <button id="clShortInfo" type="button">▼ SHORT</button>
+    </div>
+
+    <p class="cl-notice">
+      Botones informativos. No ejecutan órdenes.
     </p>
 
-    <p>Stop: —</p>
-    <p>Objetivo: —</p>
+    <section id="settingsSection" class="market-settings">
+      <h2>⚙ Ajustes de mercado</h2>
+      <div class="cl-extra-select">
+        <label>
+          Exchange
+          <select id="exchange">
+            <option value="bingx">BingX</option>
+            <option value="binance">Binance</option>
+            <option value="bybit">Bybit</option>
+            <option value="okx">OKX</option>
+          </select>
+        </label>
 
-   </article>
-
-   <article class="cl-trade-card short">
-
-    <h3>▼ SHORT</h3>
-
-    <p>
-     Entrada:
-     <strong>Esperando análisis</strong>
-    </p>
-
-    <p>Stop: —</p>
-    <p>Objetivo: —</p>
-
-   </article>
-
+        <label>
+          Mercado
+          <select id="market">
+            <option value="perpetual">Perpetuos</option>
+            <option value="spot">Spot</option>
+          </select>
+        </label>
+      </div>
+    </section>
   </div>
 
- </section>
+  <!-- ESCÁNER -->
+  <div
+    id="clScreenScanner"
+    class="cl-screen"
+    data-cl-screen="scanner"
+  >
+    <div class="cl-screen-title">
+      <h1>📡 Escáner de mercado</h1>
+      <p>Señales LONG y SHORT y análisis multitemporal.</p>
+    </div>
 
- <section
-  id="clQuickScalp"
-  class="cl-module"
- >
+    <div id="clScannerHost"></div>
 
-  <h2>⚡ Scalping rápido</h2>
+    <section id="clTradePlansHost" class="cl-module">
+      <h2>🎯 Planes LONG y SHORT</h2>
+      <div class="cl-trade-pair">
+        <article class="cl-trade-card long">
+          <h3>▲ LONG</h3>
+          <p>Entrada: <strong>Esperando análisis</strong></p>
+          <p>Stop: —</p>
+          <p>Objetivo: —</p>
+        </article>
 
-  <div id="clQuickScalpHost">
-   <div class="cl-module-placeholder">
-    Cargando scalping...
-   </div>
+        <article class="cl-trade-card short">
+          <h3>▼ SHORT</h3>
+          <p>Entrada: <strong>Esperando análisis</strong></p>
+          <p>Stop: —</p>
+          <p>Objetivo: —</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="clQuickScalp" class="cl-module">
+      <h2>⚡ Scalping rápido</h2>
+      <div id="clQuickScalpHost">
+        <div class="cl-module-placeholder">Cargando scalping...</div>
+      </div>
+    </section>
+
+    <section id="signalsSection" class="signals-section">
+      <h2>
+        Monitor de señales
+        <span id="engineState">INICIANDO</span>
+      </h2>
+
+      <div class="signal-grid">
+        <article class="signal-card">
+          <h3>BTC-USDT / 5m</h3>
+          <strong id="state5">Esperando datos</strong>
+          <p id="detail5">—</p>
+          <small id="metrics5">—</small>
+        </article>
+
+        <article class="signal-card">
+          <h3>BTC-USDT / 15m</h3>
+          <strong id="state15">Esperando datos</strong>
+          <p id="detail15">—</p>
+          <small id="metrics15">—</small>
+        </article>
+      </div>
+    </section>
   </div>
 
- </section>
+  <!-- RESULTADOS -->
+  <div
+    id="clScreenResults"
+    class="cl-screen"
+    data-cl-screen="results"
+  >
+    <div class="cl-screen-title">
+      <h1>📊 Resultados y efectividad</h1>
+      <p>Historial y estadísticas de señales verificadas.</p>
+    </div>
 
- <section
-  id="signalsSection"
-  class="signals-section"
- >
+    <section id="clResultsStats" class="cl-module">
+      <h2>Resumen de efectividad</h2>
+      <div class="cl-stats">
+        <div class="cl-stat">
+          <span>Señales</span>
+          <strong id="clTotalSignals">—</strong>
+        </div>
+        <div class="cl-stat">
+          <span>Objetivos</span>
+          <strong id="clTargetsHit">—</strong>
+        </div>
+        <div class="cl-stat">
+          <span>Stops</span>
+          <strong id="clStopsHit">—</strong>
+        </div>
+        <div class="cl-stat">
+          <span>Efectividad</span>
+          <strong id="clWinRate">—</strong>
+        </div>
+      </div>
+      <p class="cl-results-note">
+        Los resultados deben proceder de señales verificadas. No equivalen a operaciones ejecutadas.
+      </p>
+    </section>
 
-  <h2>
-   Monitor de señales
-   <span id="engineState">INICIANDO</span>
-  </h2>
+    <section id="clScalpingResults" class="cl-module">
+      <h2>⚡ Resultados de scalping</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Activo</th>
+              <th>Evaluadas</th>
+              <th>TP 50%</th>
+              <th>TP 100%</th>
+              <th>TP 200%</th>
+              <th>Stop</th>
+              <th>Aciertos</th>
+            </tr>
+          </thead>
+          <tbody id="clScalpingResultsBody">
+            <tr>
+              <td colspan="7">Esperando resultados verificables...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
 
-  <div class="signal-grid">
-
-   <article class="signal-card">
-
-    <h3>BTC-USDT / 5m</h3>
-
-    <strong id="state5">
-     Esperando datos
-    </strong>
-
-    <p id="detail5">—</p>
-
-    <small id="metrics5">—</small>
-
-   </article>
-
-   <article class="signal-card">
-
-    <h3>BTC-USDT / 15m</h3>
-
-    <strong id="state15">
-     Esperando datos
-    </strong>
-
-    <p id="detail15">—</p>
-
-    <small id="metrics15">—</small>
-
-   </article>
-
+    <section id="historySection" class="history-section">
+      <h2>Historial de señales</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Hora</th>
+              <th>TF</th>
+              <th>Activo</th>
+              <th>Señal</th>
+              <th>Precio</th>
+              <th>Motivo</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody id="signalLog">
+            <tr>
+              <td colspan="7">Sin señales registradas.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
   </div>
 
- </section>
-
-</div>
-
-<!-- =====================================
- RESULTADOS
-===================================== -->
-
-<div
- id="clScreenResults"
- class="cl-screen"
- data-cl-screen="results"
->
-
- <div class="cl-screen-title">
-
-  <h1>📊 Resultados y efectividad</h1>
-
-  <p>
-   Historial y estadísticas de señales verificadas.
-  </p>
-
- </div>
-
- <section
-  id="clResultsStats"
-  class="cl-module"
- >
-
-  <h2>Resumen de efectividad</h2>
-
-  <div class="cl-stats">
-
-   <div class="cl-stat">
-    <span>Señales</span>
-    <strong id="clTotalSignals">—</strong>
-   </div>
-
-   <div class="cl-stat">
-    <span>Objetivos</span>
-    <strong id="clTargetsHit">—</strong>
-   </div>
-
-   <div class="cl-stat">
-    <span>Stops</span>
-    <strong id="clStopsHit">—</strong>
-   </div>
-
-   <div class="cl-stat">
-    <span>Efectividad</span>
-    <strong id="clWinRate">—</strong>
-   </div>
-
-  </div>
-
-  <p class="cl-results-note">
-   Los resultados deben proceder de señales verificadas.
-   No equivalen a operaciones ejecutadas.
-  </p>
-
- </section>
-
- <section
-  id="clScalpingResults"
-  class="cl-module"
- >
-
-  <h2>⚡ Resultados de scalping</h2>
-
-  <div class="table-wrap">
-
-   <table>
-
-    <thead>
-     <tr>
-      <th>Activo</th>
-      <th>Evaluadas</th>
-      <th>TP 50%</th>
-      <th>TP 100%</th>
-      <th>TP 200%</th>
-      <th>Stop</th>
-      <th>Aciertos</th>
-     </tr>
-    </thead>
-
-    <tbody id="clScalpingResultsBody">
-
-     <tr>
-      <td colspan="7">
-       Esperando resultados verificables...
-      </td>
-     </tr>
-
-    </tbody>
-
-   </table>
-
-  </div>
-
- </section>
-
- <section
-  id="historySection"
-  class="history-section"
- >
-
-  <h2>Historial de señales</h2>
-
-  <div class="table-wrap">
-
-   <table>
-
-    <thead>
-     <tr>
-      <th>Hora</th>
-      <th>TF</th>
-      <th>Activo</th>
-      <th>Señal</th>
-      <th>Precio</th>
-      <th>Motivo</th>
-      <th>Estado</th>
-     </tr>
-    </thead>
-
-    <tbody id="signalLog">
-
-     <tr>
-      <td colspan="7">
-       Sin señales registradas.
-      </td>
-     </tr>
-
-    </tbody>
-
-   </table>
-
-  </div>
-
- </section>
-
-</div>
-
-<footer class="cl-notice">
- CRYPTOLEXUZ PRO · Análisis informativo.
- No ejecuta operaciones ni garantiza resultados.
-</footer>
-
+  <footer class="cl-notice">
+    CRYPTOLEXUZ PRO · Análisis informativo. No ejecuta operaciones ni garantiza resultados.
+  </footer>
 </main>
 
-<!-- =====================================
- NAVEGACIÓN INFERIOR
-===================================== -->
-
-<nav
- class="cl-bottom-nav"
- aria-label="Navegación principal"
->
-
- <button
-  class="cl-nav-button active"
-  type="button"
-  data-cl-tab="markets"
-  aria-pressed="true"
- >
-  <span class="cl-nav-icon">📋</span>
-  Mercados
- </button>
-
- <button
-  class="cl-nav-button"
-  type="button"
-  data-cl-tab="charts"
-  aria-pressed="false"
- >
-  <span class="cl-nav-icon">📈</span>
-  Gráficas
- </button>
-
- <button
-  class="cl-nav-button"
-  type="button"
-  data-cl-tab="scanner"
-  aria-pressed="false"
- >
-  <span class="cl-nav-icon">📡</span>
-  Escáner
- </button>
-
- <button
-  class="cl-nav-button"
-  type="button"
-  data-cl-tab="results"
-  aria-pressed="false"
- >
-  <span class="cl-nav-icon">📊</span>
-  Resultados
- </button>
-
+<nav class="cl-bottom-nav" aria-label="Navegación principal">
+  <button class="cl-nav-button active" type="button" data-cl-tab="markets" aria-pressed="true">
+    <span class="cl-nav-icon">📋</span>
+    Mercados
+  </button>
+  <button class="cl-nav-button" type="button" data-cl-tab="charts" aria-pressed="false">
+    <span class="cl-nav-icon">📈</span>
+    Gráficas
+  </button>
+  <button class="cl-nav-button" type="button" data-cl-tab="scanner" aria-pressed="false">
+    <span class="cl-nav-icon">📡</span>
+    Escáner
+  </button>
+  <button class="cl-nav-button" type="button" data-cl-tab="results" aria-pressed="false">
+    <span class="cl-nav-icon">📊</span>
+    Resultados
+  </button>
 </nav>
 
-<!-- =====================================
- MODAL DE CONFIGURACIÓN
-===================================== -->
-
-<div
- id="clSettingsOverlay"
- class="cl-settings-overlay"
- hidden
->
-
- <div
-  class="cl-settings-sheet"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="clSettingsTitle"
-  tabindex="-1"
- >
-
-  <div class="cl-settings-head">
-
-   <button
-    id="clSettingsBack"
-    type="button"
-    aria-label="Volver"
-   >‹</button>
-
-   <button
-    id="clSettingsClose"
-    type="button"
-    aria-label="Cerrar ajustes"
-   >✕</button>
-
+<div id="clSettingsOverlay" class="cl-settings-overlay" hidden>
+  <div
+    class="cl-settings-sheet"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="clSettingsTitle"
+    tabindex="-1"
+  >
+    <div class="cl-settings-head">
+      <button id="clSettingsBack" type="button" aria-label="Volver">‹</button>
+      <button id="clSettingsClose" type="button" aria-label="Cerrar ajustes">✕</button>
+    </div>
+    <div id="clSettingsContent"></div>
   </div>
-
-  <div id="clSettingsContent"></div>
-
- </div>
-
 </div>
-
-<!-- =====================================
- CONTROLADOR INDEX V34
-===================================== -->
 
 <script>
 "use strict";
 
 (() => {
+  if (window.__CL_INDEX_V34__) return;
+  window.__CL_INDEX_V34__ = true;
 
-if(window.__CL_INDEX_V34__) return;
-window.__CL_INDEX_V34__ = true;
+  const $ = id => document.getElementById(id);
+  const qa = selector => Array.from(document.querySelectorAll(selector));
 
-const $ = id => document.getElementById(id);
+  const SETTINGS_KEY = "cryptolexuz-chart-settings-v1";
+  const FAVORITES_KEY = "cl-favorites";
 
-const qa = selector =>
- Array.from(document.querySelectorAll(selector));
+  const assets = [
+    { id: "BTC-USDT", name: "BTCUSDT", icon: "₿" },
+    { id: "ETH-USDT", name: "ETHUSDT", icon: "Ξ" },
+    { id: "BNB-USDT", name: "BNBUSDT", icon: "⬡" },
+    { id: "SOL-USDT", name: "SOLUSDT", icon: "◎" },
+    { id: "XRP-USDT", name: "XRPUSDT", icon: "✕" },
+    { id: "DOGE-USDT", name: "DOGEUSDT", icon: "Ð" },
+    { id: "NCCOGOLD2USD-USDT", name: "GOLD (XAU)", icon: "◆", commodity: true },
+    { id: "NCCO1OILWTI2USD-USDT", name: "OIL WTI", icon: "◉", commodity: true }
+  ];
 
-const SETTINGS_KEY =
- "cryptolexuz-chart-settings-v1";
+  const TIMEFRAMES = [
+    "1m", "3m", "5m", "15m", "30m",
+    "1h", "2h", "4h", "6h", "8h",
+    "12h", "1d", "3d", "1w", "1M"
+  ];
 
-const FAVORITES_KEY = "cl-favorites";
+  const defaultMA = [
+    { period: 55, color: "#ff9a35", width: 2, enabled: true },
+    { period: 100, color: "#ff476c", width: 3, enabled: false },
+    { period: 200, color: "#36c5ff", width: 2, enabled: false }
+  ];
 
-const assets = [
- {
-  id:"BTC-USDT",
-  name:"BTCUSDT",
-  icon:"₿"
- },
- {
-  id:"ETH-USDT",
-  name:"ETHUSDT",
-  icon:"Ξ"
- },
- {
-  id:"BNB-USDT",
-  name:"BNBUSDT",
-  icon:"⬡"
- },
- {
-  id:"SOL-USDT",
-  name:"SOLUSDT",
-  icon:"◎"
- },
- {
-  id:"XRP-USDT",
-  name:"XRPUSDT",
-  icon:"✕"
- },
- {
-  id:"DOGE-USDT",
-  name:"DOGEUSDT",
-  icon:"Ð"
- },
- {
-  id:"NCCOGOLD2USD-USDT",
-  name:"GOLD (XAU)",
-  icon:"◆",
-  commodity:true
- },
- {
-  id:"NCCO1OILWTI2USD-USDT",
-  name:"OIL WTI",
-  icon:"◉",
-  commodity:true
- }
-];
+  const defaultEMA = [
+    { period: 21, color: "#bb52ff", width: 2, enabled: true }
+  ];
 
-const TIMEFRAMES = [
- "1m","3m","5m","15m","30m",
- "1h","2h","4h","6h","8h",
- "12h","1d","3d","1w","1M"
-];
+  const availableIndicators = new Set([
+    "MA", "EMA", "VOL", "RSI", "ADX", "AO", "FVG", "IFVG"
+  ]);
 
-const defaultMA = [
- {
-  period:55,
-  color:"#ff9a35",
-  width:2,
-  enabled:true
- },
- {
-  period:100,
-  color:"#ff476c",
-  width:3,
-  enabled:false
- },
- {
-  period:200,
-  color:"#36c5ff",
-  width:2,
-  enabled:false
- }
-];
-
-const defaultEMA = [
- {
-  period:21,
-  color:"#bb52ff",
-  width:2,
-  enabled:true
- }
-];
-
-const availableIndicators = new Set([
- "MA",
- "EMA",
- "VOL",
- "RSI",
- "ADX",
- "AO",
- "FVG",
- "IFVG"
-]);
-
-const indicatorMap = {
- rsi:"RSI",
- adx:"ADX",
- ao:"AO",
- volume:"VOL",
- fvg:"FVG",
- ifvg:"IFVG",
- liquidity:"liquidity",
- sweeps:"sweeps",
- support:"support",
- resistance:"resistance"
-};
-
-let screen = "markets";
-let marketFilter = "all";
-
-let organizing = false;
-let organizeQueued = false;
-let resizeQueued = false;
-
-let settingsPage = "main";
-let editName = "MA";
-let lastFocus = null;
-
-let favorites = [];
-
-try {
- const saved = JSON.parse(
-  localStorage.getItem(FAVORITES_KEY) || "[]"
- );
-
- if(Array.isArray(saved)) {
-  favorites = saved.filter(
-   item => typeof item === "string"
-  );
- }
-} catch(error) {
- console.warn("Favoritos:",error);
-}
-
-function saveFavorites() {
- try {
-  localStorage.setItem(
-   FAVORITES_KEY,
-   JSON.stringify(favorites)
-  );
- } catch(error) {
-  console.warn("Guardar favoritos:",error);
- }
-}
-
-/* =====================================
- CONFIGURACIÓN
-===================================== */
-
-function cloneLines(lines) {
- return lines.map(line => ({...line}));
-}
-
-function normalizeLines(lines,fallback) {
- if(!Array.isArray(lines) || !lines.length) {
-  return cloneLines(fallback);
- }
-
- return lines.slice(0,12).map(line => ({
-  period:Math.max(
-   1,
-   Math.min(
-    1000,
-    Math.round(Number(line.period) || 21)
-   )
-  ),
-  color:/^#[0-9a-f]{6}$/i.test(line.color)
-   ? line.color
-   : "#bb52ff",
-  width:Math.max(
-   1,
-   Math.min(5,Number(line.width) || 2)
-  ),
-  enabled:line.enabled !== false
- }));
-}
-
-const defaults = {
- maLines:cloneLines(defaultMA),
- emaLines:cloneLines(defaultEMA),
- height:360,
- options:{
-  countdown:true,
-  multiperiod:true,
-  bidask:false
- },
- indicators:{
-  MA:true,
-  EMA:true,
-  VOL:true,
-  RSI:true,
-  ADX:false,
-  AO:false,
-  FVG:true,
-  IFVG:false,
-  liquidity:false,
-  sweeps:false,
-  support:false,
-  resistance:false
- }
-};
-
-function mergeSettings(saved,base=defaults) {
- if(!saved || typeof saved !== "object") {
-  return {
-   ...base,
-   maLines:cloneLines(base.maLines),
-   emaLines:cloneLines(base.emaLines),
-   options:{...base.options},
-   indicators:{...base.indicators}
+  const indicatorMap = {
+    rsi: "RSI",
+    adx: "ADX",
+    ao: "AO",
+    volume: "VOL",
+    vol: "VOL",
+    fvg: "FVG",
+    ifvg: "IFVG",
+    liquidity: "liquidity",
+    sweeps: "sweeps",
+    support: "support",
+    resistance: "resistance"
   };
- }
 
- const legacy = Array.isArray(saved.lines)
-  ? saved.lines
-  : [];
-
- const ma = Array.isArray(saved.maLines)
-  ? saved.maLines
-  : legacy.length
-   ? legacy.filter(
-      line => Number(line.period) !== 21
-     )
-   : base.maLines;
-
- const ema = Array.isArray(saved.emaLines)
-  ? saved.emaLines
-  : legacy.length
-   ? legacy.filter(
-      line => Number(line.period) === 21
-     )
-   : base.emaLines;
-
- return {
-  ...base,
-  ...saved,
-  maLines:normalizeLines(ma,defaultMA),
-  emaLines:normalizeLines(ema,defaultEMA),
-  options:{
-   ...base.options,
-   ...(saved.options || {})
-  },
-  indicators:{
-   ...base.indicators,
-   ...(saved.indicators || {})
-  }
- };
-}
-
-function readSettings() {
- try {
-  return mergeSettings(
-   JSON.parse(
-    localStorage.getItem(SETTINGS_KEY) || "null"
-   )
-  );
- } catch(error) {
-  console.warn("Leer ajustes:",error);
-  return mergeSettings(null);
- }
-}
-
-let prefs = readSettings();
-
-function persist() {
- try {
-  localStorage.setItem(
-   SETTINGS_KEY,
-   JSON.stringify(prefs)
-  );
- } catch(error) {
-  console.warn("Guardar ajustes:",error);
- }
-}
-
-function notifySettings() {
- window.dispatchEvent(
-  new CustomEvent(
-   "cryptolexuz:indicator-settings-change",
-   {
-    detail:{
-     settings:prefs
-    }
-   }
-  )
- );
-}
-
-function commitSettings() {
- persist();
- syncPanels();
- notifySettings();
-}
-
-/* =====================================
- NAVEGACIÓN
-===================================== */
-
-function setOpen(open) {
- $("sidebar")?.classList.toggle(
-  "is-open",
-  open
- );
-
- const backdrop = $("menuBackdrop");
-
- if(backdrop) {
-  backdrop.hidden = !open;
- }
-
- $("menuToggle")?.setAttribute(
-  "aria-expanded",
-  String(open)
- );
-
- document.body.classList.toggle(
-  "menu-open",
-  open
- );
-}
-
-function refreshCharts() {
- if(resizeQueued) return;
-
- resizeQueued = true;
-
- requestAnimationFrame(() => {
-  resizeQueued = false;
-
-  if(screen !== "charts") return;
-  if($("clGraphContent")?.hidden) return;
+  let screen = "markets";
+  let marketFilter = "all";
+  let organizing = false;
+  let organizeQueued = false;
+  let resizeQueued = false;
+  let settingsPage = "main";
+  let editName = "MA";
+  let lastFocus = null;
+  let favorites = [];
 
   try {
-   window.CryptolexuzChart?.resize?.();
-   window.CryptolexuzRangeBoxes?.redraw?.();
-   window.CryptolexuzFibonacci?.redraw?.();
-   window.CryptolexuzVolumeProfile?.redraw?.();
-  } catch(error) {
-   console.warn("Redimensionar gráfica:",error);
-  }
- });
-}
-
-function activateTab(tab,target) {
- const valid = [
-  "markets",
-  "charts",
-  "scanner",
-  "results"
- ];
-
- if(!valid.includes(tab)) return;
-
- screen = tab;
-
- qa("[data-cl-screen]").forEach(element => {
-  element.classList.toggle(
-   "cl-active",
-   element.dataset.clScreen === tab
-  );
- });
-
- qa("[data-cl-tab]").forEach(button => {
-  const active = button.dataset.clTab === tab;
-
-  button.classList.toggle("active",active);
-
-  button.setAttribute(
-   "aria-pressed",
-   String(active)
-  );
- });
-
- setOpen(false);
-
- requestAnimationFrame(() => {
-  if(target && $(target)) {
-   $(target).scrollIntoView({
-    block:"start"
-   });
-  } else {
-   window.scrollTo({
-    top:0,
-    behavior:"auto"
-   });
-  }
-
-  if(tab === "charts") {
-   refreshCharts();
-  }
- });
-
- window.dispatchEvent(
-  new CustomEvent(
-   "cryptolexuz:screen-change",
-   {
-    detail:{screen:tab}
-   }
-  )
- );
-}
-
-window.CryptolexuzNavigation = {
- activateTab,
- getScreen:() => screen
-};
-
-/* =====================================
- MÓDULOS EXTERNOS
-===================================== */
-
-function move(id,hostId) {
- const element = $(id);
- const host = $(hostId);
-
- if(
-  element &&
-  host &&
-  element !== host &&
-  !host.contains(element) &&
-  !element.contains(host)
- ) {
-  host.appendChild(element);
- }
-}
-
-function organizeModules() {
- if(organizing) return;
-
- organizing = true;
-
- try {
-  move("clScanner","clScannerHost");
-
-  move("fibToolbar","clFibonacciHost");
-  move("fibPanel","clFibonacciHost");
-
-  for(const id of [
-   "clQuickScalpPanel",
-   "clQuickScalpSection",
-   "clScalpingRapido",
-   "clQuickScalpDashboard"
-  ]) {
-   if($(id)) {
-    move(id,"clQuickScalpHost");
-    break;
-   }
-  }
-
-  for(const id of [
-   "rangeBoxesToolbar",
-   "rangeBoxesPanel",
-   "clRangeToolbar",
-   "clRangePanel",
-   "clRangeControls"
-  ]) {
-   move(id,"clRangeBoxesControls");
-  }
-
-  move(
-   "clPatternResults",
-   "clPatternsReadout"
-  );
-
-  for(const id of [
-   "clMarketTrend",
-   "clMarketVolumeProfile",
-   "clMarketDepth"
-  ]) {
-   move(id,"clMercadoProHost");
-  }
-
-  move("clAuditV4","clScreenResults");
-
- } finally {
-  organizing = false;
- }
-}
-
-function scheduleOrganize() {
- if(organizeQueued) return;
-
- organizeQueued = true;
-
- requestAnimationFrame(() => {
-  organizeQueued = false;
-  organizeModules();
- });
-}
-
-/* =====================================
- MERCADOS
-===================================== */
-
-function selectAsset(asset) {
- const symbol = $("symbol");
- const market = $("market");
- const exchange = $("exchange");
-
- if(!symbol) return;
-
- /*
-  Cambiar primero los valores y emitir
-  un único evento de cambio de símbolo.
-  Esto evita múltiples recargas sucesivas.
- */
-
- if(asset.commodity) {
-  if(exchange) {
-   exchange.value = "bingx";
-  }
-
-  if(market) {
-   market.value = "perpetual";
-  }
-
- } else if(
-  market &&
-  ["spot","perpetual"].includes(marketFilter)
- ) {
-  market.value = marketFilter;
- }
-
- symbol.value = asset.id;
-
- syncTimeframes();
-
- symbol.dispatchEvent(
-  new Event("change",{bubbles:true})
- );
-
- activateTab("charts");
-}
-
-function renderMarkets() {
- const host = $("clMarketList");
- if(!host) return;
-
- const term = (
-  $("clMarketSearch")?.value || ""
- ).trim().toLowerCase();
-
- const fragment =
-  document.createDocumentFragment();
-
- let count = 0;
-
- for(const asset of assets) {
-  if(
-   !asset.name.toLowerCase().includes(term) &&
-   !asset.id.toLowerCase().includes(term)
-  ) {
-   continue;
-  }
-
-  if(
-   marketFilter === "favorites" &&
-   !favorites.includes(asset.id)
-  ) {
-   continue;
-  }
-
-  if(
-   marketFilter === "commodities" &&
-   !asset.commodity
-  ) {
-   continue;
-  }
-
-  if(
-   ["spot","perpetual"].includes(marketFilter) &&
-   asset.commodity
-  ) {
-   continue;
-  }
-
-  const row = document.createElement("div");
-
-  row.className = "cl-market-row";
-  row.dataset.symbol = asset.id;
-
-  const star = document.createElement("button");
-
-  star.type = "button";
-  star.className = "cl-favorite";
-
-  const favorite =
-   favorites.includes(asset.id);
-
-  star.classList.toggle(
-   "is-favorite",
-   favorite
-  );
-
-  star.textContent = favorite ? "★" : "☆";
-
-  star.setAttribute(
-   "aria-label",
-   (favorite ? "Quitar de" : "Agregar a") +
-   " favoritos: " + asset.name
-  );
-
-  star.addEventListener("click",() => {
-   favorites = favorites.includes(asset.id)
-    ? favorites.filter(id => id !== asset.id)
-    : [...favorites,asset.id];
-
-   saveFavorites();
-   renderMarkets();
-  });
-
-  const open = document.createElement("button");
-
-  open.type = "button";
-  open.className = "cl-market-open";
-
-  open.setAttribute(
-   "aria-label",
-   "Abrir gráfica de " + asset.name
-  );
-
-  const name = document.createElement("span");
-  name.className = "cl-asset-name";
-
-  const icon = document.createElement("span");
-  icon.className = "cl-asset-icon";
-  icon.textContent = asset.icon;
-
-  const label = document.createElement("span");
-  label.className = "cl-asset-label";
-
-  const strong = document.createElement("strong");
-  strong.textContent = asset.name;
-
-  const small = document.createElement("small");
-
-  small.textContent = asset.commodity
-   ? "Commodities · Futuros"
-   : marketFilter === "spot"
-    ? "Spot"
-    : marketFilter === "perpetual"
-     ? "Perpetuos"
-     : "Perpetuos / Spot";
-
-  label.append(strong,small);
-  name.append(icon,label);
-
-  const price = document.createElement("span");
-  price.className = "cl-market-price";
-  price.textContent = "—";
-
-  const change = document.createElement("span");
-  change.className = "cl-market-change";
-  change.textContent = "—%";
-
-  open.append(name,price,change);
-
-  open.addEventListener(
-   "click",
-   () => selectAsset(asset)
-  );
-
-  row.append(star,open);
-  fragment.appendChild(row);
-
-  count++;
- }
-
- host.replaceChildren(fragment);
-
- const status = $("clMarketListStatus");
-
- if(status) {
-  status.textContent = count
-   ? "Consultando precios reales de mercado..."
-   : "No se encontraron activos.";
- }
-
- window.dispatchEvent(
-  new CustomEvent(
-   "cryptolexuz:markets-rendered",
-   {
-    detail:{
-     filter:marketFilter,
-     count
+    const saved = JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]");
+    if (Array.isArray(saved)) {
+      favorites = saved.filter(item => typeof item === "string");
     }
-   }
-  )
- );
-}
-
-/* =====================================
- TEMPORALIDADES
-===================================== */
-
-function ensureTimeframes() {
- const interval = $("interval");
- if(!interval) return;
-
- const previous = interval.value || "15m";
-
- for(const tf of TIMEFRAMES) {
-  if(
-   !Array.from(interval.options).some(
-    option => option.value === tf
-   )
-  ) {
-   const option = document.createElement("option");
-   option.value = tf;
-   option.textContent = tf;
-   interval.appendChild(option);
+  } catch (error) {
+    console.warn("Favoritos:", error);
   }
- }
 
- interval.value = TIMEFRAMES.includes(previous)
-  ? previous
-  : "15m";
-}
-
-function syncTimeframes() {
- const interval = $("interval");
- if(!interval) return;
-
- qa("#clMainTimeframes [data-tf]").forEach(
-  button => {
-   const active =
-    button.dataset.tf === interval.value;
-
-   button.classList.toggle(
-    "active",
-    active
-   );
-
-   button.setAttribute(
-    "aria-pressed",
-    String(active)
-   );
+  function saveFavorites() {
+    try {
+      localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+    } catch (error) {
+      console.warn("Guardar favoritos:", error);
+    }
   }
- );
 
- const title = $("chartTitle");
-
- if(title) {
-  title.textContent =
-   ($("symbol")?.value || "BTC-USDT") +
-   " · " +
-   interval.value;
- }
-}
-
-function changeTimeframe(tf) {
- const interval = $("interval");
-
- if(!interval) return;
- if(!TIMEFRAMES.includes(tf)) return;
-
- if(
-  !Array.from(interval.options).some(
-   option => option.value === tf
-  )
- ) {
-  ensureTimeframes();
- }
-
- if(interval.value !== tf) {
-  interval.value = tf;
-
-  /*
-   APP.JS escucha el cambio del selector
-   y actualiza los datos del gráfico.
-  */
-
-  interval.dispatchEvent(
-   new Event("change",{bubbles:true})
-  );
- }
-
- syncTimeframes();
-}
-
-/* =====================================
- INDICADORES
-===================================== */
-
-function getLineState(name) {
- if(/^ma\d+$/.test(name)) {
-  const period = Number(name.slice(2));
-
-  return prefs.indicators.MA !== false &&
-   prefs.maLines.some(
-    line =>
-     Number(line.period) === period &&
-     line.enabled
-   );
- }
-
- if(/^ema\d+$/.test(name)) {
-  const period = Number(name.slice(3));
-
-  return prefs.indicators.EMA !== false &&
-   prefs.emaLines.some(
-    line =>
-     Number(line.period) === period &&
-     line.enabled
-   );
- }
-
- const key = indicatorMap[name];
-
- return key
-  ? Boolean(prefs.indicators[key])
-  : false;
-}
-
-function syncIndicatorButtons() {
- qa("#indicatorButtons [data-indicator]").forEach(
-  button => {
-   const active = getLineState(
-    button.dataset.indicator
-   );
-
-   button.classList.toggle(
-    "active",
-    active
-   );
-
-   button.setAttribute(
-    "aria-pressed",
-    String(active)
-   );
+  function cloneLines(lines) {
+    return lines.map(line => ({ ...line }));
   }
- );
-}
 
-function syncPanels() {
- for(const [key,id] of [
-  ["RSI","rsiSection"],
-  ["ADX","adxSection"],
-  ["AO","aoSection"]
- ]) {
-  const panel = $(id);
-
-  if(panel) {
-   panel.hidden =
-    !Boolean(prefs.indicators[key]);
+  function normalizeLines(lines, fallback) {
+    if (!Array.isArray(lines) || !lines.length) {
+      return cloneLines(fallback);
+    }
+    return lines.slice(0, 12).map(line => ({
+      period: Math.max(1, Math.min(1000, Math.round(Number(line.period) || 21))),
+      color: /^#[0-9a-f]{6}$/i.test(line.color) ? line.color : "#bb52ff",
+      width: Math.max(1, Math.min(5, Number(line.width) || 2)),
+      enabled: line.enabled !== false
+    }));
   }
- }
 
- const volume = $("volumeChart")
-  ?.closest(".volume-section");
-
- if(volume) {
-  volume.hidden =
-   prefs.indicators.VOL === false;
- }
-
- syncIndicatorButtons();
- refreshCharts();
-}
-
-function toggleLine(key,period,group) {
- const lines = prefs[key];
-
- if(!Array.isArray(lines)) return false;
-
- let line = lines.find(
-  item => Number(item.period) === period
- );
-
- if(!line) {
-  line = {
-   period,
-   color:group === "EMA"
-    ? "#bb52ff"
-    : period === 55
-     ? "#ff9a35"
-     : period === 100
-      ? "#ff476c"
-      : "#36c5ff",
-   width:2,
-   enabled:false
+  const defaults = {
+    maLines: cloneLines(defaultMA),
+    emaLines: cloneLines(defaultEMA),
+    height: 360,
+    options: { countdown: true, multiperiod: true, bidask: false },
+    indicators: {
+      MA: true, EMA: true, VOL: true, RSI: true,
+      ADX: false, AO: false, FVG: true, IFVG: false,
+      liquidity: false, sweeps: false, support: false, resistance: false
+    }
   };
 
-  lines.push(line);
- }
-
- const currentlyVisible =
-  prefs.indicators[group] !== false &&
-  Boolean(line.enabled);
-
- line.enabled = !currentlyVisible;
-
- if(line.enabled) {
-  prefs.indicators[group] = true;
- }
-
- return true;
-}
-
-function toggleIndicatorLocal(name) {
- let changed = false;
-
- if(name === "ema21") {
-  changed = toggleLine(
-   "emaLines",
-   21,
-   "EMA"
-  );
-
- } else if(/^ma(55|100|200)$/.test(name)) {
-  changed = toggleLine(
-   "maLines",
-   Number(name.slice(2)),
-   "MA"
-  );
-
- } else {
-  const key = indicatorMap[name];
-
-  if(key) {
-   prefs.indicators[key] =
-    !Boolean(prefs.indicators[key]);
-
-   changed = true;
-  }
- }
-
- if(!changed) return;
-
- commitSettings();
-}
-
-/*
- IMPORTANTE:
-
- Los clics de [data-indicator] son
- administrados por APP.JS V25.
-
- Este controlador no instala otro
- listener de clic para esos botones.
-
- Así se evita activar y desactivar
- el mismo indicador dos veces.
-*/
-
-/* =====================================
- AJUSTES
-===================================== */
-
-const overlay = $("clSettingsOverlay");
-const content = $("clSettingsContent");
-
-function el(tag,value) {
- const element = document.createElement(tag);
-
- if(value !== undefined) {
-  element.textContent = String(value);
- }
-
- return element;
-}
-
-function button(
- value,
- callback,
- cls="cl-settings-row"
-) {
- const element = el("button",value);
-
- element.type = "button";
- element.className = cls;
-
- element.addEventListener(
-  "click",
-  callback
- );
-
- return element;
-}
-
-function checkbox(
- value,
- checked,
- callback
-) {
- const label = el("label");
- label.className = "cl-settings-check";
-
- const input = el("input");
-
- input.type = "checkbox";
- input.checked = checked;
-
- input.addEventListener("change",() => {
-  callback(input.checked);
- });
-
- label.append(
-  input,
-  document.createTextNode(value)
- );
-
- return label;
-}
-
-function openSettings(page="main") {
- if(!overlay || !content) return;
-
- if(overlay.hidden) {
-  lastFocus = document.activeElement;
- }
-
- settingsPage = page;
- overlay.hidden = false;
-
- document.body.classList.add(
-  "cl-settings-open"
- );
-
- content.replaceChildren();
-
- $("clSettingsBack").hidden =
-  page === "main";
-
- if(page === "main") {
-  settingsMain();
-
- } else if(page === "indicators") {
-  settingsIndicators();
-
- } else if(page === "edit") {
-  settingsEdit();
-
- } else {
-  settingsOther();
- }
-
- const heading = content.querySelector("h2");
-
- if(heading) {
-  heading.id = "clSettingsTitle";
- }
-
- const sheet = overlay.querySelector(
-  ".cl-settings-sheet"
- );
-
- if(sheet) {
-  sheet.scrollTop = 0;
-
-  sheet.focus({
-   preventScroll:true
-  });
- }
-}
-
-function closeSettings() {
- if(overlay) {
-  overlay.hidden = true;
- }
-
- document.body.classList.remove(
-  "cl-settings-open"
- );
-
- persist();
- notifySettings();
-
- if(
-  lastFocus &&
-  typeof lastFocus.focus === "function"
- ) {
-  lastFocus.focus({
-   preventScroll:true
-  });
- }
-
- lastFocus = null;
-}
-
-function settingsMain() {
- content.append(
-  el("h2","Configuración del gráfico")
- );
-
- const grid = el("div");
- grid.className = "cl-settings-grid";
-
- for(const [name,icon,page] of [
-  ["Indicadores","▧","indicators"],
-  ["Dibujo","✎","drawing"],
-  ["Interfaz","⚙","interface"],
-  ["Guía de velas","▣","guide"]
- ]) {
-  const tile = button(
-   name,
-   () => openSettings(page),
-   "cl-settings-tile"
-  );
-
-  tile.prepend(el("span",icon));
-  grid.append(tile);
- }
-
- content.append(
-  grid,
-  el("h3","Visualización del gráfico")
- );
-
- for(const [name,key] of [
-  ["Cuenta regresiva","countdown"],
-  ["Cambios multiperíodo","multiperiod"],
-  ["Precios de compra y venta","bidask"]
- ]) {
-  content.append(
-   checkbox(
-    name,
-    Boolean(prefs.options[key]),
-    value => {
-     prefs.options[key] = value;
-     commitSettings();
+  function mergeSettings(saved, base = defaults) {
+    if (!saved || typeof saved !== "object") {
+      return {
+        ...base,
+        maLines: cloneLines(base.maLines),
+        emaLines: cloneLines(base.emaLines),
+        options: { ...base.options },
+        indicators: { ...base.indicators }
+      };
     }
-   )
-  );
- }
 
- content.append(
-  el("h3","Altura de la gráfica")
- );
+    const legacy = Array.isArray(saved.lines) ? saved.lines : [];
+    const ma = Array.isArray(saved.maLines)
+      ? saved.maLines
+      : legacy.length
+        ? legacy.filter(line => Number(line.period) !== 21)
+        : base.maLines;
 
- const range = el("input");
+    const ema = Array.isArray(saved.emaLines)
+      ? saved.emaLines
+      : legacy.length
+        ? legacy.filter(line => Number(line.period) === 21)
+        : base.emaLines;
 
- range.type = "range";
- range.min = "240";
- range.max = "600";
- range.step = "20";
- range.value = prefs.height;
- range.style.width = "100%";
-
- const heightText = el(
-  "p",
-  String(prefs.height) + " px"
- );
-
- heightText.className =
-  "cl-settings-hint";
-
- range.addEventListener("input",() => {
-  heightText.textContent =
-   range.value + " px";
- });
-
- range.addEventListener("change",() => {
-  prefs.height = Number(range.value);
-
-  if($("chart")) {
-   $("chart").style.height =
-    prefs.height + "px";
+    return {
+      ...base,
+      ...saved,
+      height: Math.max(240, Math.min(600, Number(saved.height) || base.height || 360)),
+      maLines: normalizeLines(ma, defaultMA),
+      emaLines: normalizeLines(ema, defaultEMA),
+      options: { ...base.options, ...(saved.options || {}) },
+      indicators: { ...base.indicators, ...(saved.indicators || {}) }
+    };
   }
 
-  commitSettings();
- });
-
- content.append(
-  range,
-  heightText,
-  button(
-   "Guardar",
-   closeSettings,
-   "cl-settings-save"
-  )
- );
-}
-
-function settingsIndicators() {
- content.append(
-  el("h2","Indicadores"),
-  el("h3","Principal")
- );
-
- for(const name of [
-  "MA",
-  "EMA",
-  "BOLL",
-  "SAR",
-  "AVL",
-  "LSR",
-  "FVG",
-  "IFVG"
- ]) {
-  indicatorRow(name);
- }
-
- content.append(
-  el("h3","Subimagen")
- );
-
- for(const name of [
-  "VOL",
-  "MACD",
-  "KDJ",
-  "RSI",
-  "WR",
-  "CCI",
-  "SKDJ",
-  "ADX",
-  "AO",
-  "Squeeze"
- ]) {
-  indicatorRow(name);
- }
-
- const note = el(
-  "p",
-  "Los indicadores pendientes no activan cálculos inexistentes."
- );
-
- note.className = "cl-settings-hint";
-
- content.append(note);
-}
-
-function indicatorRow(name) {
- const available =
-  availableIndicators.has(name);
-
- const active =
-  Boolean(prefs.indicators[name]);
-
- const row = button(
-  name,
-  () => {
-   editName = name;
-   openSettings("edit");
-  },
-  "cl-settings-indicator"
- );
-
- const label = el("span",name);
-
- label.className =
-  "cl-settings-indicator-name";
-
- const status = el(
-  "span",
-  available
-   ? active
-    ? "Activo ›"
-    : "Configurar ›"
-   : "Pendiente"
- );
-
- status.className =
-  "cl-settings-indicator-status";
-
- row.replaceChildren(label,status);
-
- row.classList.toggle(
-  "is-unavailable",
-  !available
- );
-
- if(!available) {
-  row.disabled = true;
-  row.title =
-   "Indicador pendiente de implementación";
- }
-
- content.append(row);
-}
-
-function settingsEdit() {
- content.append(
-  el("h2",editName)
- );
-
- if(
-  editName === "MA" ||
-  editName === "EMA"
- ) {
-  const isEMA = editName === "EMA";
-
-  const key = isEMA
-   ? "emaLines"
-   : "maLines";
-
-  const defaultLines = isEMA
-   ? defaultEMA
-   : defaultMA;
-
-  const lines = prefs[key];
-
-  const grid = el("div");
-  grid.className = "cl-ma-grid";
-
-  for(const title of [
-   "Línea",
-   "Valor",
-   "Ancho",
-   "Color"
-  ]) {
-   grid.append(
-    el("small",title)
-   );
+  function readSettings() {
+    try {
+      return mergeSettings(JSON.parse(localStorage.getItem(SETTINGS_KEY) || "null"));
+    } catch (error) {
+      console.warn("Leer ajustes:", error);
+      return mergeSettings(null);
+    }
   }
 
-  lines.forEach((line,index) => {
-   const label = el(
-    "label",
-    editName + (index + 1)
-   );
+  let prefs = readSettings();
 
-   label.className = "cl-ma-label";
-
-   const enabled = el("input");
-
-   enabled.type = "checkbox";
-   enabled.checked =
-    Boolean(line.enabled);
-
-   enabled.addEventListener(
-    "change",
-    () => {
-     line.enabled = enabled.checked;
-
-     if(enabled.checked) {
-      prefs.indicators[editName] = true;
-     }
-
-     commitSettings();
+  function persist() {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(prefs));
+    } catch (error) {
+      console.warn("Guardar ajustes:", error);
     }
-   );
+  }
 
-   label.prepend(enabled);
+  function notifySettings() {
+    window.dispatchEvent(new CustomEvent("cryptolexuz:indicator-settings-change", {
+      detail: { settings: prefs }
+    }));
+  }
 
-   const period = el("input");
+  function commitSettings() {
+    persist();
+    syncPanels();
+    notifySettings();
+  }
 
-   period.type = "number";
-   period.min = "1";
-   period.max = "1000";
-   period.value = line.period;
+  function setOpen(open) {
+    $("sidebar")?.classList.toggle("is-open", open);
+    const backdrop = $("menuBackdrop");
+    if (backdrop) backdrop.hidden = !open;
+    $("menuToggle")?.setAttribute("aria-expanded", String(open));
+    document.body.classList.toggle("menu-open", open);
+  }
 
-   period.addEventListener(
-    "change",
-    () => {
-     line.period = Math.max(
-      1,
-      Math.min(
-       1000,
-       Math.round(
-        Number(period.value) || 21
-       )
-      )
-     );
+  function refreshCharts() {
+    if (resizeQueued) return;
+    resizeQueued = true;
 
-     period.value = line.period;
+    requestAnimationFrame(() => {
+      resizeQueued = false;
+      if (screen !== "charts" || $("clGraphContent")?.hidden) return;
+      try {
+        window.CryptolexuzChart?.resize?.();
+        window.CryptolexuzRangeBoxes?.redraw?.();
+        window.CryptolexuzFibonacci?.redraw?.();
+        window.CryptolexuzVolumeProfile?.redraw?.();
+      } catch (error) {
+        console.warn("Redimensionar gráfica:", error);
+      }
+    });
+  }
 
-     commitSettings();
-    }
-   );
+  function activateTab(tab, target) {
+    const valid = ["markets", "charts", "scanner", "results"];
+    if (!valid.includes(tab)) return;
 
-   const width = el("select");
+    screen = tab;
 
-   for(const value of [1,2,3,4,5]) {
-    const option = el(
-     "option",
-     value + " px"
-    );
-
-    option.value = value;
-    width.append(option);
-   }
-
-   width.value = String(line.width);
-
-   width.addEventListener(
-    "change",
-    () => {
-     line.width = Number(width.value);
-     commitSettings();
-    }
-   );
-
-   const color = el("input");
-
-   color.type = "color";
-
-   color.value =
-    /^#[0-9a-f]{6}$/i.test(line.color)
-     ? line.color
-     : "#bb52ff";
-
-   color.addEventListener(
-    "change",
-    () => {
-     line.color = color.value;
-     commitSettings();
-    }
-   );
-
-   grid.append(
-    label,
-    period,
-    width,
-    color
-   );
-  });
-
-  content.append(grid);
-
-  const actions = el("div");
-
-  actions.className =
-   "cl-settings-actions";
-
-  actions.append(
-   button("Restablecer",() => {
-    prefs[key] = cloneLines(defaultLines);
-
-    prefs.indicators[editName] = true;
-
-    commitSettings();
-    openSettings("edit");
-   }),
-
-   button("Agregar",() => {
-    if(prefs[key].length >= 12) return;
-
-    prefs[key].push({
-     period:isEMA ? 9 : 50,
-     color:isEMA
-      ? "#bb52ff"
-      : "#479eff",
-     width:2,
-     enabled:true
+    qa("[data-cl-screen]").forEach(element => {
+      element.classList.toggle("cl-active", element.dataset.clScreen === tab);
     });
 
-    prefs.indicators[editName] = true;
+    qa("[data-cl-tab]").forEach(button => {
+      const active = button.dataset.clTab === tab;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
 
+    setOpen(false);
+
+    requestAnimationFrame(() => {
+      if (target && $(target)) {
+        $(target).scrollIntoView({ block: "start" });
+      } else {
+        window.scrollTo({ top: 0, behavior: "auto" });
+      }
+
+      if (tab === "charts") {
+        refreshCharts();
+      }
+    });
+
+    window.dispatchEvent(new CustomEvent("cryptolexuz:screen-change", {
+      detail: { screen: tab }
+    }));
+  }
+
+  window.CryptolexuzNavigation = {
+    activateTab,
+    getScreen: () => screen
+  };
+
+  function move(id, hostId) {
+    const element = $(id);
+    const host = $(hostId);
+    if (element && host && element !== host && !host.contains(element) && !element.contains(host)) {
+      host.appendChild(element);
+    }
+  }
+
+  function organizeModules() {
+    if (organizing) return;
+    organizing = true;
+
+    try {
+      move("clScanner", "clScannerHost");
+      move("fibToolbar", "clFibonacciHost");
+      move("fibPanel", "clFibonacciHost");
+
+      for (const id of [
+        "clQuickScalpPanel",
+        "clQuickScalpSection",
+        "clScalpingRapido",
+        "clQuickScalpDashboard"
+      ]) {
+        if ($(id)) {
+          move(id, "clQuickScalpHost");
+          break;
+        }
+      }
+
+      for (const id of [
+        "rangeBoxesToolbar",
+        "rangeBoxesPanel",
+        "clRangeToolbar",
+        "clRangePanel",
+        "clRangeControls"
+      ]) {
+        move(id, "clRangeBoxesControls");
+      }
+
+      move("clPatternResults", "clPatternsReadout");
+
+      for (const id of [
+        "clMarketTrend",
+        "clMarketVolumeProfile",
+        "clMarketDepth"
+      ]) {
+        move(id, "clMercadoProHost");
+      }
+
+      move("clAuditV4", "clScreenResults");
+    } finally {
+      organizing = false;
+    }
+  }
+
+  function scheduleOrganize() {
+    if (organizeQueued) return;
+    organizeQueued = true;
+
+    requestAnimationFrame(() => {
+      organizeQueued = false;
+      organizeModules();
+    });
+  }
+
+  function selectAsset(asset) {
+    const symbol = $("symbol");
+    const market = $("market");
+    const exchange = $("exchange");
+    if (!symbol) return;
+
+    if (asset.commodity) {
+      if (exchange) exchange.value = "bingx";
+      if (market) market.value = "perpetual";
+    } else if (market && ["spot", "perpetual"].includes(marketFilter)) {
+      market.value = marketFilter;
+    }
+
+    symbol.value = asset.id;
+    syncTimeframes();
+    symbol.dispatchEvent(new Event("change", { bubbles: true }));
+    activateTab("charts");
+  }
+
+  function renderMarkets() {
+    const host = $("clMarketList");
+    if (!host) return;
+
+    const term = ($("clMarketSearch")?.value || "").trim().toLowerCase();
+    const fragment = document.createDocumentFragment();
+    let count = 0;
+
+    for (const asset of assets) {
+      if (!asset.name.toLowerCase().includes(term) && !asset.id.toLowerCase().includes(term)) {
+        continue;
+      }
+      if (marketFilter === "favorites" && !favorites.includes(asset.id)) {
+        continue;
+      }
+      if (marketFilter === "commodities" && !asset.commodity) {
+        continue;
+      }
+      if (["spot", "perpetual"].includes(marketFilter) && asset.commodity) {
+        continue;
+      }
+
+      const row = document.createElement("div");
+      row.className = "cl-market-row";
+      row.dataset.symbol = asset.id;
+
+      const star = document.createElement("button");
+      star.type = "button";
+      star.className = "cl-favorite";
+      const favorite = favorites.includes(asset.id);
+      star.classList.toggle("is-favorite", favorite);
+      star.textContent = favorite ? "★" : "☆";
+      star.setAttribute("aria-label", (favorite ? "Quitar de" : "Agregar a") + " favoritos: " + asset.name);
+      star.addEventListener("click", () => {
+        favorites = favorites.includes(asset.id)
+          ? favorites.filter(id => id !== asset.id)
+          : [...favorites, asset.id];
+        saveFavorites();
+        renderMarkets();
+      });
+
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "cl-market-open";
+      open.setAttribute("aria-label", "Abrir gráfica de " + asset.name);
+
+      const name = document.createElement("span");
+      name.className = "cl-asset-name";
+
+      const icon = document.createElement("span");
+      icon.className = "cl-asset-icon";
+      icon.textContent = asset.icon;
+
+      const label = document.createElement("span");
+      label.className = "cl-asset-label";
+
+      const strong = document.createElement("strong");
+      strong.textContent = asset.name;
+
+      const small = document.createElement("small");
+      small.textContent = asset.commodity
+        ? "Commodities · Futuros"
+        : marketFilter === "spot"
+          ? "Spot"
+          : marketFilter === "perpetual"
+            ? "Perpetuos"
+            : "Perpetuos / Spot";
+
+      label.append(strong, small);
+      name.append(icon, label);
+
+      const price = document.createElement("span");
+      price.className = "cl-market-price";
+      price.textContent = "—";
+
+      const change = document.createElement("span");
+      change.className = "cl-market-change";
+      change.textContent = "—%";
+
+      open.append(name, price, change);
+      open.addEventListener("click", () => selectAsset(asset));
+
+      row.append(star, open);
+      fragment.appendChild(row);
+      count++;
+    }
+
+    host.replaceChildren(fragment);
+
+    const status = $("clMarketListStatus");
+    if (status) {
+      status.textContent = count
+        ? "Consultando precios reales de mercado..."
+        : "No se encontraron activos.";
+    }
+
+    window.dispatchEvent(new CustomEvent("cryptolexuz:markets-rendered", {
+      detail: { filter: marketFilter, count }
+    }));
+  }
+
+  function ensureTimeframes() {
+    const interval = $("interval");
+    if (!interval) return;
+
+    const previous = interval.value || "15m";
+    for (const tf of TIMEFRAMES) {
+      if (!Array.from(interval.options).some(option => option.value === tf)) {
+        const option = document.createElement("option");
+        option.value = tf;
+        option.textContent = tf;
+        interval.appendChild(option);
+      }
+    }
+
+    interval.value = TIMEFRAMES.includes(previous) ? previous : "15m";
+  }
+
+  function syncTimeframes() {
+    const interval = $("interval");
+    if (!interval) return;
+
+    qa("#clMainTimeframes [data-tf]").forEach(button => {
+      const active = button.dataset.tf === interval.value;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+
+    const title = $("chartTitle");
+    if (title) {
+      title.textContent = ($("symbol")?.value || "BTC-USDT") + " · " + interval.value;
+    }
+  }
+
+  function changeTimeframe(tf) {
+    const interval = $("interval");
+    if (!interval || !TIMEFRAMES.includes(tf)) return;
+
+    if (!Array.from(interval.options).some(option => option.value === tf)) {
+      ensureTimeframes();
+    }
+
+    if (interval.value !== tf) {
+      interval.value = tf;
+      interval.dispatchEvent(new Event("change", { bubbles: true }));
+    }
+
+    syncTimeframes();
+  }
+
+  function getLineState(name) {
+    const lower = String(name || "").toLowerCase();
+    if (/^ma\d+$/.test(lower)) {
+      const period = Number(lower.slice(2));
+      return prefs.indicators.MA !== false &&
+        prefs.maLines.some(line => Number(line.period) === period && line.enabled);
+    }
+    if (/^ema\d+$/.test(lower)) {
+      const period = Number(lower.slice(3));
+      return prefs.indicators.EMA !== false &&
+        prefs.emaLines.some(line => Number(line.period) === period && line.enabled);
+    }
+    const key = indicatorMap[lower];
+    return key ? Boolean(prefs.indicators[key]) : false;
+  }
+
+  function syncIndicatorButtons() {
+    qa("#indicatorButtons [data-indicator]").forEach(button => {
+      const active = getLineState(button.dataset.indicator);
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+  }
+
+  function syncPanels() {
+    for (const [key, id] of [
+      ["RSI", "rsiSection"],
+      ["ADX", "adxSection"],
+      ["AO", "aoSection"]
+    ]) {
+      const panel = $(id);
+      if (panel) {
+        panel.hidden = !Boolean(prefs.indicators[key]);
+      }
+    }
+
+    const volume = $("volumeChart")?.closest(".volume-section");
+    if (volume) {
+      volume.hidden = prefs.indicators.VOL === false;
+    }
+
+    if ($("chart")) {
+      $("chart").style.height = prefs.height + "px";
+    }
+
+    syncIndicatorButtons();
+    refreshCharts();
+  }
+
+  function toggleLine(key, period, group) {
+    const lines = prefs[key];
+    if (!Array.isArray(lines)) return false;
+
+    let line = lines.find(item => Number(item.period) === period);
+    if (!line) {
+      line = {
+        period,
+        color: group === "EMA"
+          ? "#bb52ff"
+          : period === 55
+            ? "#ff9a35"
+            : period === 100
+              ? "#ff476c"
+              : "#36c5ff",
+        width: 2,
+        enabled: false
+      };
+      lines.push(line);
+    }
+
+    const currentlyVisible = prefs.indicators[group] !== false && Boolean(line.enabled);
+    line.enabled = !currentlyVisible;
+    if (line.enabled) {
+      prefs.indicators[group] = true;
+    }
+    return true;
+  }
+
+  function toggleIndicatorLocal(name) {
+    const lower = String(name || "").toLowerCase();
+    let changed = false;
+
+    if (lower === "ema21") {
+      changed = toggleLine("emaLines", 21, "EMA");
+    } else if (/^ma(55|100|200)$/.test(lower)) {
+      changed = toggleLine("maLines", Number(lower.slice(2)), "MA");
+    } else {
+      const key = indicatorMap[lower];
+      if (key) {
+        prefs.indicators[key] = !Boolean(prefs.indicators[key]);
+        changed = true;
+      }
+    }
+
+    if (!changed) return;
     commitSettings();
-    openSettings("edit");
-   }),
-
-   button("Eliminar",() => {
-    if(prefs[key].length > 1) {
-     prefs[key].pop();
-    }
-
-    commitSettings();
-    openSettings("edit");
-   })
-  );
-
-  content.append(actions);
-
-  const hint = el(
-   "p",
-   "Cada línea tiene período, grosor, color e interruptor independiente."
-  );
-
-  hint.className =
-   "cl-settings-hint";
-
-  content.append(hint);
-
- } else if(
-  availableIndicators.has(editName)
- ) {
-  content.append(
-   checkbox(
-    "Mostrar " + editName,
-    Boolean(prefs.indicators[editName]),
-    value => {
-     prefs.indicators[editName] = value;
-     commitSettings();
-    }
-   )
-  );
-
-  if(editName === "AO") {
-   content.append(
-    el(
-     "p",
-     "AO: diferencia entre medias simples de cinco y treinta y cuatro períodos del precio medio."
-    )
-   );
   }
 
- } else {
-  const warning = el(
-   "p",
-   "Este indicador todavía no está integrado."
-  );
+  const overlay = $("clSettingsOverlay");
+  const content = $("clSettingsContent");
 
-  warning.className =
-   "cl-settings-disabled-note";
+  function el(tag, value) {
+    const element = document.createElement(tag);
+    if (value !== undefined) {
+      element.textContent = String(value);
+    }
+    return element;
+  }
 
-  content.append(warning);
- }
+  function button(value, callback, cls = "cl-settings-row") {
+    const element = el("button", value);
+    element.type = "button";
+    element.className = cls;
+    element.addEventListener("click", callback);
+    return element;
+  }
 
- content.append(
-  button(
-   "Guardar",
-   closeSettings,
-   "cl-settings-save"
-  )
- );
-}
+  function checkbox(value, checked, callback) {
+    const label = el("label");
+    label.className = "cl-settings-check";
+    const input = el("input");
+    input.type = "checkbox";
+    input.checked = checked;
+    input.addEventListener("change", () => callback(input.checked));
+    label.append(input, document.createTextNode(value));
+    return label;
+  }
 
-function settingsOther() {
- const names = {
-  drawing:"Herramientas de dibujo",
-  interface:"Interfaz",
-  guide:"Guía de velas japonesas"
- };
-
- content.append(
-  el(
-   "h2",
-   names[settingsPage] || "Configuración"
-  )
- );
-
- if(settingsPage === "drawing") {
-  content.append(
-   button("Fibonacci",() => {
-    closeSettings();
-
-    if($("clFibonacciTools")) {
-     $("clFibonacciTools").open = true;
+  function openSettings(page = "main") {
+    if (!overlay || !content) return;
+    if (overlay.hidden) {
+      lastFocus = document.activeElement;
     }
 
-    activateTab(
-     "charts",
-     "clFibonacciTools"
-    );
-   }),
+    settingsPage = page;
+    overlay.hidden = false;
+    document.body.classList.add("cl-settings-open");
+    content.replaceChildren();
+    $("clSettingsBack").hidden = page === "main";
 
-   button("Cajas moradas",() => {
-    closeSettings();
+    if (page === "main") settingsMain();
+    else if (page === "indicators") settingsIndicators();
+    else if (page === "edit") settingsEdit();
+    else settingsOther();
 
-    if($("clRangeBoxesTools")) {
-     $("clRangeBoxesTools").open = true;
+    const heading = content.querySelector("h2");
+    if (heading) heading.id = "clSettingsTitle";
+
+    const sheet = overlay.querySelector(".cl-settings-sheet");
+    if (sheet) {
+      sheet.scrollTop = 0;
+      sheet.focus({ preventScroll: true });
+    }
+  }
+
+  function closeSettings() {
+    if (overlay) overlay.hidden = true;
+    document.body.classList.remove("cl-settings-open");
+    persist();
+    notifySettings();
+
+    if (lastFocus && typeof lastFocus.focus === "function") {
+      lastFocus.focus({ preventScroll: true });
+    }
+    lastFocus = null;
+  }
+
+  function settingsMain() {
+    content.append(el("h2", "Configuración del gráfico"));
+
+    const grid = el("div");
+    grid.className = "cl-settings-grid";
+
+    for (const [name, icon, page] of [
+      ["Indicadores", "▧", "indicators"],
+      ["Dibujo", "✎", "drawing"],
+      ["Interfaz", "⚙", "interface"],
+      ["Guía de velas", "▣", "guide"]
+    ]) {
+      const tile = button(name, () => openSettings(page), "cl-settings-tile");
+      tile.prepend(el("span", icon));
+      grid.append(tile);
     }
 
-    activateTab(
-     "charts",
-     "clRangeBoxesTools"
-    );
-   })
-  );
+    content.append(grid, el("h3", "Visualización del gráfico"));
 
- } else {
-  content.append(
-   el(
-    "p",
-    settingsPage === "interface"
-     ? "La interfaz conserva el fondo oscuro y los colores de velas verde y rojo."
-     : "Guía de velas japonesas pendiente de completar."
-   )
-  );
- }
-
- content.append(
-  button(
-   "Volver",
-   () => openSettings("main"),
-   "cl-settings-save"
-  )
- );
-}
-
-/* =====================================
- SINCRONIZACIÓN CON APP.JS
-===================================== */
-
-function syncFromExternal(settings) {
- if(
-  !settings ||
-  typeof settings !== "object"
- ) {
-  return;
- }
-
- /*
-  No sobrescribir localStorage aquí.
-  El motor principal administra su
-  propia persistencia.
- */
-
- prefs = mergeSettings(
-  settings,
-  prefs
- );
-
- syncPanels();
-}
-
-function readExternalSettings() {
- try {
-  const external =
-   window.CryptolexuzIndicators
-    ?.getSettings?.();
-
-  if(external) {
-   syncFromExternal(external);
-   return;
-  }
- } catch(error) {
-  console.warn(
-   "Leer indicadores externos:",
-   error
-  );
- }
-
- prefs = readSettings();
- syncPanels();
-}
-
-window.addEventListener(
- "cryptolexuz:indicator-settings-change",
- event => {
-  const settings =
-   event.detail?.settings;
-
-  if(settings && settings !== prefs) {
-   syncFromExternal(settings);
-  } else {
-   syncPanels();
-  }
- }
-);
-
-window.addEventListener(
- "cryptolexuz:indicator-state-updated",
- event => {
-  const settings =
-   event.detail?.settings;
-
-  if(settings && settings !== prefs) {
-   syncFromExternal(settings);
-  } else {
-   readExternalSettings();
-  }
- }
-);
-
-/* =====================================
- CONTROLES DE MERCADO
-===================================== */
-
-function bindMarketControls() {
- $("clMarketSearch")?.addEventListener(
-  "input",
-  renderMarkets
- );
-
- qa("[data-market-filter]").forEach(
-  button => {
-   button.addEventListener("click",() => {
-    marketFilter =
-     button.dataset.marketFilter;
-
-    qa("[data-market-filter]").forEach(
-     item => {
-      item.classList.toggle(
-       "active",
-       item === button
+    for (const [name, key] of [
+      ["Cuenta regresiva", "countdown"],
+      ["Cambios multiperíodo", "multiperiod"],
+      ["Precios de compra y venta", "bidask"]
+    ]) {
+      content.append(
+        checkbox(name, Boolean(prefs.options[key]), value => {
+          prefs.options[key] = value;
+          commitSettings();
+        })
       );
-     }
-    );
+    }
+
+    content.append(el("h3", "Altura de la gráfica"));
+
+    const range = el("input");
+    range.type = "range";
+    range.min = "240";
+    range.max = "600";
+    range.step = "20";
+    range.value = prefs.height;
+    range.style.width = "100%";
+
+    const heightText = el("p", String(prefs.height) + " px");
+    heightText.className = "cl-settings-hint";
+
+    range.addEventListener("input", () => {
+      heightText.textContent = range.value + " px";
+    });
+
+    range.addEventListener("change", () => {
+      prefs.height = Number(range.value);
+      if ($("chart")) $("chart").style.height = prefs.height + "px";
+      commitSettings();
+    });
+
+    content.append(range, heightText, button("Guardar", closeSettings, "cl-settings-save"));
+  }
+
+  function settingsIndicators() {
+    content.append(el("h2", "Indicadores"), el("h3", "Principal"));
+    for (const name of ["MA", "EMA", "BOLL", "SAR", "AVL", "LSR", "FVG", "IFVG"]) {
+      indicatorRow(name);
+    }
+
+    content.append(el("h3", "Subimagen"));
+    for (const name of ["VOL", "MACD", "KDJ", "RSI", "WR", "CCI", "SKDJ", "ADX", "AO", "Squeeze"]) {
+      indicatorRow(name);
+    }
+
+    const note = el("p", "Los indicadores pendientes no activan cálculos inexistentes.");
+    note.className = "cl-settings-hint";
+    content.append(note);
+  }
+
+  function indicatorRow(name) {
+    const available = availableIndicators.has(name);
+    const active = Boolean(prefs.indicators[name]);
+    const row = button(name, () => {
+      editName = name;
+      openSettings("edit");
+    }, "cl-settings-indicator");
+
+    const label = el("span", name);
+    label.className = "cl-settings-indicator-name";
+
+    const status = el("span", available ? (active ? "Activo ›" : "Configurar ›") : "Pendiente");
+    status.className = "cl-settings-indicator-status";
+
+    row.replaceChildren(label, status);
+    row.classList.toggle("is-unavailable", !available);
+
+    if (!available) {
+      row.disabled = true;
+      row.title = "Indicador pendiente de implementación";
+    }
+
+    content.append(row);
+  }
+
+  function settingsEdit() {
+    content.append(el("h2", editName));
+
+    if (editName === "MA" || editName === "EMA") {
+      const isEMA = editName === "EMA";
+      const key = isEMA ? "emaLines" : "maLines";
+      const defaultLines = isEMA ? defaultEMA : defaultMA;
+      const lines = prefs[key];
+
+      const grid = el("div");
+      grid.className = "cl-ma-grid";
+
+      for (const title of ["Línea", "Valor", "Ancho", "Color"]) {
+        grid.append(el("small", title));
+      }
+
+      lines.forEach((line, index) => {
+        const label = el("label", editName + (index + 1));
+        label.className = "cl-ma-label";
+
+        const enabled = el("input");
+        enabled.type = "checkbox";
+        enabled.checked = Boolean(line.enabled);
+        enabled.addEventListener("change", () => {
+          line.enabled = enabled.checked;
+          if (enabled.checked) prefs.indicators[editName] = true;
+          commitSettings();
+        });
+        label.prepend(enabled);
+
+        const period = el("input");
+        period.type = "number";
+        period.min = "1";
+        period.max = "1000";
+        period.value = line.period;
+        period.addEventListener("change", () => {
+          line.period = Math.max(1, Math.min(1000, Math.round(Number(period.value) || 21)));
+          period.value = line.period;
+          commitSettings();
+        });
+
+        const width = el("select");
+        for (const value of [1, 2, 3, 4, 5]) {
+          const option = el("option", value + " px");
+          option.value = value;
+          width.append(option);
+        }
+        width.value = String(line.width);
+        width.addEventListener("change", () => {
+          line.width = Number(width.value);
+          commitSettings();
+        });
+
+        const color = el("input");
+        color.type = "color";
+        color.value = /^#[0-9a-f]{6}$/i.test(line.color) ? line.color : "#bb52ff";
+        color.addEventListener("change", () => {
+          line.color = color.value;
+          commitSettings();
+        });
+
+        grid.append(label, period, width, color);
+      });
+
+      content.append(grid);
+
+      const actions = el("div");
+      actions.className = "cl-settings-actions";
+      actions.append(
+        button("Restablecer", () => {
+          prefs[key] = cloneLines(defaultLines);
+          prefs.indicators[editName] = true;
+          commitSettings();
+          openSettings("edit");
+        }),
+        button("Agregar", () => {
+          if (prefs[key].length >= 12) return;
+          prefs[key].push({
+            period: isEMA ? 9 : 50,
+            color: isEMA ? "#bb52ff" : "#479eff",
+            width: 2,
+            enabled: true
+          });
+          prefs.indicators[editName] = true;
+          commitSettings();
+          openSettings("edit");
+        }),
+        button("Eliminar", () => {
+          if (prefs[key].length > 1) prefs[key].pop();
+          commitSettings();
+          openSettings("edit");
+        })
+      );
+
+      content.append(actions);
+
+      const hint = el("p", "Cada línea tiene período, grosor, color e interruptor independiente.");
+      hint.className = "cl-settings-hint";
+      content.append(hint);
+    } else if (availableIndicators.has(editName)) {
+      content.append(
+        checkbox("Mostrar " + editName, Boolean(prefs.indicators[editName]), value => {
+          prefs.indicators[editName] = value;
+          commitSettings();
+        })
+      );
+
+      if (editName === "AO") {
+        content.append(
+          el("p", "AO: diferencia entre medias simples de cinco y treinta y cuatro períodos del precio medio.")
+        );
+      }
+    } else {
+      const warning = el("p", "Este indicador todavía no está integrado.");
+      warning.className = "cl-settings-disabled-note";
+      content.append(warning);
+    }
+
+    content.append(button("Guardar", closeSettings, "cl-settings-save"));
+  }
+
+  function settingsOther() {
+    const names = {
+      drawing: "Herramientas de dibujo",
+      interface: "Interfaz",
+      guide: "Guía de velas japonesas"
+    };
+
+    content.append(el("h2", names[settingsPage] || "Configuración"));
+
+    if (settingsPage === "drawing") {
+      content.append(
+        button("Fibonacci", () => {
+          closeSettings();
+          if ($("clFibonacciTools")) $("clFibonacciTools").open = true;
+          activateTab("charts", "clFibonacciTools");
+        }),
+        button("Cajas moradas", () => {
+          closeSettings();
+          if ($("clRangeBoxesTools")) $("clRangeBoxesTools").open = true;
+          activateTab("charts", "clRangeBoxesTools");
+        })
+      );
+    } else {
+      content.append(
+        el("p", settingsPage === "interface"
+          ? "La interfaz conserva el fondo oscuro y los colores de velas verde y rojo."
+          : "Guía de velas japonesas pendiente de completar.")
+      );
+    }
+
+    content.append(button("Volver", () => openSettings("main"), "cl-settings-save"));
+  }
+
+  function syncFromExternal(settings) {
+    if (!settings || typeof settings !== "object") return;
+    prefs = mergeSettings(settings, prefs);
+    syncPanels();
+  }
+
+  function readExternalSettings() {
+    try {
+      const external = window.CryptolexuzIndicators?.getSettings?.();
+      if (external) {
+        syncFromExternal(external);
+        return;
+      }
+    } catch (error) {
+      console.warn("Leer indicadores externos:", error);
+    }
+    prefs = readSettings();
+    syncPanels();
+  }
+
+  window.addEventListener("cryptolexuz:indicator-settings-change", event => {
+    const settings = event.detail?.settings;
+    if (settings && settings !== prefs) syncFromExternal(settings);
+    else syncPanels();
+  });
+
+  window.addEventListener("cryptolexuz:indicator-state-updated", event => {
+    const settings = event.detail?.settings;
+    if (settings && settings !== prefs) syncFromExternal(settings);
+    else readExternalSettings();
+  });
+
+  function bindMarketControls() {
+    $("clMarketSearch")?.addEventListener("input", renderMarkets);
+
+    qa("[data-market-filter]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        marketFilter = btn.dataset.marketFilter;
+        qa("[data-market-filter]").forEach(item => {
+          item.classList.toggle("active", item === btn);
+        });
+        renderMarkets();
+      });
+    });
+  }
+
+  function bindChartControls() {
+    $("interval")?.addEventListener("change", syncTimeframes);
+    $("symbol")?.addEventListener("change", syncTimeframes);
+
+    $("clMainTimeframes")?.addEventListener("click", event => {
+      const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+      if (!target?.closest("[data-tf]")) return;
+      requestAnimationFrame(syncTimeframes);
+    });
+
+    $("indicatorButtons")?.addEventListener("click", event => {
+      const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+      if (!target?.closest("[data-indicator]")) return;
+      requestAnimationFrame(readExternalSettings);
+    });
+
+    for (const id of ["refresh", "chartReset"]) {
+      const control = $(id);
+      if (control) {
+        control.disabled = false;
+        control.style.pointerEvents = "auto";
+      }
+    }
+
+    qa("[data-chart-view]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        qa("[data-chart-view]").forEach(item => {
+          item.classList.toggle("active", item === btn);
+        });
+
+        const view = btn.dataset.chartView;
+        if ($("clGraphContent")) $("clGraphContent").hidden = view !== "graph";
+        if ($("clCoinContent")) $("clCoinContent").hidden = view !== "coin";
+        if ($("clInfoContent")) $("clInfoContent").hidden = view !== "info";
+
+        if (view === "graph") refreshCharts();
+      });
+    });
+  }
+
+  function bindBookControls() {
+    qa("[data-book]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const type = btn.dataset.book;
+        qa("[data-book]").forEach(item => {
+          item.classList.toggle("active", item === btn);
+        });
+
+        if ($("clBookView")) $("clBookView").hidden = type !== "book";
+        if ($("clBookAlternate")) {
+          const alternate = $("clBookAlternate");
+          alternate.hidden = type === "book";
+          alternate.textContent = type === "trades"
+            ? "Trades: pendiente de integrar un flujo de operaciones ejecutadas."
+            : type === "depth"
+              ? "Profundidad: consulta el libro de órdenes para ver los niveles disponibles."
+              : "";
+        }
+
+        window.dispatchEvent(new CustomEvent("cryptolexuz:book-view", {
+          detail: { view: type }
+        }));
+      });
+    });
+  }
+
+  function bindNavigation() {
+    $("menuToggle")?.addEventListener("click", () => {
+      setOpen(!$("sidebar")?.classList.contains("is-open"));
+    });
+
+    $("menuClose")?.addEventListener("click", () => setOpen(false));
+    $("menuBackdrop")?.addEventListener("click", () => setOpen(false));
+
+    qa("[data-cl-tab]").forEach(btn => {
+      btn.addEventListener("click", () => activateTab(btn.dataset.clTab));
+    });
+
+    qa(".side-nav a").forEach(link => {
+      link.addEventListener("click", event => {
+        event.preventDefault();
+        const target = link.getAttribute("href")?.slice(1);
+        if (target && $(target)?.tagName === "DETAILS") {
+          $(target).open = true;
+        }
+        activateTab(link.dataset.screen, target);
+      });
+    });
+
+    for (const id of ["clLongInfo", "clShortInfo"]) {
+      $(id)?.addEventListener("click", () => {
+        activateTab("scanner", "clTradePlansHost");
+      });
+    }
+  }
+
+  function bindSettings() {
+    $("clChartSettings")?.addEventListener("click", () => openSettings("main"));
+    $("clSettingsClose")?.addEventListener("click", closeSettings);
+    $("clSettingsBack")?.addEventListener("click", () => {
+      openSettings(settingsPage === "edit" ? "indicators" : "main");
+    });
+
+    overlay?.addEventListener("click", event => {
+      if (event.target === overlay) closeSettings();
+    });
+
+    overlay?.addEventListener("keydown", event => {
+      if (event.key !== "Tab") return;
+
+      const focusable = qa(
+        "#clSettingsOverlay button:not([disabled]):not([hidden])," +
+        "#clSettingsOverlay input:not([disabled]):not([hidden])," +
+        "#clSettingsOverlay select:not([disabled]):not([hidden])"
+      ).filter(item => item.getClientRects().length);
+
+      if (!focusable.length) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+
+    window.addEventListener("keydown", event => {
+      if (event.key !== "Escape") return;
+      if (overlay && !overlay.hidden) closeSettings();
+      else setOpen(false);
+    });
+  }
+
+  function init() {
+    ensureTimeframes();
+    bindNavigation();
+    bindMarketControls();
+    bindChartControls();
+    bindBookControls();
+    bindSettings();
 
     renderMarkets();
-   });
-  }
- );
-}
-
-/* =====================================
- CONTROLES DE GRÁFICA
-===================================== */
-
-function bindChartControls() {
- /*
-  No se interceptan los clics con
-  stopImmediatePropagation.
-
-  APP.JS V25 es el controlador
-  principal de los indicadores.
- */
-
- $("interval")?.addEventListener(
-  "change",
-  syncTimeframes
- );
-
- $("symbol")?.addEventListener(
-  "change",
-  syncTimeframes
- );
-
- /*
-  APP.JS escucha [data-tf].
-  Por ello aquí únicamente
-  sincronizamos después del clic.
- */
-
- $("clMainTimeframes")?.addEventListener(
-  "click",
-  event => {
-   const target =
-    event.target instanceof Element
-     ? event.target
-     : event.target?.parentElement;
-
-   const button =
-    target?.closest("[data-tf]");
-
-   if(!button) return;
-
-   /*
-    Se deja que el evento continúe
-    hasta el listener de APP.JS.
-   */
-
-   requestAnimationFrame(
-    syncTimeframes
-   );
-  }
- );
-
- $("indicatorButtons")?.addEventListener(
-  "click",
-  event => {
-   const target =
-    event.target instanceof Element
-     ? event.target
-     : event.target?.parentElement;
-
-   const button =
-    target?.closest("[data-indicator]");
-
-   if(!button) return;
-
-   /*
-    APP.JS cambia el indicador.
-    Aquí solo se sincroniza
-    el aspecto visual después.
-   */
-
-   requestAnimationFrame(() => {
-    readExternalSettings();
-   });
-  }
- );
-
- /*
-  Actualizar y Restablecer:
-  sus listeners funcionales
-  pertenecen a APP.JS V25.
-
-  No duplicamos la ejecución
-  de las peticiones REST.
- */
-
- for(const id of [
-  "refresh",
-  "chartReset"
- ]) {
-  const control = $(id);
-
-  if(control) {
-   control.disabled = false;
-   control.style.pointerEvents = "auto";
-  }
- }
-
- qa("[data-chart-view]").forEach(
-  button => {
-   button.addEventListener("click",() => {
-    qa("[data-chart-view]").forEach(
-     item => {
-      item.classList.toggle(
-       "active",
-       item === button
-      );
-     }
-    );
-
-    const view =
-     button.dataset.chartView;
-
-    $("clGraphContent").hidden =
-     view !== "graph";
-
-    $("clCoinContent").hidden =
-     view !== "coin";
-
-    $("clInfoContent").hidden =
-     view !== "info";
-
-    if(view === "graph") {
-     refreshCharts();
-    }
-   });
-  }
- );
-}
-
-/* =====================================
- LIBRO DE ÓRDENES
-===================================== */
-
-function bindBookControls() {
- qa("[data-book]").forEach(button => {
-  button.addEventListener("click",() => {
-   const type = button.dataset.book;
-
-   qa("[data-book]").forEach(item => {
-    item.classList.toggle(
-     "active",
-     item === button
-    );
-   });
-
-   if($("clBookView")) {
-    $("clBookView").hidden =
-     type !== "book";
-   }
-
-   if($("clBookAlternate")) {
-    const alternate =
-     $("clBookAlternate");
-
-    alternate.hidden =
-     type === "book";
-
-    alternate.textContent =
-     type === "trades"
-      ? "Trades: pendiente de integrar un flujo de operaciones ejecutadas."
-      : type === "depth"
-       ? "Profundidad: consulta el libro de órdenes para ver los niveles disponibles."
-       : "";
-   }
-
-   window.dispatchEvent(
-    new CustomEvent(
-     "cryptolexuz:book-view",
-     {
-      detail:{view:type}
-     }
-    )
-   );
-  });
- });
-}
-
-/* =====================================
- MODAL Y MENÚ
-===================================== */
-
-function bindNavigation() {
- $("menuToggle")?.addEventListener(
-  "click",
-  () => {
-   setOpen(
-    !$("sidebar")?.classList.contains(
-     "is-open"
-    )
-   );
-  }
- );
-
- $("menuClose")?.addEventListener(
-  "click",
-  () => setOpen(false)
- );
-
- $("menuBackdrop")?.addEventListener(
-  "click",
-  () => setOpen(false)
- );
-
- qa("[data-cl-tab]").forEach(button => {
-  button.addEventListener(
-   "click",
-   () => activateTab(
-    button.dataset.clTab
-   )
-  );
- });
-
- qa(".side-nav a").forEach(link => {
-  link.addEventListener("click",event => {
-   event.preventDefault();
-
-   const target = link
-    .getAttribute("href")
-    ?.slice(1);
-
-   if(
-    target &&
-    $(target)?.tagName === "DETAILS"
-   ) {
-    $(target).open = true;
-   }
-
-   activateTab(
-    link.dataset.screen,
-    target
-   );
-  });
- });
-
- for(const id of [
-  "clLongInfo",
-  "clShortInfo"
- ]) {
-  $(id)?.addEventListener("click",() => {
-   activateTab(
-    "scanner",
-    "clTradePlansHost"
-   );
-  });
- }
-}
-
-function bindSettings() {
- $("clChartSettings")?.addEventListener(
-  "click",
-  () => openSettings("main")
- );
-
- $("clSettingsClose")?.addEventListener(
-  "click",
-  closeSettings
- );
-
- $("clSettingsBack")?.addEventListener(
-  "click",
-  () => {
-   openSettings(
-    settingsPage === "edit"
-     ? "indicators"
-     : "main"
-   );
-  }
- );
-
- overlay?.addEventListener(
-  "click",
-  event => {
-   if(event.target === overlay) {
-    closeSettings();
-   }
-  }
- );
-
- overlay?.addEventListener(
-  "keydown",
-  event => {
-   if(event.key !== "Tab") return;
-
-   const focusable = qa(
-    '#clSettingsOverlay button:not([disabled]):not([hidden]),' +
-    '#clSettingsOverlay input:not([disabled]):not([hidden]),' +
-    '#clSettingsOverlay select:not([disabled]):not([hidden])'
-   ).filter(
-    item => item.getClientRects().length
-   );
-
-   if(!focusable.length) return;
-
-   const first = focusable[0];
-   const last =
-    focusable[focusable.length - 1];
-
-   if(
-    event.shiftKey &&
-    document.activeElement === first
-   ) {
-    event.preventDefault();
-    last.focus();
-
-   } else if(
-    !event.shiftKey &&
-    document.activeElement === last
-   ) {
-    event.preventDefault();
-    first.focus();
-   }
-  }
- );
-
- window.addEventListener(
-  "keydown",
-  event => {
-   if(event.key !== "Escape") return;
-
-   if(
-    overlay &&
-    !overlay.hidden
-   ) {
-    closeSettings();
-   } else {
-    setOpen(false);
-   }
-  }
- );
-}
-
-/* =====================================
- INICIALIZACIÓN
-===================================== */
-
-function init() {
- ensureTimeframes();
-
- if($("chart")) {
-  const height = Math.max(
-   240,
-   Math.min(
-    600,
-    Number(prefs.height) || 360
-   )
-  );
-
-  $("chart").style.height =
-   height + "px";
- }
-
- bindNavigation();
- bindMarketControls();
- bindChartControls();
- bindBookControls();
- bindSettings();
-
- renderMarkets();
-
- organizeModules();
-
- syncTimeframes();
- syncPanels();
-
- /*
-  Observer para módulos que se
-  insertan después de cargar.
- */
-
- const observer =
-  new MutationObserver(scheduleOrganize);
-
- observer.observe(
-  document.body,
-  {
-   childList:true,
-   subtree:true
-  }
- );
-
- window.addEventListener(
-  "load",
-  () => {
-   setTimeout(() => {
     organizeModules();
-
-    ensureTimeframes();
     syncTimeframes();
+    syncPanels();
 
-    readExternalSettings();
+    const observer = new MutationObserver(scheduleOrganize);
+    observer.observe(document.body, { childList: true, subtree: true });
 
-    if(screen === "charts") {
-     refreshCharts();
-    }
-   },500);
-  },
-  {once:true}
- );
+    window.addEventListener("load", () => {
+      setTimeout(() => {
+        organizeModules();
+        ensureTimeframes();
+        syncTimeframes();
+        readExternalSettings();
+        if (screen === "charts") refreshCharts();
+      }, 400);
+    }, { once: true });
 
- window.addEventListener(
-  "resize",
-  refreshCharts
- );
+    window.addEventListener("resize", refreshCharts);
 
- /*
-  API pública del controlador.
- */
+    window.CryptolexuzIndexControls = {
+      changeTimeframe,
+      toggleIndicator: name => {
+        const api = window.CryptolexuzIndicators;
+        if (api && typeof api.toggleIndicator === "function") {
+          api.toggleIndicator(name);
+          requestAnimationFrame(readExternalSettings);
+        } else {
+          toggleIndicatorLocal(name);
+        }
+      },
+      syncTimeframes,
+      syncIndicators: syncIndicatorButtons,
+      getSettings: () => prefs
+    };
 
- window.CryptolexuzIndexControls = {
-  changeTimeframe,
-  toggleIndicator:name => {
-   const api =
-    window.CryptolexuzIndicators;
+    console.info("CRYPTOLEXUZ PRO — INDEX V34 iniciado");
+  }
 
-   if(
-    api &&
-    typeof api.toggleIndicator === "function"
-   ) {
-    api.toggleIndicator(name);
-
-    requestAnimationFrame(
-     readExternalSettings
-    );
-
-   } else {
-    toggleIndicatorLocal(name);
-   }
-  },
-  syncTimeframes,
-  syncIndicators:syncIndicatorButtons,
-  getSettings:() => prefs
- };
-
- console.info(
-  "CRYPTOLEXUZ PRO — INDEX V34 iniciado"
- );
-}
-
-if(document.readyState === "loading") {
- document.addEventListener(
-  "DOMContentLoaded",
-  init,
-  {once:true}
- );
-} else {
- init();
-}
-
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init, { once: true });
+  } else {
+    init();
+  }
 })();
 </script>
-
 </body>
 </html>
-
-<!-- FIN — CRYPTOLEXUZ PRO INDEX.HTML V34 -->
