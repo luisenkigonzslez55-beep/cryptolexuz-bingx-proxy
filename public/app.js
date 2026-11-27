@@ -1,11 +1,11 @@
-/* CRYPTOLEXUZ PRO — APP.JS V28 COMPLETO
+/* CRYPTOLEXUZ PRO — APP.JS V29 COMPLETO — TARJETAS COMPACTAS
    Compatible con INDEX.HTML V34 y Lightweight Charts 4.2.2.
    Terminal informativa; no ejecuta órdenes.
 */
 'use strict';
 (() => {
-  if (window.__cryptolexuzAppV28) return;
-  window.__cryptolexuzAppV28 = true;
+  if (window.__cryptolexuzAppV29) return;
+  window.__cryptolexuzAppV29 = true;
   const $ = id => document.getElementById(id);
   const C = { green:'#00f5a0', red:'#ff476c', purple:'#bb52ff', orange:'#ff9a35', blue:'#36c5ff', yellow:'#ffe15a' };
   const GOLD='NCCOGOLD2USD-USDT', OIL='NCCO1OILWTI2USD-USDT';
@@ -115,7 +115,7 @@
   function metric(data,tf){const candles=closed(data,tf);if(candles.length<60)return null;const closes=candles.map(c=>c.close),last=candles.at(-1),e=ema(closes,21).at(-1),m=sma(closes,55).at(-1),rv=rsi(closes).at(-1),ad=adx(candles),strength=ad.adx.at(-1),plus=ad.plus.at(-1),minus=ad.minus.at(-1),ao=awesomeOscillator(candles),aoNow=ao.at(-1),aoPrevious=ao.at(-2);if(![e,m,rv,strength,plus,minus].every(Number.isFinite))return null;let bull=0,bear=0;if(last.close>e)bull++;if(last.close<e)bear++;if(e>m)bull++;if(e<m)bear++;if(rv>=55)bull++;if(rv<=45)bear++;if(plus>minus)bull++;if(minus>plus)bear++;const previous=candles.slice(-7,-1),average=candles.slice(-21,-1).reduce((s,c)=>s+c.volume,0)/20;return {bull,bear,adx:strength,plus,minus,rsi:rv,ao:aoNow,aoPrevious,aoBull:Number.isFinite(aoNow)&&Number.isFinite(aoPrevious)&&aoNow>0&&aoNow>aoPrevious,aoBear:Number.isFinite(aoNow)&&Number.isFinite(aoPrevious)&&aoNow<0&&aoNow<aoPrevious,volRatio:average?last.volume/average:0,close:last.close,closedTime:last.time,atr:atr(candles),breakHigh:last.close>Math.max(...previous.map(c=>c.high)),breakLow:last.close<Math.min(...previous.map(c=>c.low))};}
   function analyze(data,tf){const m=metric(data,tf);if(!m)return {state:'SIN DATOS',direction:'neutral',detail:'Historial insuficiente.',metrics:'—',price:null};const bullish=m.bull>=3&&m.bull>m.bear,bearish=m.bear>=3&&m.bear>m.bull,opportunity=m.bull===4&&m.adx>=25&&m.rsi<70?'Posible LONG':m.bear===4&&m.adx>=25&&m.rsi>30?'Posible SHORT':'Sin entrada confirmada',aoText=m.aoBull?'AO alcista':m.aoBear?'AO bajista':'AO sin confirmación';return {state:bullish?'SESGO ALCISTA':bearish?'SESGO BAJISTA':'LATERAL / MIXTO',direction:bullish?'bullish':bearish?'bearish':'neutral',detail:opportunity+'. '+aoText+'. Requiere confirmación.',metrics:'RSI '+fmt(m.rsi,1)+' · ADX '+fmt(m.adx,1),price:m.close};}
   async function monitor(force=false){if(monitorBusy){monitorAgain=true;return;}if(!force&&Date.now()-monitorLast<60000)return;monitorBusy=true;monitorLast=Date.now();const s=selection(),id=monitorRequest;try{put('engineState','ANALIZANDO');const result=await Promise.allSettled(['5m','15m'].map(async tf=>normalize(await getJSON(candleURL({...s,tf})))));if(id!==monitorRequest)return;let success=0;for(let i=0;i<2;i++){const tf=i?'15m':'5m',suffix=i?'15':'5',item=result[i],r=item.status==='fulfilled'?analyze(item.value,tf):{state:'SIN CONEXIÓN',direction:'neutral',detail:'No se pudieron cargar velas.',metrics:'—'};if(item.status==='fulfilled'&&r.state!=='SIN DATOS')success++;put('state'+suffix,r.state);put('detail'+suffix,r.detail);put('metrics'+suffix,r.metrics);const el=$('state'+suffix);if(el){el.className='state '+r.direction;const h=el.closest('.signal-card')?.querySelector('h3');if(h)h.textContent=s.symbol+' / '+tf;}}put('engineState',success?'ANALIZANDO':'SIN CONEXIÓN');}catch(e){if(id===monitorRequest)put('engineState','SIN CONEXIÓN');console.warn('Monitor:',e);}finally{monitorBusy=false;if(monitorAgain){monitorAgain=false;queueMicrotask(()=>monitor(true));}}}
-  function scannerUI(){if($('clScanner'))return;const host=$('clScannerHost')||$('clScreenScanner');if(!host)return;const section=document.createElement('section');section.id='clScanner';section.className='cl-module';section.innerHTML='<h2>📡 Escáner CRYPTOLEXUZ PRO</h2><p id="clScanStatus">Esperando análisis...</p><div class="chart-controls"><button id="clScanNow" type="button">↻ Escanear</button><button id="clNotify" type="button">🔔 Activar avisos</button></div><p class="cl-notice">Ocho activos · Siete temporalidades · LONG / SHORT</p><div class="table-wrap"><table><thead><tr><th>#</th><th>Activo</th><th>Dirección</th><th>Puntos</th><th>Estado</th><th>Confirmaciones</th></tr></thead><tbody id="clScanBody"><tr><td colspan="6">Iniciando...</td></tr></tbody></table></div><p id="clScanErrors" class="cl-notice"></p>';host.appendChild(section);$('clScanNow')?.addEventListener('click',()=>scan(true));$('clNotify')?.addEventListener('click',async()=>{if(!('Notification'in window)){alert('Notificaciones no disponibles.');return;}try{const p=await Notification.requestPermission();put('clNotify',p==='granted'?'🔔 Avisos activos':'🔕 Sin permiso');}catch(e){console.warn('Notificaciones:',e);}});}
+  function scannerUI(){if($('clScanner'))return;const host=$('clScannerHost')||$('clScreenScanner');if(!host)return;const section=document.createElement('section');section.id='clScanner';section.className='cl-module';section.innerHTML='<h2>📡 Escáner CRYPTOLEXUZ PRO</h2><p id="clScanStatus">Esperando análisis...</p><div class="chart-controls"><button id="clScanNow" type="button">↻ Escanear</button><button id="clNotify" type="button">🔔 Activar avisos</button></div><p class="cl-notice">Ocho activos · Siete temporalidades · LONG / SHORT</p><div id="clScanBody" class="cl-scan-grid" aria-live="polite">Iniciando...</div><p id="clScanErrors" class="cl-notice"></p>';host.appendChild(section);$('clScanNow')?.addEventListener('click',()=>scan(true));$('clNotify')?.addEventListener('click',async()=>{if(!('Notification'in window)){alert('Notificaciones no disponibles.');return;}try{const p=await Notification.requestPermission();put('clNotify',p==='granted'?'🔔 Avisos activos':'🔕 Sin permiso');}catch(e){console.warn('Notificaciones:',e);}});}
   function markets(){const s=selection();return ASSETS.map(symbol=>({symbol,exchange:[GOLD,OIL].includes(symbol)?'bingx':s.exchange,market:[GOLD,OIL].includes(symbol)?'perpetual':s.market,label:symbol===GOLD?'GOLD (XAU)':symbol===OIL?'OIL WTI':symbol.replace('-','/')}));}
   async function frames(market){const result={};for(const tf of SCAN_TF){const s={...market,tf},cacheKey=key(s),ttl=SEC[tf]>=3600?180000:SEC[tf]>=900?90000:50000,stored=cache.get(cacheKey);if(stored&&Date.now()-stored.at<ttl){result[tf]=stored.data;continue;}const data=normalize(await getJSON(candleURL(s,300)));if(closed(data,tf).length<60)throw Error(tf+': historial insuficiente');result[tf]=data;cache.set(cacheKey,{at:Date.now(),data});}return result;}
   // V27: Confirmaciones estrictas basadas exclusivamente en velas cerradas.
@@ -218,8 +218,46 @@
     async function worker(){while(cursor<items.length){const market=items[cursor++];try{results.push(rank(market,await frames(market)));}catch(e){errors.push(market.label+': '+e.message);}}}
     try{
       await Promise.all([worker(),worker()]);if(id!==scanRequest)return;
-      results.sort((a,b)=>b.score-a.score);const body=$('clScanBody');
-      if(body){body.replaceChildren();for(const [i,r] of results.entries()){const tr=document.createElement('tr');for(const value of [i+1,r.market.label,r.direction,r.score+'/100',r.state,r.confirmations]){const td=document.createElement('td');td.textContent=value;td.style.padding='9px 6px';tr.append(td);}body.append(tr);}if(!results.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=6;td.textContent='Sin resultados disponibles.';tr.append(td);body.append(tr);}}
+      results.sort((a,b)=>b.score-a.score);
+      const body=$('clScanBody');
+      if(body){
+        body.classList.add('cl-scan-grid');
+        body.replaceChildren();
+        for(const r of results){
+          const box=document.createElement('article');
+          box.className='cl-scan-tile';
+          const direction=r.direction==='LONG'?'long':r.direction==='SHORT'?'short':'neutral';
+          const state=r.state==='CONFIRMADA'?'CONFIRMADA':r.state==='EN OBSERVACIÓN'?'EN OBSERVACIÓN':'SIN SEÑAL';
+          box.classList.add('cl-tile-'+direction);
+          const name=document.createElement('strong');name.className='cl-tile-symbol';name.textContent=r.market.label;
+          const badge=document.createElement('span');badge.className='cl-tile-status';badge.textContent=state;
+          const dir=document.createElement('span');dir.className='cl-tile-direction';dir.textContent=r.direction;
+          const top=document.createElement('div');top.className='cl-tile-head';top.append(name,badge);
+          // Estos niveles son una propuesta técnica, NO órdenes ni entradas ejecutadas.
+          // Sólo mostrar precios cuando exista señal confirmada y ATR válido.
+          const valid=r.state==='CONFIRMADA'&&['LONG','SHORT'].includes(r.direction)&&Number.isFinite(r.price)&&r.price>0&&Number.isFinite(r.atr)&&r.atr>0;
+          const entry=valid?r.price:null;
+          const stop=valid?(r.direction==='LONG'?entry-r.atr:entry+r.atr):null;
+          const tp1=valid?(r.direction==='LONG'?entry+r.atr:entry-r.atr):null;
+          const tp2=valid?(r.direction==='LONG'?entry+2*r.atr:entry-2*r.atr):null;
+          const levels=document.createElement('div');levels.className='cl-tile-levels';
+          for(const [label,value,kind] of [['Entrada',entry,'entry'],['Stop',stop,'stop'],['TP1',tp1,'tp'],['TP2',tp2,'tp']]){
+            const cell=document.createElement('div');cell.className='cl-tile-level '+kind;
+            const cap=document.createElement('small');cap.textContent=label;
+            const price=document.createElement('b');price.textContent=value===null?'—':fmt(value);
+            cell.append(cap,price);levels.append(cell);
+          }
+          const score=document.createElement('div');score.className='cl-tile-stat';score.textContent='Puntos: '+r.score+'/100';
+          const p1=document.createElement('div');p1.className='cl-tile-stat';p1.textContent='Prob. TP1: —';
+          const p2=document.createElement('div');p2.className='cl-tile-stat';p2.textContent='Prob. TP2: —';
+          const detail=document.createElement('details');detail.className='cl-tile-details';
+          const summary=document.createElement('summary');summary.textContent='Confirmaciones';
+          const desc=document.createElement('p');desc.textContent=r.confirmations;
+          detail.append(summary,desc);
+          box.append(top,dir,levels,score,p1,p2,detail);body.append(box);
+        }
+        if(!results.length)body.textContent='Sin resultados disponibles.';
+      }
       put('clScanErrors',errors.length?'Sin datos: '+errors.join(' · '):'');put('clScanStatus','V27 · Última revisión: '+new Date().toLocaleTimeString('es-MX')+' · '+results.length+'/'+items.length+' activos');scanLast=Date.now();
       // Primero actualizar estados; después decidir si puede abrirse una nueva señal.
       await verifySignals();for(const r of results)if(addSignal(r))notifySignal(r);
