@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#050716">
 <meta name="description" content="CRYPTOLEXUZ PRO: mercados, gráficas, indicadores, escáner y resultados informativos.">
 <title>CRYPTOLEXUZ PRO | Trading Terminal</title>
-<!-- CRYPTOLEXUZ PRO — INDEX.HTML V37 · APP V31 Y MOTOR DE SEÑALES -->
+<!-- CRYPTOLEXUZ PRO — INDEX.HTML V38 · APP V31 · UNIVERSO Y NAVEGACIÓN TÁCTIL -->
 <link rel="stylesheet" href="styles.css?v=31">
 <style>
 [hidden]{display:none!important}.cl-screen{display:none;min-width:0}.cl-screen.cl-active{display:block}
@@ -52,14 +52,28 @@
 body.cl-settings-open{overflow:hidden}
 @media(max-width:420px){.cl-settings-overlay{padding:10px}.cl-settings-sheet{padding:14px;max-height:90dvh;border-radius:15px}.cl-ma-grid{grid-template-columns:minmax(0,1fr) 60px 62px 42px;gap:5px}.cl-ma-grid input[type=color]{width:38px}.cl-ma-label{font-size:11px}}
 
-/* Fondo uniforme; conserva acentos morados únicamente en controles */
-html,body,.app-container,.cl-screen,.chart-card,.market-card,.cl-module,
-.market-settings,.liquidity-card,.indicator-summary,.signals-section,.history-section,
-#priceChartArea,#chart,#volumeChart,#rsiChart,#adxChart,#aoChart,#squeezeChart{
-  background-color:#000!important;background-image:none!important;
+/* V38: el universo permanece en el fondo general; gráficas negras. */
+html,body{
+  min-height:100%;
+  background-color:#050716!important;
+  background-image:url("universo.jpg")!important;
+  background-position:center center!important;
+  background-repeat:no-repeat!important;
+  background-size:cover!important;
+  background-attachment:fixed!important;
 }
-html::before,html::after,body::before,body::after,.app-container::before,.app-container::after{
-  background-image:none!important;pointer-events:none!important;
+.app-container,.cl-screen{
+  background:transparent!important;
+}
+#priceChartArea,#chart,#volumeChart,#rsiChart,#adxChart,#aoChart,#squeezeChart{
+  background-color:#000!important;
+  background-image:none!important;
+}
+.cl-screen{touch-action:pan-y;}
+/* Las tarjetas conservan el contraste de styles.css sobre el universo. */
+@media(max-width:768px){
+  html,body{background-attachment:scroll!important;}
+  body{background-attachment:fixed!important;}
 }
 .cl-chart-control-stack{position:relative;z-index:2}
 .cl-chart-control-stack button{pointer-events:auto;touch-action:manipulation}
@@ -194,7 +208,7 @@ body.cl-theme-open{overflow:hidden}
 <div id="clThemeOverlay" class="cl-theme-overlay" hidden>
   <section class="cl-theme-panel" role="dialog" aria-modal="true" aria-labelledby="clThemeTitle" tabindex="-1">
     <div class="cl-theme-head"><h2 id="clThemeTitle">🎨 Personalización</h2><button id="clThemeClose" class="cl-theme-close" type="button" aria-label="Cerrar">✕</button></div>
-    <p class="cl-theme-help">Elige el color de botones, bordes y títulos. El universo y las velas verde/rojo no se modifican.</p>
+    <p class="cl-theme-help">Elige el color de botones, bordes y títulos. El fondo del universo y las velas verde/rojo no se modifican.</p>
     <div class="cl-theme-wheel-wrap"><div id="clThemeWheel" class="cl-theme-wheel" role="slider" tabindex="0" aria-label="Tono del color" aria-valuemin="0" aria-valuemax="359" aria-valuenow="270"></div><span id="clThemeWheelDot" class="cl-theme-dot" aria-hidden="true"></span></div>
     <div id="clThemeSV" class="cl-theme-sv" role="group" aria-label="Saturación y brillo"><span id="clThemeSVDot" class="cl-theme-sv-dot" aria-hidden="true"></span></div>
     <div class="cl-theme-fields"><label>Color hexadecimal<input id="clThemeHex" type="text" maxlength="7" spellcheck="false" value="#ba69ff" aria-label="Color hexadecimal"></label><label>Color seleccionado<input id="clThemeNative" type="color" value="#ba69ff" aria-label="Selector nativo de color"></label></div>
@@ -207,9 +221,9 @@ body.cl-theme-open{overflow:hidden}
 <script>
 (() => {
 "use strict";
-/* CRYPTOLEXUZ PRO — CONTROLADOR INDEX V37 (conserva lógica V35) */
-if(window.__CL_INDEX_V35__)return;
-window.__CL_INDEX_V35__=true;
+/* CRYPTOLEXUZ PRO — CONTROLADOR INDEX V38 (conserva lógica V37) */
+if(window.__CL_INDEX_V38__)return;
+window.__CL_INDEX_V38__=true;
 const $=id=>document.getElementById(id);
 const qa=s=>Array.from(document.querySelectorAll(s));
 const SETTINGS_KEY="cryptolexuz-chart-settings-v1";
@@ -220,13 +234,60 @@ const assets=[
 {id:"NCCOGOLD2USD-USDT",name:"GOLD (XAU)",icon:"◆",commodity:true},
 {id:"NCCO1OILWTI2USD-USDT",name:"OIL WTI",icon:"◉",commodity:true}
 ];
-let screen="markets",marketFilter="all",organizing=false,queued=false,chartResizeQueued=false;
+const NAV_KEY="cryptolexuz-nav-v38";
+const VALID_TABS=["markets","charts","scanner","results"];
+const readNav=()=>{try{const v=JSON.parse(sessionStorage.getItem(NAV_KEY)||"null");return v&&typeof v==="object"?v:{};}catch{return {};}};
+const previousNav=readNav();
+let screen=VALID_TABS.includes(previousNav.screen)?previousNav.screen:"markets",marketFilter="all",organizing=false,queued=false,chartResizeQueued=false;
+let navigationRestoring=true;
+function saveNavigation(){
+  try{
+    const symbol=$("symbol")?.value||"BTC-USDT";
+    const interval=$("interval")?.value||"15m";
+    sessionStorage.setItem(NAV_KEY,JSON.stringify({screen,symbol,interval,scrollY:window.scrollY||0}));
+  }catch(e){console.warn("Guardar navegación:",e);}
+}
+function restoreNavigation(){
+  const state=readNav();
+  if(state.symbol&&$("symbol")&&Array.from($("symbol").options).some(o=>o.value===state.symbol)){
+    $("symbol").value=state.symbol;
+    $("symbol").dispatchEvent(new Event("change",{bubbles:true}));
+  }
+  if(state.interval&&$("interval")&&Array.from($("interval").options).some(o=>o.value===state.interval)){
+    $("interval").value=state.interval;
+    $("interval").dispatchEvent(new Event("change",{bubbles:true}));
+  }
+  navigationRestoring=false;
+  activateTab(VALID_TABS.includes(state.screen)?state.screen:"markets",null,true);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>window.scrollTo({top:Math.max(0,Number(state.scrollY)||0),behavior:"instant"})));
+}
+
 let favorites=[];
 try{const f=JSON.parse(localStorage.getItem("cl-favorites")||"[]");if(Array.isArray(f))favorites=f.filter(x=>typeof x==="string");}catch{}
 function saveFavorites(){try{localStorage.setItem("cl-favorites",JSON.stringify(favorites));}catch{}}
 function refreshCharts(){if(chartResizeQueued)return;chartResizeQueued=true;requestAnimationFrame(()=>{chartResizeQueued=false;if(screen!=="charts"||$("clGraphContent")?.hidden)return;window.CryptolexuzChart?.resize?.();window.CryptolexuzRangeBoxes?.redraw?.();window.CryptolexuzFibonacci?.redraw?.();window.CryptolexuzVolumeProfile?.redraw?.();});}
 function setOpen(open){$("sidebar")?.classList.toggle("is-open",open);if($("menuBackdrop"))$("menuBackdrop").hidden=!open;$("menuToggle")?.setAttribute("aria-expanded",String(open));document.body.classList.toggle("menu-open",open);}
-function activateTab(tab,target){if(!["markets","charts","scanner","results"].includes(tab))return;const changed=screen!==tab;screen=tab;qa("[data-cl-screen]").forEach(e=>e.classList.toggle("cl-active",e.dataset.clScreen===tab));qa("[data-cl-tab]").forEach(e=>{const active=e.dataset.clTab===tab;e.classList.toggle("active",active);e.setAttribute("aria-pressed",String(active));});setOpen(false);requestAnimationFrame(()=>{if(target&&$(target))$(target).scrollIntoView({block:"start"});else window.scrollTo({top:0,behavior:"auto"});if(tab==="charts"&&changed)refreshCharts();});window.dispatchEvent(new CustomEvent("cryptolexuz:screen-change",{detail:{screen:tab}}));}
+function activateTab(tab,target,restoring=false){
+  if(!VALID_TABS.includes(tab))return;
+  const changed=screen!==tab;
+  screen=tab;
+  qa("[data-cl-screen]").forEach(e=>e.classList.toggle("cl-active",e.dataset.clScreen===tab));
+  qa("[data-cl-tab]").forEach(e=>{
+    const active=e.dataset.clTab===tab;
+    e.classList.toggle("active",active);
+    e.setAttribute("aria-pressed",String(active));
+  });
+  setOpen(false);
+  requestAnimationFrame(()=>{
+    if(!restoring){
+      if(target&&$(target))$(target).scrollIntoView({block:"start"});
+      else window.scrollTo({top:0,behavior:"auto"});
+    }
+    if(tab==="charts")refreshCharts();
+  });
+  if(!restoring)saveNavigation();
+  window.dispatchEvent(new CustomEvent("cryptolexuz:screen-change",{detail:{screen:tab,restoring}}));
+}
 window.CryptolexuzNavigation={activateTab,getScreen:()=>screen};
 $("menuToggle")?.addEventListener("click",()=>setOpen(!$("sidebar")?.classList.contains("is-open")));
 $("menuClose")?.addEventListener("click",()=>setOpen(false));
@@ -271,7 +332,70 @@ function settingsOther(){const names={drawing:"Herramientas de dibujo",interface
 $("clChartSettings")?.addEventListener("click",()=>openSettings("main"));$("clSettingsClose")?.addEventListener("click",closeSettings);$("clSettingsBack")?.addEventListener("click",()=>openSettings(settingsPage==="edit"?"indicators":"main"));overlay?.addEventListener("click",e=>{if(e.target===overlay)closeSettings();});
 overlay?.addEventListener("keydown",event=>{if(event.key!=="Tab")return;const focusable=qa('#clSettingsOverlay button:not([disabled]):not([hidden]),#clSettingsOverlay input:not([disabled]):not([hidden]),#clSettingsOverlay select:not([disabled]):not([hidden])').filter(x=>x.getClientRects().length);if(!focusable.length)return;const first=focusable[0],last=focusable[focusable.length-1];if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}});
 window.addEventListener("cryptolexuz:indicator-settings-change",event=>{const next=event.detail?.settings;if(next&&next!==prefs&&typeof next==="object"){prefs={...prefs,...next,maLines:normalizeLines(next.maLines,defaultMA),emaLines:normalizeLines(next.emaLines,defaultEMA),options:{...prefs.options,...(next.options||{})},indicators:{...prefs.indicators,...(next.indicators||{})}};}syncPanels();});
-function init(){if($("chart"))$("chart").style.height=Math.max(240,Math.min(600,Number(prefs.height)||360))+"px";renderMarkets();organizeModules();syncTimeframes();syncPanels();const observer=new MutationObserver(scheduleOrganize);observer.observe(document.body,{childList:true,subtree:true});window.addEventListener("load",()=>setTimeout(()=>{organizeModules();persist();notify();if(screen==="charts")refreshCharts();},500),{once:true});window.addEventListener("keydown",e=>{if(e.key==="Escape"){if(overlay&&!overlay.hidden)closeSettings();else setOpen(false);}});window.addEventListener("resize",refreshCharts);}
+function init(){
+  if($("chart"))$("chart").style.height=Math.max(240,Math.min(600,Number(prefs.height)||360))+"px";
+  renderMarkets();organizeModules();syncTimeframes();syncPanels();
+  const observer=new MutationObserver(scheduleOrganize);
+  observer.observe(document.body,{childList:true,subtree:true});
+  const afterLoad=()=>{
+    setTimeout(()=>{
+      organizeModules();persist();notify();
+      restoreNavigation();
+      if(screen==="charts")refreshCharts();
+    },500);
+  };
+  if(document.readyState==="complete")afterLoad();
+  else window.addEventListener("load",afterLoad,{once:true});
+  window.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){
+      if(overlay&&!overlay.hidden)closeSettings();
+      else setOpen(false);
+    }
+  });
+  window.addEventListener("resize",refreshCharts);
+  $("symbol")?.addEventListener("change",saveNavigation);
+  $("interval")?.addEventListener("change",saveNavigation);
+  window.addEventListener("pagehide",saveNavigation);
+  document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")saveNavigation();});
+  let scrollSaveQueued=false;
+  window.addEventListener("scroll",()=>{
+    if(navigationRestoring||scrollSaveQueued)return;
+    scrollSaveQueued=true;
+    requestAnimationFrame(()=>{scrollSaveQueued=false;saveNavigation();});
+  },{passive:true});
+  installHorizontalNavigation();
+}
+function installHorizontalNavigation(){
+  const order=VALID_TABS;
+  let gesture=null;
+  const interactive="button,a,input,select,textarea,label,summary,[role=slider],[contenteditable],.cl-timeframes,.cl-indicator-strip,.cl-pattern-strip,.table-wrap,#priceChartArea,#chart,#volumeChart,#rsiChart,#adxChart,#aoChart,#squeezeChart,#liquidityMap,#clVpCanvas,#zonesCanvas,.cl-theme-wheel,.cl-theme-sv";
+  document.addEventListener("touchstart",event=>{
+    gesture=null;
+    if(event.touches.length!==1)return;
+    if(!$("clSettingsOverlay")?.hidden||!$("clThemeOverlay")?.hidden||$("sidebar")?.classList.contains("is-open"))return;
+    const target=event.target;
+    if(!(target instanceof Element)||target.closest(interactive))return;
+    const touch=event.touches[0];
+    gesture={x:touch.clientX,y:touch.clientY,time:Date.now(),blocked:false};
+  },{passive:true});
+  document.addEventListener("touchmove",event=>{
+    if(!gesture)return;
+    if(event.touches.length!==1){gesture=null;return;}
+    const touch=event.touches[0];
+    const dx=touch.clientX-gesture.x,dy=touch.clientY-gesture.y;
+    if(Math.abs(dy)>Math.abs(dx)*1.1&&Math.abs(dy)>16)gesture.blocked=true;
+  },{passive:true});
+  document.addEventListener("touchend",event=>{
+    if(!gesture||gesture.blocked||!event.changedTouches.length){gesture=null;return;}
+    const touch=event.changedTouches[0],dx=touch.clientX-gesture.x,dy=touch.clientY-gesture.y;
+    const elapsed=Date.now()-gesture.time;
+    gesture=null;
+    if(elapsed>1000||Math.abs(dx)<85||Math.abs(dx)<Math.abs(dy)*1.5)return;
+    const index=order.indexOf(screen),next=index+(dx<0?1:-1);
+    if(next>=0&&next<order.length)activateTab(order[next]);
+  },{passive:true});
+  document.addEventListener("touchcancel",()=>{gesture=null;},{passive:true});
+}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
 })();
 </script>
