@@ -1,11 +1,11 @@
-/* CRYPTOLEXUZ PRO — APP.JS V30 COMPLETO — TEMPORALIDADES E INDICADORES CORREGIDOS
+/* CRYPTOLEXUZ PRO — APP.JS V31 COMPLETO — MOTOR DE SEÑALES INTEGRADO — TEMPORALIDADES E INDICADORES CORREGIDOS
    Compatible con INDEX.HTML V34/V35 y Lightweight Charts 4.2.2.
    Terminal informativa; no ejecuta órdenes.
 */
 'use strict';
 (() => {
-  if (window.__cryptolexuzAppV30) return;
-  window.__cryptolexuzAppV30 = true;
+  if (window.__cryptolexuzAppV31) return;
+  window.__cryptolexuzAppV31 = true;
   const $ = id => document.getElementById(id);
   const C = { green:'#00f5a0', red:'#ff476c', purple:'#bb52ff', orange:'#ff9a35', blue:'#36c5ff', yellow:'#ffe15a' };
   const GOLD='NCCOGOLD2USD-USDT', OIL='NCCO1OILWTI2USD-USDT';
@@ -13,7 +13,7 @@
   const ALL_TF=['1m','3m','5m','15m','30m','1h','2h','4h','6h','8h','12h','1d','3d','1w','1M'];
   const SCAN_TF=['1d','4h','1h','30m','15m','5m','1m'];
   const SEC={'1m':60,'3m':180,'5m':300,'15m':900,'30m':1800,'1h':3600,'2h':7200,'4h':14400,'6h':21600,'8h':28800,'12h':43200,'1d':86400,'3d':259200,'1w':604800,'1M':2592000};
-  const SETTINGS_KEY='cryptolexuz-chart-settings-v1', HISTORY_KEY='cryptolexuz-v27-history', LEGACY_HISTORY_KEY='cryptolexuz-v16-history';
+  const SETTINGS_KEY='cryptolexuz-chart-settings-v1', HISTORY_KEY='cryptolexuz-v31-history', LEGACY_HISTORY_KEY='cryptolexuz-v16-history';
   const MA_DEFAULT=[{period:55,color:C.orange,width:2,enabled:true},{period:100,color:C.red,width:3,enabled:false},{period:200,color:C.blue,width:2,enabled:false}];
   const EMA_DEFAULT=[{period:21,color:C.purple,width:2,enabled:true}];
   const IND_DEFAULT={MA:true,EMA:true,VOL:true,RSI:true,ADX:false,AO:false,FVG:true,IFVG:false,liquidity:false,sweeps:false,support:false,resistance:false};
@@ -120,26 +120,18 @@
   async function frames(market){const result={};for(const tf of SCAN_TF){const s={...market,tf},cacheKey=key(s),ttl=SEC[tf]>=3600?180000:SEC[tf]>=900?90000:50000,stored=cache.get(cacheKey);if(stored&&Date.now()-stored.at<ttl){result[tf]=stored.data;continue;}const data=normalize(await getJSON(candleURL(s,300)));if(closed(data,tf).length<60)throw Error(tf+': historial insuficiente');result[tf]=data;cache.set(cacheKey,{at:Date.now(),data});}return result;}
   // V27: Confirmaciones estrictas basadas exclusivamente en velas cerradas.
   const V27={minScore:85,minADX:25,minVolume:1.35,cooldownSeconds:15*60,maxPendingSeconds:30*60,minimumRR:1.8};
+  // V31: el escáner usa el motor externo; no crea confirmaciones propias.
   function rank(market,framesData){
-    const metrics={};for(const tf of SCAN_TF)metrics[tf]=metric(framesData[tf]||[],tf);
-    const fast=metrics['1m'],m5=metrics['5m'],m15=metrics['15m'],m1h=metrics['1h'];
-    if(!fast||!m5||!m15)return {market,score:0,state:'SIN DATOS',direction:'NEUTRAL',confirmations:'Historial insuficiente'};
-    const long=m15.bull>=3&&m5.bull>=3&&m15.bull>m15.bear&&m5.bull>m5.bear;
-    const short=m15.bear>=3&&m5.bear>=3&&m15.bear>m15.bull&&m5.bear>m5.bull;
-    const direction=long&&!short?'LONG':short&&!long?'SHORT':'NEUTRAL';
-    const valid=direction!=='NEUTRAL';
-    const momentum=valid&&(direction==='LONG'?m5.aoBull&&fast.aoBull:m5.aoBear&&fast.aoBear);
-    const trend=valid&&(direction==='LONG'?m1h?.bull>=3:m1h?.bear>=3);
-    const volume=m5.volRatio>=V27.minVolume;
-    const strength=m5.adx>=V27.minADX&&m15.adx>=20;
-    const rsiOK=valid&&(direction==='LONG'?m5.rsi>=52&&m5.rsi<=68:m5.rsi>=32&&m5.rsi<=48);
-    const breakout=valid&&(direction==='LONG'?m5.breakHigh:m5.breakLow);
-    const timing=valid&&(direction==='LONG'?fast.bull>=3:fast.bear>=3);
-    const atrOK=Number.isFinite(m5.atr)&&m5.atr>0;
-    const score=(valid?25:0)+(trend?12:0)+(strength?15:0)+(volume?12:0)+(momentum?12:0)+(rsiOK?10:0)+(breakout?8:0)+(timing?6:0);
-    const confirmed=valid&&trend&&strength&&volume&&momentum&&rsiOK&&breakout&&timing&&atrOK&&score>=V27.minScore;
-    const flags=[`15m/5m ${valid?'alineados':'sin alinear'}`,`1h ${trend?'✓':'×'}`,`ADX ${strength?'✓':'×'}`,`VOL ${volume?'✓':'×'}`,`AO ${momentum?'✓':'×'}`,`RSI ${rsiOK?'✓':'×'}`,`ruptura 5m ${breakout?'✓':'×'}`];
-    return {market,score,direction,state:confirmed?'CONFIRMADA':score>=70?'EN OBSERVACIÓN':'SIN ENTRADA',confirmations:flags.join(' · '),closedTime:m5.closedTime,price:m5.close,atr:m5.atr,tf:'5m',reason:'V27: 15m/5m alineados; 1h, ADX, volumen, AO, RSI y ruptura 5m',strategyVersion:'V27'};
+    const engine=window.CryptolexuzSignalsEngine;
+    if(!engine?.evaluateSignal)throw Error('Falta signals-engine.js. Verifica que cargue antes de app.js');
+    const r=engine.evaluateSignal({symbol:market.symbol,candlesByTf:framesData});
+    const flags=Object.entries(r.confirmations||{}).map(([k,v])=>k+' '+(v?'✓':'×')).join(' · ');
+    const m5=r.metrics?.['5m'];
+    return {market,score:r.score,direction:r.direction,state:r.state,
+      confirmations:flags||r.summary,closedTime:r.closedTime,
+      price:r.entryPrice,stop:r.stopLoss,tp1:r.tp1,tp2:r.tp2,
+      atr:m5?.atr??null,tf:'5m',reason:'Motor V1: '+r.summary,
+      strategyVersion:'V31',ready:r.ready};
   }
   // Mantener los registros V26 en su propia clave. No alterar ni mezclar sus métricas.
   const legacyHistory=(()=>{try{return safeJSON(localStorage.getItem(LEGACY_HISTORY_KEY),[]);}catch{return [];}})();
@@ -150,12 +142,15 @@
   function hasActiveSignal(result){return history.some(x=>x.symbol===result.market.symbol&&x.exchange===result.market.exchange&&x.market===result.market.market&&x.direction===result.direction&&['PENDIENTE','ACTIVADA'].includes(x.state));}
   function inCooldown(result){const recent=history.find(x=>x.symbol===result.market.symbol&&x.exchange===result.market.exchange&&x.market===result.market.market&&x.direction===result.direction&&x.ended);return Boolean(recent&&now()-recent.ended<V27.cooldownSeconds);}
   function addSignal(result){
-    if(result.state!=='CONFIRMADA'||!result.closedTime||!Number.isFinite(result.atr)||result.atr<=0||hasActiveSignal(result)||inCooldown(result))return false;
-    const id=['V27',result.market.exchange,result.market.market,result.market.symbol,result.direction,result.closedTime].join('|');
+    if(!result.ready||result.state!=='CONFIRMADA'||!result.closedTime||hasActiveSignal(result)||inCooldown(result))return false;
+    const id=['V31',result.market.exchange,result.market.market,result.market.symbol,result.direction,result.closedTime].join('|');
     if(history.some(x=>x.id===id))return false;
-    const entry=result.price,distance=result.atr,side=result.direction;
-    if(!Number.isFinite(entry)||entry<=0||!Number.isFinite(distance)||distance<=0)return false;
-    history.unshift({id,version:'V27',symbol:result.market.symbol,exchange:result.market.exchange,market:result.market.market,tf:result.tf||'5m',direction:side,created:result.closedTime,entry,stop:side==='LONG'?entry-distance:entry+distance,target:side==='LONG'?entry+2*distance:entry-2*distance,state:'PENDIENTE',activated:null,ended:null,reason:result.reason,score:result.score,lastChecked:result.closedTime});
+    const entry=result.price,stop=result.stop,target=result.tp2,side=result.direction;
+    if(![entry,stop,target].every(x=>Number.isFinite(x)&&x>0))return false;
+    history.unshift({id,version:'V31',symbol:result.market.symbol,exchange:result.market.exchange,
+      market:result.market.market,tf:'5m',direction:side,created:result.closedTime,
+      entry,stop,target,tp1:result.tp1,state:'PENDIENTE',activated:null,ended:null,
+      reason:result.reason,score:result.score,lastChecked:result.closedTime});
     history=history.slice(0,300);saveHistory();renderHistory();return true;
   }
   function evaluateSignal(signal,data){
@@ -206,15 +201,15 @@
     put('clTotalSignals',history.length);put('clTargetsHit',wins);put('clStopsHit',losses);put('clWinRate',wins+losses?fmt(wins/(wins+losses)*100,1)+'%':'—');
     let details=$('clV27Stats');
     if(!details){const host=$('historySection')||$('clScreenResults');if(host){details=document.createElement('p');details.id='clV27Stats';details.style.cssText='padding:12px;color:#b9c5df;font-size:13px;line-height:1.6';host.prepend(details);}}
-    if(details){const pending=history.filter(x=>x.state==='PENDIENTE').length,active=history.filter(x=>x.state==='ACTIVADA').length,uncertain=history.filter(x=>x.state==='NO VERIFICABLE').length,notActivated=history.filter(x=>x.state==='NO ACTIVADA').length;details.textContent=`Motor V27 · Pendientes ${pending} · Activadas ${active} · No activadas ${notActivated} · No verificables ${uncertain} · Historial V26 separado: ${Array.isArray(legacyHistory)?legacyHistory.length:0} registros. Estadísticas V27 únicamente.`;}
+    if(details){const pending=history.filter(x=>x.state==='PENDIENTE').length,active=history.filter(x=>x.state==='ACTIVADA').length,uncertain=history.filter(x=>x.state==='NO VERIFICABLE').length,notActivated=history.filter(x=>x.state==='NO ACTIVADA').length;details.textContent=`Motor V31 · Pendientes ${pending} · Activadas ${active} · No activadas ${notActivated} · No verificables ${uncertain} · Historial V26 separado: ${Array.isArray(legacyHistory)?legacyHistory.length:0} registros. Estadísticas V31 únicamente.`;}
     const body=$('signalLog');if(!body)return;body.replaceChildren();
-    if(!history.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=7;td.textContent='Sin señales V27 todavía. El historial anterior se conserva por separado.';tr.append(td);body.append(tr);return;}
+    if(!history.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=7;td.textContent='Sin señales V31 todavía. El historial anterior se conserva por separado.';tr.append(td);body.append(tr);return;}
     for(const signal of history.slice(0,30)){const tr=document.createElement('tr');for(const value of [new Date(signal.created*1000).toLocaleString('es-MX'),signal.tf,signal.symbol,signal.direction,priceText(signal.entry),signal.reason+' · TP '+priceText(signal.target)+' · SL '+priceText(signal.stop),signal.state]){const td=document.createElement('td');td.textContent=value;tr.append(td);}body.append(tr);}
   }
-  function notifySignal(result){if(result.state!=='CONFIRMADA'||!('Notification'in window)||Notification.permission!=='granted')return;try{new Notification('CRYPTOLEXUZ V27 · '+result.market.label+' · '+result.direction,{body:'Señal técnica '+result.score+'/100 · Precio '+priceText(result.price),tag:result.market.symbol+'|'+result.direction+'|'+result.closedTime});}catch(e){console.warn('Notificación:',e);}}
+  function notifySignal(result){if(result.state!=='CONFIRMADA'||!('Notification'in window)||Notification.permission!=='granted')return;try{new Notification('CRYPTOLEXUZ V31 · '+result.market.label+' · '+result.direction,{body:'Señal técnica '+result.score+'/100 · Precio '+priceText(result.price),tag:result.market.symbol+'|'+result.direction+'|'+result.closedTime});}catch(e){console.warn('Notificación:',e);}}
   async function scan(force=false){
     if(document.hidden)return;if(scanBusy){if(force)scanAgain=true;return;}if(!force&&Date.now()-scanLast<55000)return;
-    scanBusy=true;const id=scanRequest,items=markets(),results=[],errors=[];put('clScanStatus','V27 · Analizando ocho activos...');let cursor=0;
+    scanBusy=true;const id=scanRequest,items=markets(),results=[],errors=[];put('clScanStatus','V31 · Analizando ocho activos...');let cursor=0;
     async function worker(){while(cursor<items.length){const market=items[cursor++];try{results.push(rank(market,await frames(market)));}catch(e){errors.push(market.label+': '+e.message);}}}
     try{
       await Promise.all([worker(),worker()]);if(id!==scanRequest)return;
@@ -235,11 +230,11 @@
           const top=document.createElement('div');top.className='cl-tile-head';top.append(name,badge);
           // Estos niveles son una propuesta técnica, NO órdenes ni entradas ejecutadas.
           // Sólo mostrar precios cuando exista señal confirmada y ATR válido.
-          const valid=r.state==='CONFIRMADA'&&['LONG','SHORT'].includes(r.direction)&&Number.isFinite(r.price)&&r.price>0&&Number.isFinite(r.atr)&&r.atr>0;
+          const valid=r.ready&&r.state==='CONFIRMADA'&&['LONG','SHORT'].includes(r.direction)&&[r.price,r.stop,r.tp1,r.tp2].every(x=>Number.isFinite(x)&&x>0);
           const entry=valid?r.price:null;
-          const stop=valid?(r.direction==='LONG'?entry-r.atr:entry+r.atr):null;
-          const tp1=valid?(r.direction==='LONG'?entry+r.atr:entry-r.atr):null;
-          const tp2=valid?(r.direction==='LONG'?entry+2*r.atr:entry-2*r.atr):null;
+          const stop=valid?r.stop:null;
+          const tp1=valid?r.tp1:null;
+          const tp2=valid?r.tp2:null;
           const levels=document.createElement('div');levels.className='cl-tile-levels';
           for(const [label,value,kind] of [['Entrada',entry,'entry'],['Stop',stop,'stop'],['TP1',tp1,'tp'],['TP2',tp2,'tp']]){
             const cell=document.createElement('div');cell.className='cl-tile-level '+kind;
@@ -258,7 +253,7 @@
         }
         if(!results.length)body.textContent='Sin resultados disponibles.';
       }
-      put('clScanErrors',errors.length?'Sin datos: '+errors.join(' · '):'');put('clScanStatus','V27 · Última revisión: '+new Date().toLocaleTimeString('es-MX')+' · '+results.length+'/'+items.length+' activos');scanLast=Date.now();
+      put('clScanErrors',errors.length?'Sin datos: '+errors.join(' · '):'');put('clScanStatus','V31 · Última revisión: '+new Date().toLocaleTimeString('es-MX')+' · '+results.length+'/'+items.length+' activos');scanLast=Date.now();
       // Primero actualizar estados; después decidir si puede abrirse una nueva señal.
       await verifySignals();for(const r of results)if(addSignal(r))notifySignal(r);
     }catch(e){put('clScanStatus','Error del escáner: '+e.message);console.warn('Escáner:',e);}finally{scanBusy=false;if(scanAgain){scanAgain=false;queueMicrotask(()=>scan(true));}}
@@ -279,6 +274,6 @@
     syncTimeframes();updateButtons();
   }
   window.CryptolexuzIndicators={getSettings:()=>readSettings(),getEnabled:()=>Object.keys(prefs.indicators).filter(k=>prefs.indicators[k]),isEnabled:indicatorActive,setIndicator,toggleIndicator,refresh:()=>{applySavedIndicators();refresh();},awesomeOscillator,sma,ema,rsi,adx};
-  function init(){populateTimeframes();syncCommodity();scannerUI();renderHistory();events();applySavedIndicators();if(!createCharts())return;window.CryptolexuzApp={version:'V30',refresh,refreshTicker,scan,monitor,resize,resetView,setTimeframe,setIndicator,toggleIndicator,getRows:()=>rows,getSelection:selection};connect();refresh();refreshTicker();monitor(true);scan(true);for(const [ms,fn] of [[15000,refresh],[10000,refreshTicker],[60000,monitor],[60000,scan],[60000,verifySignals]])timers.push(setInterval(()=>{if(!document.hidden)Promise.resolve(fn()).catch(console.warn);},ms));window.addEventListener('beforeunload',()=>{disconnect();for(const t of timers)clearInterval(t);});console.info('CRYPTOLEXUZ PRO — APP.JS V30 iniciado');}
+  function init(){populateTimeframes();syncCommodity();scannerUI();renderHistory();events();applySavedIndicators();if(!createCharts())return;if(!window.CryptolexuzSignalsEngine?.evaluateSignal){put('clScanStatus','Error: falta signals-engine.js');console.error('CRYPTOLEXUZ: carga signals-engine.js antes de app.js');}window.CryptolexuzApp={version:'V31',refresh,refreshTicker,scan,monitor,resize,resetView,setTimeframe,setIndicator,toggleIndicator,getRows:()=>rows,getSelection:selection};connect();refresh();refreshTicker();monitor(true);scan(true);for(const [ms,fn] of [[15000,refresh],[10000,refreshTicker],[60000,monitor],[60000,scan],[60000,verifySignals]])timers.push(setInterval(()=>{if(!document.hidden)Promise.resolve(fn()).catch(console.warn);},ms));window.addEventListener('beforeunload',()=>{disconnect();for(const t of timers)clearInterval(t);});console.info('CRYPTOLEXUZ PRO — APP.JS V31 iniciado');}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
