@@ -1,4 +1,4 @@
-/* CRYPTOLEXUZ PRO — STYLES.CSS V29 COMPLETO RECONSTRUIDO
+/* CRYPTOLEXUZ PRO — STYLES.CSS V31 COMPLETO RECONSTRUIDO
    Conserva universo.jpg. Escáner de dos tarjetas por fila.
    Compatible con index.html V34 y app.js V29.
 */
@@ -30,3 +30,213 @@ a{color:inherit;text-decoration:none}h1,h2,h3,p{overflow-wrap:break-word}h1,h2,h
 .cl-bottom-nav>*,.bottom-nav>*,#clBottomNav>*,.cl-nav-bottom>*,.bottom-navigation>*,#bottomNav>*{display:flex!important;align-items:center!important;justify-content:center!important;min-width:0!important;width:100%!important;max-width:100%!important;margin:0!important;padding:9px 2px!important;border-radius:8px!important;font-size:clamp(9px,2.6vw,12px)!important;line-height:1.2!important;text-align:center!important;white-space:normal!important;overflow-wrap:anywhere!important}
 @media(min-width:768px){.cl-scan-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.cl-scan-tile{padding:12px}.cl-tile-symbol{font-size:14px}.cl-tile-level b{font-size:13px}.cl-tile-stat{font-size:12px}}
 @media(max-width:370px){.cl-scan-grid{gap:5px}.cl-scan-tile{padding:7px 5px}.cl-tile-symbol{font-size:11px}.cl-tile-level b{font-size:10px}}
+
+
+/* ==========================================================
+   V30 — Navegación violeta, desplazamiento táctil e historial
+   No modifica JavaScript, datos, señales ni estilos del fondo.
+   ========================================================== */
+html, body {
+  overflow-y: auto;
+  overscroll-behavior-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+body:not(.menu-open) .app-container,
+body:not(.menu-open) .cl-screen,
+body:not(.menu-open) .chart-card,
+body:not(.menu-open) .cl-module,
+body:not(.menu-open) .history-section {
+  touch-action: pan-y pinch-zoom;
+}
+/* Los carruseles de indicadores y temporalidades siguen desplazándose
+   horizontalmente de forma independiente. */
+.cl-market-filters, .cl-chart-tabs, .cl-timeframes,
+.cl-indicator-strip, .cl-pattern-strip, .cl-book-tabs,
+#clFixedTimeframes, #clFixedIndicators, #clFixedPatterns {
+  touch-action: pan-x pan-y;
+}
+/* Permite subir/bajar la página al comenzar el gesto sobre el gráfico.
+   Los movimientos laterales de velas dependen de Lightweight Charts. */
+#chart, #volumeChart, #rsiChart, #adxChart, #aoChart, #squeezeChart,
+#chart canvas, #volumeChart canvas, #rsiChart canvas,
+#adxChart canvas, #aoChart canvas, #squeezeChart canvas {
+  touch-action: pan-y pinch-zoom !important;
+}
+/* Cuatro botones siempre en una sola fila, con el mismo ancho. */
+.cl-bottom-nav {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 5px !important;
+  background: rgba(8, 8, 23, .97) !important;
+  box-shadow: 0 -5px 22px rgba(0,0,0,.42);
+}
+.cl-bottom-nav > .cl-nav-button {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 2px !important;
+  min-width: 0 !important;
+  min-height: 54px;
+  padding: 6px 1px !important;
+  border: 1px solid rgba(172,113,237,.40) !important;
+  border-radius: 10px !important;
+  background: #242039 !important;
+  color: #e7d6ff !important;
+  font-size: clamp(9px, 2.6vw, 12px) !important;
+  font-weight: 600;
+  line-height: 1.15 !important;
+  white-space: nowrap !important;
+  text-shadow: none !important;
+  box-shadow: none !important;
+}
+.cl-bottom-nav > .cl-nav-button.active,
+.cl-bottom-nav > .cl-nav-button[aria-pressed="true"],
+.cl-bottom-nav > .cl-nav-button[aria-selected="true"] {
+  background: linear-gradient(145deg, #7636ba, #51248a) !important;
+  border-color: #d2a3ff !important;
+  color: #fff !important;
+  box-shadow: 0 0 12px rgba(166,85,244,.25) !important;
+}
+.cl-bottom-nav .cl-nav-icon {
+  display: block;
+  font-size: 18px;
+  line-height: 1;
+}
+/* Historial: evitar que las siete columnas se aplasten.
+   Se desplaza lateralmente dentro de su propio módulo. */
+#historySection, .history-section { min-width: 0; max-width: 100%; }
+#historySection .table-wrap,
+.history-section .table-wrap,
+#historySection .cl-table-wrap {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+#historySection table, .history-section table {
+  width: max-content;
+  min-width: 660px;
+  border-collapse: collapse;
+}
+#historySection th, #historySection td,
+.history-section th, .history-section td {
+  padding: 9px 8px;
+  vertical-align: top;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+  font-size: 12px;
+}
+#historySection th:nth-child(6), #historySection td:nth-child(6),
+.history-section th:nth-child(6), .history-section td:nth-child(6) {
+  min-width: 200px;
+  max-width: 260px;
+}
+@media (max-width: 400px) {
+  .cl-bottom-nav { gap: 3px !important; padding-left: 3px !important; padding-right: 3px !important; }
+  .cl-bottom-nav > .cl-nav-button { font-size: 9px !important; }
+}
+
+
+/* ===========================================================
+   V31 — PERSONALIZACIÓN CROMÁTICA (preparada para HTML/JS)
+   --cl-accent se puede modificar desde el selector cromático.
+   El selector interactivo se integrará después en index.html.
+   =========================================================== */
+:root {
+  --cl-accent: #ba69ff;
+  --cl-accent-contrast: #ffffff;
+  --cl-accent-soft: color-mix(in srgb, var(--cl-accent) 22%, transparent);
+  --cl-accent-border: color-mix(in srgb, var(--cl-accent) 65%, #303443);
+  --purple: var(--cl-accent);
+}
+
+/* Controles, pestañas y resaltados personalizables. */
+button:focus-visible, input:focus-visible, select:focus-visible,
+textarea:focus-visible, a:focus-visible {
+  outline-color: var(--cl-accent);
+}
+.cl-chip.active, .cl-chip[aria-pressed="true"],
+.indicator-buttons button.active,
+.indicator-buttons button[aria-pressed="true"] {
+  background: var(--cl-accent-soft);
+  border-color: var(--cl-accent);
+  color: #fff;
+}
+.cl-chart-gear, .menu-toggle {
+  border-color: var(--cl-accent-border);
+}
+.cl-scan-tile {
+  border-color: var(--cl-accent-border);
+}
+.cl-bottom-nav > .cl-nav-button {
+  border-color: var(--cl-accent-border) !important;
+}
+.cl-bottom-nav > .cl-nav-button.active,
+.cl-bottom-nav > .cl-nav-button[aria-pressed="true"],
+.cl-bottom-nav > .cl-nav-button[aria-selected="true"],
+.cl-bottom-nav > .cl-nav-button.is-active {
+  background: var(--cl-accent) !important;
+  border-color: var(--cl-accent) !important;
+  color: var(--cl-accent-contrast) !important;
+  box-shadow: 0 0 12px var(--cl-accent-soft) !important;
+}
+
+/* Selector de color: apariencia lista para cuando exista el HTML. */
+.cl-color-settings {
+  padding: 12px;
+  border: 1px solid var(--cl-accent-border);
+  border-radius: 12px;
+  background: rgba(14, 16, 29, .88);
+}
+.cl-color-settings h3 { margin: 0 0 10px; color: #fff; }
+.cl-color-wheel {
+  display: block;
+  width: min(100%, 240px);
+  aspect-ratio: 1;
+  margin: 10px auto;
+  border-radius: 50%;
+  background: conic-gradient(red, #ff0, lime, cyan, blue, magenta, red);
+  border: 3px solid rgba(255,255,255,.16);
+}
+.cl-color-settings input[type="color"] {
+  width: 100%; height: 46px;
+  padding: 4px; border: 1px solid var(--cl-accent-border);
+  border-radius: 9px; background: #171a29;
+}
+.cl-color-settings input[type="range"] { width: 100%; accent-color: var(--cl-accent); }
+.cl-color-settings button {
+  min-height: 38px; border: 1px solid var(--cl-accent-border);
+  border-radius: 9px; background: var(--cl-accent-soft); color: #fff;
+}
+
+/* Mantener scroll vertical de la página y gestos horizontales de gráficas. */
+html, body { overflow-x: hidden; overflow-y: auto; }
+body:not(.menu-open) .app-container,
+body:not(.menu-open) .cl-screen { touch-action: pan-y pinch-zoom; }
+#chart, #volumeChart, #rsiChart, #adxChart, #aoChart, #squeezeChart {
+  touch-action: pan-x pan-y pinch-zoom;
+}
+.cl-timeframes, .cl-indicator-strip, .cl-pattern-strip,
+#clFixedTimeframes, #clFixedIndicators, #clFixedPatterns {
+  touch-action: pan-x pan-y;
+}
+
+/* Cuatro botones fijos: evitar salto de línea y superposición. */
+.cl-bottom-nav, .bottom-nav, #clBottomNav,
+.cl-nav-bottom, .bottom-navigation, #bottomNav {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  flex-wrap: nowrap !important;
+}
+.app-container { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+
+/* Tarjetas del escáner: dos columnas en teléfono. */
+@media (max-width: 767px) {
+  .cl-scan-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  .cl-scan-tile { padding: 8px 6px; }
+  .cl-tile-levels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cl-tile-level b { font-size: clamp(10px, 2.7vw, 12px); }
+}
