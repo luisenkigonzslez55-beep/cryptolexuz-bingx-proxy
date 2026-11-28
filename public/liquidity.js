@@ -1,5 +1,5 @@
 /*
- CRYPTOLEXUZ PRO — LIQUIDITY.JS V14 COMPLETO
+ CRYPTOLEXUZ PRO — LIQUIDITY.JS V15 COMPLETO
  Capa opcional de profundidad REAL sobre las velas de app.js V31.
  Requiere window.CryptolexuzChart (publicado por app.js V31).
  Utiliza el botón existente [data-indicator="liquidity"].
@@ -8,15 +8,15 @@
 */
 "use strict";
 (() => {
-  if (window.__CL_LIQUIDITY_V14__) return;
-  window.__CL_LIQUIDITY_V14__ = true;
+  if (window.__CL_LIQUIDITY_V15__) return;
+  window.__CL_LIQUIDITY_V15__ = true;
   const $ = id => document.getElementById(id);
   const CFG = {refresh:2500, timeout:10000, depth:200, levels:10};
   const S = {
     enabled:false, running:false, busy:false, again:false, controller:null,
     timer:null, generation:0, key:"", book:null, updated:0, error:"",
     chart:null, candle:null, canvas:null, observer:null, frame:0,
-    intensity:0.55, initialized:false
+    intensity:0.72, initialized:false
   };
   const fmt = (v,d=2) => Number.isFinite(Number(v)) ? Number(v).toLocaleString("en-US",{maximumFractionDigits:d,minimumFractionDigits:d}) : "—";
   const digits = v => Math.abs(v)>=100?2:Math.abs(v)>=1?4:Math.abs(v)>=0.01?6:8;
@@ -40,8 +40,8 @@
   function setStatus(message,failed=false){
     const t=$("clLiquidityOverlayStatus");if(t){t.textContent=message;t.style.color=failed?"#ff8398":"#b4c5e7";}
   }
-  function styles(){if($("clLiquidityV14Styles"))return;
-    const style=node("style");style.id="clLiquidityV14Styles";
+  function styles(){if($("clLiquidityV15Styles"))return;
+    const style=node("style");style.id="clLiquidityV15Styles";
     style.textContent=`
       #clLiquidityOverlayCanvas{position:absolute!important;inset:0 auto auto 0;z-index:1;pointer-events:none!important;background:transparent!important;max-width:none!important}
       #priceChartArea{position:relative!important;isolation:isolate}
@@ -76,7 +76,7 @@
       const label=node("strong","","🌡️ Liquidez sobre velas");
       const status=node("span");status.id="clLiquidityOverlayStatus";
       const intensity=node("label");intensity.textContent="Intensidad ";
-      const range=node("input");range.type="range";range.min="0.15";range.max="0.9";range.step="0.05";range.value=String(S.intensity);range.id="clLiquidityOverlayIntensity";
+      const range=node("input");range.type="range";range.min="0.2";range.max="1";range.step="0.05";range.value=String(S.intensity);range.id="clLiquidityOverlayIntensity";
       range.addEventListener("input",()=>{S.intensity=Number(range.value);redraw();});
       intensity.append(range);info.append(label,status,intensity);
       area.parentNode.insertBefore(info,area.nextSibling);
@@ -147,9 +147,21 @@
     const ctx=canvas.getContext("2d");if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height);
   }
   function redraw(){if(S.frame)return;S.frame=requestAnimationFrame(()=>{S.frame=0;draw();});}
+  // V31 dibuja máximos y mínimos de pivotes al activar "liquidity".
+  // Son niveles técnicos, NO profundidad. Retirarlos sin tocar otras líneas.
+  function removeLegacyPivotLines(api){
+    try{
+      const lines=api?.candle?.priceLines?.()||[];
+      for(const line of lines){
+        const title=line.options?.()?.title;
+        if(title==="Máximo"||title==="Mínimo")api.candle.removePriceLine(line);
+      }
+    }catch(e){console.warn("Liquidez: limpieza de niveles heredados",e);}
+  }
   function draw(){
     const canvas=S.canvas,api=getChart(),element=$("chart");
     if(!canvas||!element||!api||!S.enabled||!S.book){clear();return;}
+    removeLegacyPivotLines(api);
     const rect=element.getBoundingClientRect(),area=$("priceChartArea")?.getBoundingClientRect();
     if(!area||rect.width<80||rect.height<80)return;
     const w=rect.width,h=rect.height,dpr=Math.min(devicePixelRatio||1,2);
@@ -163,25 +175,55 @@
     const chartWidth=api.chart?.timeScale?.().width?.()||w-70;
     const plotW=Math.max(0,Math.min(w-60,chartWidth));
     if(plotW<30)return;
-    const all=[...S.book.bids,...S.book.asks];
-    const max=Math.max(1,...all.map(o=>o.price*o.quantity));
-    // Bandas horizontales sobre el rango de precios actual de la serie.
-    // NO se dibujan columnas históricas porque los snapshots no están sincronizados con velas.
-    const levels=all.map(o=>({y:api.candle.priceToCoordinate(o.price),notional:o.price*o.quantity,buy:o.price<S.book.mid})).filter(o=>Number.isFinite(o.y)&&o.y>=0&&o.y<h-22);
-    if(!levels.length){setStatus("Profundidad recibida; niveles fuera del rango visible");return;}
-    const sorted=levels.map(o=>o.y).sort((a,b)=>a-b);
-    const diffs=sorted.slice(1).map((y,i)=>y-sorted[i]).filter(x=>x>0.5);
-    const bandHeight=Math.max(3,Math.min(14,diffs.length?diffs.sort((a,b)=>a-b)[Math.floor(diffs.length/2)]*.8:6));
-    ctx.save();ctx.beginPath();ctx.rect(0,0,plotW,h-22);ctx.clip();
-    for(const o of levels){
-      const strength=Math.min(1,Math.log1p(o.notional)/Math.log1p(max));
-      const alpha=Math.min(.52,S.intensity*(.12+.65*strength));
-      ctx.fillStyle=o.buy?`rgba(0,245,160,${alpha.toFixed(3)})`:`rgba(255,71,108,${alpha.toFixed(3)})`;
-      ctx.fillRect(0,o.y-bandHeight/2,plotW,bandHeight);
-      if(strength>.78){ctx.strokeStyle=o.buy?"rgba(0,245,160,.50)":"rgba(255,71,108,.50)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,o.y);ctx.lineTo(plotW,o.y);ctx.stroke();}
+    const all=[...S.book.bids.map(o=>({...o,buy:true})),...S.book.asks.map(o=>({...o,buy:false}))];
+    // Agrupación por píxel vertical: evita que 200 niveles sean rayas
+    // invisibles en una pantalla móvil. La cantidad procede del libro REAL.
+    const priceToY=p=>api.candle.priceToCoordinate(p);
+    const height=h-24,step=Math.max(5,Math.min(12,Math.round(height/65)));
+    const count=Math.ceil(height/step);
+    const buy=new Float64Array(count),sell=new Float64Array(count);
+    let visible=0;
+    for(const o of all){
+      const y=priceToY(o.price);
+      if(!Number.isFinite(y)||y<0||y>=height)continue;
+      const i=Math.min(count-1,Math.floor(y/step));
+      (o.buy?buy:sell)[i]+=o.price*o.quantity;
+      visible++;
+    }
+    if(!visible){setStatus("Profundidad recibida; precios fuera de la escala visible");return;}
+    const values=[];
+    for(let i=0;i<count;i++)if(buy[i]+sell[i]>0)values.push(buy[i]+sell[i]);
+    values.sort((a,b)=>a-b);
+    const ref=Math.max(1,values[Math.floor((values.length-1)*.90)]||1);
+    const logRef=Math.log1p(ref);
+    ctx.save();ctx.beginPath();ctx.rect(0,0,plotW,height);ctx.clip();
+    let bands=0;
+    for(let i=0;i<count;i++){
+      const total=buy[i]+sell[i];if(!total)continue;
+      const strength=Math.min(1,Math.log1p(total)/logRef);
+      const alpha=Math.min(.42,S.intensity*(.09+.33*strength));
+      const y=i*step;
+      // Morado/azul para niveles menores, verde/amarillo para compras
+      // y rojo/naranja para ventas. No son probabilidades.
+      let color;
+      if(strength<.35)color=`rgba(108,45,185,${alpha.toFixed(3)})`;
+      else if(strength<.60)color=`rgba(41,117,216,${alpha.toFixed(3)})`;
+      else if(buy[i]>=sell[i])color=strength>.85?`rgba(255,220,65,${alpha.toFixed(3)})`:`rgba(0,245,160,${alpha.toFixed(3)})`;
+      else color=strength>.85?`rgba(255,122,25,${alpha.toFixed(3)})`:`rgba(255,71,108,${alpha.toFixed(3)})`;
+      ctx.fillStyle=color;
+      ctx.fillRect(0,y,plotW,step+1);
+      // La barra de intensidad termina a la derecha para distinguir
+      // concentraciones grandes sin cubrir las velas con opacidad alta.
+      if(strength>.72){
+        const barW=Math.min(plotW*.27,plotW*.27*strength);
+        ctx.fillStyle=buy[i]>=sell[i]?"rgba(0,245,160,.42)":"rgba(255,71,108,.42)";
+        ctx.fillRect(plotW-barW,y,barW,Math.max(2,step-1));
+      }
+      bands++;
     }
     ctx.restore();
-    setStatus("Órdenes visibles · "+new Date(S.updated).toLocaleTimeString("es-MX")+" · "+selection().tf);
+    setStatus("Mapa real · "+bands+" bandas · "+new Date(S.updated).toLocaleTimeString("es-MX")+" · "+selection().tf);
+
   }
   async function refresh(){
     if(!S.running||document.hidden)return;
@@ -204,7 +246,7 @@
       S.error=controller.signal.aborted?"Tiempo de espera agotado":String(e.message||e);
       setStatus("Sin profundidad: "+S.error,true);
       if(!S.book)clear();
-      console.warn("CRYPTOLEXUZ Liquidez V14:",e);
+      console.warn("CRYPTOLEXUZ Liquidez V15:",e);
     }finally{
       clearTimeout(timeout);if(S.controller===controller)S.controller=null;
       S.busy=false;
@@ -252,10 +294,10 @@
     window.addEventListener("resize",redraw);
     document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.running){refresh();redraw();}});
     window.addEventListener("beforeunload",()=>{stop();S.observer?.disconnect();});
-    console.info("CRYPTOLEXUZ PRO — LIQUIDITY.JS V14 · capa sobre velas");
+    console.info("CRYPTOLEXUZ PRO — LIQUIDITY.JS V15 · capa sobre velas");
   }
   window.CryptolexuzLiquidity={
-    version:"14",start,stop,restart,refresh,redraw,setEnabled,
+    version:"15",start,stop,restart,refresh,redraw,setEnabled,
     isRunning:()=>S.running,getSelection:selection,
     getBook:()=>S.book?JSON.parse(JSON.stringify(S.book)):null,
     getSnapshots:()=>[], // V14 muestra únicamente el libro actual, sin historial artificial.
