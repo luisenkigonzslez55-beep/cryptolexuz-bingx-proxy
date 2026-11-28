@@ -1,16 +1,16 @@
 /*
- CRYPTOLEXUZ PRO — LIQUIDITY.JS V21 COMPLETO
+ CRYPTOLEXUZ PRO — LIQUIDITY.JS V22 COMPLETO
  Mapa de calor tipo Bookmap sobre velas reales de app.js V33.
- Profundidad REAL obtenida del proxy BingX; historial únicamente desde
- que se activa la función en esta sesión. No son liquidaciones.
+ Profundidad REAL de Bybit WebSocket con respaldo REST; historial únicamente
+ desde que se activa la conexión en el servidor. No son liquidaciones.
  Compatible con Lightweight Charts 4.2.2 e index.html V38+.
 */
 'use strict';
 (() => {
-  if (window.__CL_LIQUIDITY_V21__) return;
-  window.__CL_LIQUIDITY_V21__ = true;
+  if (window.__CL_LIQUIDITY_V22__) return;
+  window.__CL_LIQUIDITY_V22__ = true;
   const $ = id => document.getElementById(id);
-  const CFG = {refresh:5000,timeout:10000,depth:500,levels:10,maxSnapshots:720};
+  const CFG = {refresh:5000,timeout:10000,depth:500,levels:10,maxSnapshots:900};
   const S = {enabled:false,running:false,busy:false,again:false,controller:null,timer:null,
     generation:0,key:'',book:null,updated:0,error:'',chart:null,candle:null,canvas:null,
     observer:null,frame:0,intensity:.85,showHeat:true,showCandles:true,side:'both',
@@ -27,9 +27,10 @@
   function getChart(){const obj=window.CryptolexuzChart;const chart=obj?.chart||obj?.chartApi||window.clChart,candle=obj?.candle||obj?.candleSeries;return chart&&candle&&typeof candle.priceToCoordinate==='function'?{chart,candle}:null;}
   function settingsEnabled(){try{return JSON.parse(localStorage.getItem('cryptolexuz-chart-settings-v1')||'null')?.indicators?.liquidity===true;}catch{return false;}}
   function setStatus(message,failed=false){const e=$('clLiquidityOverlayStatus');if(e){e.textContent=message;e.style.color=failed?'#ff8398':'#b4c5e7';}}
-  function styles(){if($('clLiquidityV21Styles'))return;const e=node('style');e.id='clLiquidityV21Styles';e.textContent=`
+  function styles(){if($('clLiquidityV22Styles'))return;const e=node('style');e.id='clLiquidityV22Styles';e.textContent=`
     #priceChartArea{position:relative!important;isolation:isolate}
     #clLiquidityOverlayCanvas{position:absolute!important;z-index:3;pointer-events:none!important;background:transparent!important;max-width:none!important}
+    #clLiquidityDepthPanel{display:none!important}
     #clLiquidityOverlayInfo{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:8px 0;padding:10px;background:#10121e;border:1px solid #343b55;border-radius:10px;color:#cbd5f3;font:12px/1.5 system-ui}
     #clLiquidityOverlayInfo[hidden],#clLiquidityOverlayCanvas[hidden]{display:none!important}
     #clLiquidityOverlayInfo strong{color:#eee5ff}
@@ -62,7 +63,7 @@
       const status=node('span');status.id='clLiquidityOverlayStatus';info.append(status);area.parentNode.insertBefore(info,area.nextSibling);
     }
     // Eliminar el panel ampliado de versiones anteriores, si quedó en el DOM.
-    $('clLiquidityDepthPanel')?.remove();
+    $('clLiquidityDepthPanel')?.remove();$('clLiquidityDepthCanvas')?.remove();
     let root=$('clLiquidityBook');if(!root){root=node('div');root.id='clLiquidityBook';bookSection.append(root);}root.replaceChildren();root.append(node('h3','','📚 Libro de órdenes · diez niveles por lado'));
     const split=node('div','cl-lq-split');for(const [side,title] of [['asks','Ventas · ASK'],['bids','Compras · BID']]){const col=node('div');col.append(node('h4','',title));const headings=node('div','cl-lq-columns');for(const h of ['Precio','Cantidad','USDT'])headings.append(node('span','',h));const host=node('div');host.id='clLq'+side;host.textContent='Esperando órdenes...';col.append(headings,host);split.append(col);}root.append(split);
     const summary=node('p','cl-lq-note','Esperando profundidad real...');summary.id='clLiquidityBookSummary';root.append(summary,node('p','cl-lq-note','Las franjas sobre las velas comienzan cuando se activa el registro; no hay historial anterior. La profundidad disponible puede abarcar solo unos pocos dólares. No son liquidaciones.'));
@@ -76,105 +77,139 @@
   const largest=orders=>orders.reduce((a,b)=>!a||b.price*b.quantity>a.price*a.quantity?b:a,null);
   function renderSide(id,orders,kind){const root=$(id);if(!root)return;root.replaceChildren();const data=orders.slice(0,CFG.levels),max=Math.max(1,...data.map(o=>o.price*o.quantity));for(const o of data){const row=node('div','cl-lq-row '+kind),bar=node('div','cl-lq-bar');bar.style.width=(100*o.price*o.quantity/max)+'%';row.append(bar);for(const t of [price(o.price),fmt(o.quantity,4),fmt(o.price*o.quantity,0)])row.append(node('span','',t));root.append(row);}}
   function renderBook(book){renderSide('clLqasks',book.asks,'ask');renderSide('clLqbids',book.bids,'bid');const bid=book.bids[0].price,ask=book.asks[0].price;if(selection().exchange==='bybit'){if($('bid'))$('bid').textContent=price(bid);if($('ask'))$('ask').textContent=price(ask);}const buys=book.bids.slice(0,CFG.levels),sells=book.asks.slice(0,CFG.levels),b=sum(buys),a=sum(sells),total=b+a,target=$('clLiquidityBookSummary');if(target)target.textContent='Bid '+price(bid)+' · Ask '+price(ask)+' · Spread '+price(ask-bid)+' ('+fmt((ask-bid)/book.mid*100,4)+'%). Compras visibles: '+fmt(b,0)+' USDT ('+fmt(total?b/total*100:0,1)+'%). Ventas visibles: '+fmt(a,0)+' USDT ('+fmt(total?a/total*100:0,1)+'%). Mayor compra: '+price(largest(buys)?.price)+'. Mayor venta: '+price(largest(sells)?.price)+'.';}
-  function updateVisibility(){if(S.canvas)S.canvas.hidden=!S.enabled;const info=$('clLiquidityOverlayInfo');if(info)info.hidden=!S.enabled;$('clLiquidityDepthPanel')?.remove();const toggle=$('liquidityMapToggle');if(toggle)toggle.checked=S.enabled;}
+  function updateVisibility(){if(S.canvas)S.canvas.hidden=!S.enabled;const info=$('clLiquidityOverlayInfo');if(info)info.hidden=!S.enabled;$('clLiquidityDepthPanel')?.remove();$('clLiquidityDepthCanvas')?.remove();const toggle=$('liquidityMapToggle');if(toggle)toggle.checked=S.enabled;}
   function clear(){if(!S.canvas)return;const ctx=S.canvas.getContext('2d');if(ctx){ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,S.canvas.width,S.canvas.height);}}
   function redraw(){if(S.frame)return;S.frame=requestAnimationFrame(()=>{S.frame=0;draw();});}
-  function snapshot(book,at=Date.now()){const t=at;S.snapshots.push({at:t,bids:book.bids.map(o=>[o.price,o.price*o.quantity]),asks:book.asks.map(o=>[o.price,o.price*o.quantity])});if(S.snapshots.length>CFG.maxSnapshots)S.snapshots.splice(0,S.snapshots.length-CFG.maxSnapshots);}
-  // Solo dibujar la profundidad sobre el área de precios. Las velas son las
-  // de Lightweight Charts y permanecen visibles a través del calor translúcido.
-  function draw(){const canvas=S.canvas,api=getChart(),element=$('chart');if(!canvas||!element||!api||!S.enabled){clear();return;}
-    const rect=element.getBoundingClientRect(),area=$('priceChartArea')?.getBoundingClientRect();if(!area||rect.width<80||rect.height<80)return;
-    const w=rect.width,h=rect.height,dpr=Math.min(window.devicePixelRatio||1,2);canvas.style.left=(rect.left-area.left)+'px';canvas.style.top=(rect.top-area.top)+'px';canvas.style.width=w+'px';canvas.style.height=h+'px';const pw=Math.round(w*dpr),ph=Math.round(h*dpr);if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph;}
-    const ctx=canvas.getContext('2d');if(!ctx)return;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
-    const plotW=Math.max(0,Math.min(w-55,api.chart.timeScale().width?.()||w-70)),plotH=h-25;if(plotW<30||plotH<30)return;
-    if(!S.book){setStatus('Esperando profundidad real...');return;}
-    const priceToY=p=>api.candle.priceToCoordinate(p),step=Math.max(7,Math.min(13,Math.round(plotH/50))),bins=Math.ceil(plotH/step);
-    const current=S.snapshots.at(-1);if(!current)return;
-    // Mapa temporal: solo se colorean instantes realmente observados.
-    // Antes de activar el módulo NO existe historial de órdenes.
-    const totals=[];for(const snap of S.snapshots)for(const arr of [snap.bids,snap.asks])for(const [,amount] of arr)totals.push(amount);
-    totals.sort((a,b)=>a-b);
-    const ref=Math.max(1,totals[Math.floor((totals.length-1)*.92)]||1);
-    const den=Math.log1p(ref);
-    const heatBins=snap=>{
+  function snapshot(book,at=Date.now()){
+    const t=Number(at)||Date.now();
+    if(S.snapshots.length&&t<=S.snapshots[S.snapshots.length-1].at)return;
+    S.snapshots.push({at:t,bids:book.bids.map(o=>[o.price,o.price*o.quantity]),asks:book.asks.map(o=>[o.price,o.price*o.quantity])});
+    if(S.snapshots.length>CFG.maxSnapshots)S.snapshots.splice(0,S.snapshots.length-CFG.maxSnapshots);
+  }
+  function draw(){
+    const canvas=S.canvas,api=getChart(),element=$('chart');
+    if(!canvas||!element||!api||!S.enabled){clear();return;}
+    const rect=element.getBoundingClientRect(),area=$('priceChartArea')?.getBoundingClientRect();
+    if(!area||rect.width<80||rect.height<80)return;
+    const w=rect.width,h=rect.height,dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.style.left=(rect.left-area.left)+'px';canvas.style.top=(rect.top-area.top)+'px';
+    canvas.style.width=w+'px';canvas.style.height=h+'px';
+    const pw=Math.round(w*dpr),ph=Math.round(h*dpr);
+    if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph;}
+    const ctx=canvas.getContext('2d');if(!ctx)return;
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+    const plotW=Math.max(0,Math.min(w-55,api.chart.timeScale().width?.()||w-70));
+    const plotH=h-25;if(plotW<50||plotH<40)return;
+    if(!S.book){setStatus('Esperando profundidad real de Bybit...');return;}
+    const priceToY=p=>api.candle.priceToCoordinate(p);
+    const midY=priceToY(S.book.mid);
+    const profileW=Math.min(68,Math.max(36,plotW*.16));
+    const heatW=plotW-profileW-3;
+    const step=Math.max(3,Math.min(6,Math.round(plotH/105)));
+    const bins=Math.ceil(plotH/step);
+    const history=S.snapshots;
+    const refValues=[];
+    for(const snap of history)for(const side of [snap.bids,snap.asks])for(const [,amount] of side)if(amount>0)refValues.push(amount);
+    refValues.sort((a,b)=>a-b);
+    const ref=Math.max(1,refValues[Math.floor((refValues.length-1)*.96)]||1);
+    const logRef=Math.log1p(ref);
+    function makeBins(snap){
       const buy=new Float64Array(bins),sell=new Float64Array(bins);
-      for(const [arr,target] of [[snap.bids,buy],[snap.asks,sell]])for(const [p,amount] of arr){
+      for(const [levels,target] of [[snap.bids,buy],[snap.asks,sell]])for(const [p,amount] of levels){
         const y=priceToY(p);
-        if(!Number.isFinite(y)||y<0||y>=plotH)continue;
-        target[Math.min(bins-1,Math.floor(y/step))]+=amount;
+        if(Number.isFinite(y)&&y>=0&&y<plotH)target[Math.min(bins-1,Math.floor(y/step))]+=amount;
       }
       return {buy,sell};
-    };
-    const paint=(snap,x,width,opacity=1)=>{
+    }
+    function paint(snap,x,width){
       if(width<=0)return;
-      const {buy,sell}=heatBins(snap);
+      const {buy,sell}=makeBins(snap);
       for(let i=0;i<bins;i++){
         const b=buy[i],a=sell[i];
-        if(!b&&!a)continue;
-        if((S.side==='buy'&&!b)||(S.side==='sell'&&!a))continue;
+        if(S.side==='buy'&&!b||S.side==='sell'&&!a||!b&&!a)continue;
         const amount=S.side==='buy'?b:S.side==='sell'?a:b+a;
-        const strength=Math.min(1,Math.log1p(amount)/den);
+        const strength=Math.min(1,Math.log1p(amount)/logRef);
         const buyer=S.side==='buy'||(S.side==='both'&&b>=a);
-        const base=buyer?'0,245,160':'255,71,108';
-        const hot=buyer?'255,215,65':'255,146,60';
-        const alpha=Math.min(.72,S.intensity*(.19+.53*strength)*opacity);
-        ctx.fillStyle='rgba('+base+','+alpha.toFixed(3)+')';
-        ctx.fillRect(x,i*step,width+.7,step+.7);
-        if(strength>.55){
-          ctx.fillStyle='rgba('+hot+','+(alpha*.48*strength).toFixed(3)+')';
-          ctx.fillRect(x,i*step+step*.28,width+.7,Math.max(1,step*.42));
-        }
-      }
-    };
-    ctx.save();ctx.beginPath();ctx.rect(0,0,plotW,plotH);ctx.clip();
-    if(S.showHeat&&S.book){
-      // Fondo direccional discreto, no se presenta como órdenes históricas.
-      const midY=priceToY(S.book.mid);
-      if(Number.isFinite(midY)){
-        const y=Math.max(0,Math.min(plotH,midY));
-        ctx.fillStyle='rgba(120,25,38,'+(S.intensity*.12)+')';ctx.fillRect(0,0,plotW,y);
-        ctx.fillStyle='rgba(15,42,115,'+(S.intensity*.14)+')';ctx.fillRect(0,y,plotW,plotH-y);
+        // Bandas de órdenes reales: color y brillo en función de notional observado.
+        const alpha=S.intensity*(.10+.65*strength);
+        const rgb=buyer?(strength>.72?'235,255,62':strength>.42?'0,233,150':'12,109,130'):(strength>.72?'255,224,75':strength>.42?'255,113,43':'155,36,55');
+        ctx.fillStyle='rgba('+rgb+','+alpha.toFixed(3)+')';
+        ctx.fillRect(x,i*step,width+.8,step+.5);
       }
     }
-    if(S.showHeat){
-      // Historial auténtico: dibujar cada captura solo desde el instante
-      // en que se observó. Nunca pintar el libro actual sobre velas pasadas.
-      const history=S.snapshots;
+    ctx.save();ctx.beginPath();ctx.rect(0,0,heatW,plotH);ctx.clip();
+    if(S.showHeat&&Number.isFinite(midY)){
+      // Gradiente ambiental, NO datos de profundidad ni órdenes inventadas.
+      const y=Math.max(0,Math.min(plotH,midY));
+      const red=ctx.createLinearGradient(0,0,0,Math.max(1,y));
+      red.addColorStop(0,'rgba(91,19,33,'+(S.intensity*.20)+')');
+      red.addColorStop(1,'rgba(58,13,29,'+(S.intensity*.09)+')');
+      ctx.fillStyle=red;ctx.fillRect(0,0,heatW,y);
+      const blue=ctx.createLinearGradient(0,y,0,Math.max(y+1,plotH));
+      blue.addColorStop(0,'rgba(10,35,95,'+(S.intensity*.11)+')');
+      blue.addColorStop(1,'rgba(15,44,110,'+(S.intensity*.25)+')');
+      ctx.fillStyle=blue;ctx.fillRect(0,y,heatW,plotH-y);
+    }
+    if(S.showHeat&&history.length){
       const scale=api.chart.timeScale();
       const secs={'1m':60,'3m':180,'5m':300,'15m':900,'30m':1800,'1h':3600,'2h':7200,'4h':14400,'6h':21600,'8h':28800,'12h':43200,'1d':86400,'3d':259200,'1w':604800,'1M':2592000};
-      const duration=secs[selection().tf]||300;
-      const lastCandle=window.CryptolexuzChart?.getRows?.().at(-1);
-      const currentX=lastCandle?scale.timeToCoordinate(lastCandle.time):null;
-      const previousX=lastCandle?scale.logicalToCoordinate((window.CryptolexuzChart?.getRows?.().length||1)-2):null;
-      const spacing=Number.isFinite(currentX)&&Number.isFinite(previousX)?Math.abs(currentX-previousX):Math.max(4,plotW/60);
-      const observedX=ms=>{
-        if(!lastCandle||!Number.isFinite(currentX))return plotW-10;
-        return currentX+((ms/1000-lastCandle.time)/duration)*spacing;
-      };
+      const duration=secs[selection().tf]||900;
+      const rows=window.CryptolexuzChart?.getRows?.()||[];
+      const last=rows.at(-1),previous=rows.at(-2);
+      const currentX=last?scale.timeToCoordinate(last.time):null;
+      const previousX=previous?scale.timeToCoordinate(previous.time):null;
+      const spacing=Number.isFinite(currentX)&&Number.isFinite(previousX)?Math.abs(currentX-previousX):Math.max(4,heatW/60);
+      const observedX=ms=>!last||!Number.isFinite(currentX)?heatW-5:currentX+(ms/1000-last.time)/duration*spacing;
       for(let j=0;j<history.length;j++){
         const snap=history[j],next=history[j+1];
-        const left=Math.max(0,Math.min(plotW,observedX(snap.at)));
-        const right=Math.max(0,Math.min(plotW,next?observedX(next.at):plotW));
-        if(right>left)paint(snap,left,right-left,.95);
+        const left=Math.max(0,Math.min(heatW,observedX(snap.at)));
+        const right=Math.max(0,Math.min(heatW,next?observedX(next.at):observedX(Date.now())));
+        if(right>left)paint(snap,left,right-left);
       }
-      // Si aún hay pocas capturas, mostrar solo una pequeña columna de
-      // profundidad instantánea junto al borde, sin atribuirla al pasado.
-      if(history.length===1)paint(current,Math.max(0,plotW-9),9,1);
+      // El perfil actual se dibuja por separado: nunca se extiende falsamente al pasado.
     }
     if(S.showCandles){
-      // Reforzar contornos de velas reales para que el mapa no las oculte.
-      const rows=window.CryptolexuzChart?.getRows?.()||[];const ts=api.chart.timeScale();
-      for(const c of rows){const x=ts.timeToCoordinate(c.time);if(!Number.isFinite(x)||x<0||x>plotW)continue;const yo=priceToY(c.open),yc=priceToY(c.close),yh=priceToY(c.high),yl=priceToY(c.low);if(![yo,yc,yh,yl].every(Number.isFinite))continue;const color=c.close>=c.open?'rgba(0,245,160,.9)':'rgba(255,71,108,.9)';ctx.strokeStyle=color;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,yh);ctx.lineTo(x,yl);ctx.stroke();ctx.strokeRect(x-2.5,Math.min(yo,yc),5,Math.max(1,Math.abs(yo-yc)));}
+      const rows=window.CryptolexuzChart?.getRows?.()||[],scale=api.chart.timeScale();
+      for(const c of rows){
+        const x=scale.timeToCoordinate(c.time);if(!Number.isFinite(x)||x<0||x>heatW)continue;
+        const yo=priceToY(c.open),yc=priceToY(c.close),yh=priceToY(c.high),yl=priceToY(c.low);
+        if(![yo,yc,yh,yl].every(Number.isFinite))continue;
+        const up=c.close>=c.open,color=up?'rgba(0,255,163,.98)':'rgba(255,69,107,.98)';
+        ctx.strokeStyle=color;ctx.lineWidth=1.2;
+        ctx.beginPath();ctx.moveTo(x,yh);ctx.lineTo(x,yl);ctx.stroke();
+        ctx.fillStyle=color;ctx.fillRect(x-2.4,Math.min(yo,yc),4.8,Math.max(1,Math.abs(yo-yc)));
+      }
     }
     ctx.restore();
+    // Perfil derecho: órdenes visibles AHORA, no órdenes históricas ni ejecuciones.
+    if(S.showHeat){
+      const x0=heatW+3;
+      ctx.fillStyle='rgba(4,8,21,.80)';ctx.fillRect(x0,0,profileW,plotH);
+      ctx.strokeStyle='rgba(157,175,208,.26)';ctx.beginPath();ctx.moveTo(x0,0);ctx.lineTo(x0,plotH);ctx.stroke();
+      const snap=history.at(-1);if(snap){
+        const {buy,sell}=makeBins(snap);
+        const max=Math.max(1,...buy,...sell);
+        for(let i=0;i<bins;i++){
+          const b=buy[i],a=sell[i],y=i*step;
+          if(b&&S.side!=='sell'){
+            const bw=(profileW-4)*Math.sqrt(b/max);
+            ctx.fillStyle='rgba(0,238,161,.86)';ctx.fillRect(x0+profileW-bw,y,bw,Math.max(1,step-1));
+          }
+          if(a&&S.side!=='buy'){
+            const aw=(profileW-4)*Math.sqrt(a/max);
+            ctx.fillStyle='rgba(255,86,103,.88)';ctx.fillRect(x0,y,aw,Math.max(1,step-1));
+          }
+        }
+      }
+      ctx.fillStyle='rgba(215,225,245,.85)';ctx.font='9px system-ui';ctx.fillText('BID / ASK',x0+3,11);
+    }
     const visibleBuy=S.book.bids.filter(o=>{const y=priceToY(o.price);return Number.isFinite(y)&&y>=0&&y<plotH;}).length;
     const visibleSell=S.book.asks.filter(o=>{const y=priceToY(o.price);return Number.isFinite(y)&&y>=0&&y<plotH;}).length;
-    const coverage=' · niveles visibles: '+visibleBuy+' compras / '+visibleSell+' ventas';
-    setStatus((S.source||'REST')+' · Historial desde conexión · '+S.snapshots.length+' capturas · '+new Date(S.updated).toLocaleTimeString('es-MX')+coverage+' · órdenes concentradas cerca del precio');
+    setStatus((S.source||'REST')+' · '+history.length+' capturas · '+new Date(S.updated).toLocaleTimeString('es-MX')+' · '+visibleBuy+' compras / '+visibleSell+' ventas visibles · perfil lateral actual');
   }
   async function refresh(){if(!S.running||document.hidden)return;if(S.busy){S.again=true;return;}const selected=selection(),k=key(selected);if(k!==S.key){S.key=k;S.generation++;S.book=null;S.snapshots=[];clear();}const generation=S.generation,controller=new AbortController();S.controller=controller;S.busy=true;const timeout=setTimeout(()=>controller.abort(),CFG.timeout);
-    try{setStatus('Consultando profundidad real...');const response=await fetch(url(selected),{signal:controller.signal,cache:'no-store'});if(!response.ok)throw Error('HTTP '+response.status);const book=normalize(await response.json());if(!S.running||generation!==S.generation||k!==key(selection())||controller.signal.aborted)return;if(S.depthConnected&&S.lastDepthAt&&Date.now()-S.lastDepthAt<12000)return;S.book=book;S.updated=Date.now();S.source=selected.exchange+' REST';S.error='';snapshot(book);renderBook(book);redraw();}
-    catch(e){if(!S.running||generation!==S.generation)return;S.error=controller.signal.aborted?'Tiempo de espera agotado':String(e.message||e);setStatus('Sin profundidad: '+S.error,true);if(!S.book)clear();console.warn('CRYPTOLEXUZ Liquidez V21:',e);}
+    try{setStatus('Consultando profundidad real...');const response=await fetch(url(selected),{signal:controller.signal,cache:'no-store'});if(!response.ok)throw Error('HTTP '+response.status);const book=normalize(await response.json());if(!S.running||generation!==S.generation||k!==key(selection())||controller.signal.aborted)return;if(S.depthConnected&&S.lastDepthAt&&Date.now()-S.lastDepthAt<12000)return;S.book=book;S.updated=Date.now();S.source=(bybitSupported(selected)?'Bybit':selected.exchange)+' REST';S.error='';snapshot(book);renderBook(book);redraw();}
+    catch(e){if(!S.running||generation!==S.generation)return;S.error=controller.signal.aborted?'Tiempo de espera agotado':String(e.message||e);setStatus('Sin profundidad: '+S.error,true);if(!S.book)clear();console.warn('CRYPTOLEXUZ Liquidez V22:',e);}
     finally{clearTimeout(timeout);if(S.controller===controller)S.controller=null;S.busy=false;if(S.again&&S.running&&!document.hidden){S.again=false;queueMicrotask(refresh);}}
   }
   function closeDepth(){
@@ -198,7 +233,7 @@
       const r=await fetch(url,{cache:'no-store'});if(!r.ok)return;
       const json=await r.json();
       if(token!==S.depthToken||!S.running||!Array.isArray(json.history))return;
-      for(const item of json.history)acceptDepth(item);
+      for(const item of [...json.history].sort((a,b)=>Number(a.timestamp)-Number(b.timestamp)))acceptDepth(item);
     }catch(e){console.warn('Historial de profundidad:',e.message);}
   }
   function connectDepth(){
@@ -218,15 +253,15 @@
   function start(){if(S.running)return;S.running=true;S.key=key(selection());S.lastDepthAt=0;S.snapshots=[];connectDepth();refresh();S.timer=setInterval(refresh,CFG.refresh);}
   function stop(){S.running=false;S.generation++;S.again=false;closeDepth();if(S.timer){clearInterval(S.timer);S.timer=null;}S.controller?.abort();S.controller=null;clear();}
   function restart(){S.generation++;S.key=key(selection());S.book=null;S.snapshots=[];S.lastDepthAt=0;clear();S.controller?.abort();closeDepth();if(S.running){connectDepth();if(S.busy)S.again=true;else refresh();}}
-  function setEnabled(value){S.enabled=Boolean(value);updateVisibility();if(S.enabled){start();redraw();}else stop();}
+  function setEnabled(value){if(S.enabled===Boolean(value)&&S.running===Boolean(value))return;S.enabled=Boolean(value);updateVisibility();if(S.enabled){start();redraw();}else stop();}
   function syncFromApp(event){const next=event?.detail?.settings?.indicators?.liquidity;setEnabled(typeof next==='boolean'?next:settingsEnabled());}
   function bindChart(){const c=getChart();if(!c)return false;if(S.chart===c.chart&&S.candle===c.candle)return true;S.chart=c.chart;S.candle=c.candle;try{c.chart.timeScale().subscribeVisibleLogicalRangeChange(redraw);}catch{}try{c.chart.timeScale().subscribeVisibleTimeRangeChange(redraw);}catch{}return true;}
   function init(){if(S.initialized)return;if(!build())return;S.initialized=true;bindChart();S.enabled=settingsEnabled();updateVisibility();if(S.enabled)start();
     window.addEventListener('cryptolexuz:chart-ready',()=>{bindChart();redraw();});window.addEventListener('cryptolexuz:candles-updated',()=>{bindChart();redraw();});window.addEventListener('cryptolexuz:indicator-state-updated',syncFromApp);window.addEventListener('cryptolexuz:indicator-settings-change',syncFromApp);window.addEventListener('cryptolexuz:screen-change',redraw);
     for(const id of ['symbol','exchange','market'])$(id)?.addEventListener('change',restart);$('interval')?.addEventListener('change',()=>{setStatus('Temporalidad: '+selection().tf);redraw();});
     $('liquidityMapToggle')?.addEventListener('change',e=>{if(window.CryptolexuzApp?.setIndicator)window.CryptolexuzApp.setIndicator('liquidity',e.target.checked);else setEnabled(e.target.checked);});
-    if(window.ResizeObserver){S.observer=new ResizeObserver(redraw);S.observer.observe($('chart'));S.observer.observe($('priceChartArea'));}window.addEventListener('resize',()=>{redraw();});document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.running){connectDepth();refresh();redraw();}else if(document.hidden){closeDepth();}});window.addEventListener('beforeunload',()=>{stop();S.observer?.disconnect();});console.info('CRYPTOLEXUZ PRO — LIQUIDITY.JS V21 iniciado');
+    if(window.ResizeObserver){S.observer=new ResizeObserver(redraw);S.observer.observe($('chart'));S.observer.observe($('priceChartArea'));}window.addEventListener('resize',()=>{redraw();});document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.running){connectDepth();refresh();redraw();}else if(document.hidden){closeDepth();}});window.addEventListener('beforeunload',()=>{stop();S.observer?.disconnect();});console.info('CRYPTOLEXUZ PRO — LIQUIDITY.JS V22 iniciado');
   }
-  window.CryptolexuzLiquidity={version:'21',start,stop,restart,refresh,redraw,setEnabled,isRunning:()=>S.running,getSelection:selection,getBook:()=>S.book?JSON.parse(JSON.stringify(S.book)):null,getSnapshots:()=>S.snapshots.map(x=>({at:x.at,bids:x.bids.length,asks:x.asks.length})),getStatus:()=>({enabled:S.enabled,running:S.running,busy:S.busy,market:S.key,lastUpdated:S.updated,lastError:S.error,source:S.source,depthConnected:S.depthConnected,snapshots:S.snapshots.length})};
+  window.CryptolexuzLiquidity={version:'22',start,stop,restart,refresh,redraw,setEnabled,isRunning:()=>S.running,getSelection:selection,getBook:()=>S.book?JSON.parse(JSON.stringify(S.book)):null,getSnapshots:()=>S.snapshots.map(x=>({at:x.at,bids:x.bids.length,asks:x.asks.length})),getStatus:()=>({enabled:S.enabled,running:S.running,busy:S.busy,market:S.key,lastUpdated:S.updated,lastError:S.error,source:S.source,depthConnected:S.depthConnected,snapshots:S.snapshots.length})};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
