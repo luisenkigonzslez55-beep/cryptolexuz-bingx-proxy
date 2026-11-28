@@ -4,9 +4,19 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#050716">
-<meta name="description" content="CRYPTOLEXUZ PRO: mercados, gráficas, indicadores, escáner y resultados informativos.">
-<title>CRYPTOLEXUZ PRO | Trading Terminal</title>
-<!-- CRYPTOLEXUZ PRO — INDEX.HTML V38 · APP V31 · UNIVERSO Y NAVEGACIÓN TÁCTIL -->
+<meta name="description" content="CRYPTOLEXUZ: plataforma de análisis de criptomonedas con mercados, gráficas, indicadores técnicos, mapa de liquidez, escáner de señales y resultados informativos.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://cryptolexuz-bingx-proxy.onrender.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="CRYPTOLEXUZ">
+<meta property="og:title" content="CRYPTOLEXUZ | Plataforma de Trading">
+<meta property="og:description" content="Gráficas, indicadores, mapa de liquidez y escáner de señales de criptomonedas.">
+<meta property="og:url" content="https://cryptolexuz-bingx-proxy.onrender.com/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="CRYPTOLEXUZ | Plataforma de Trading">
+<meta name="twitter:description" content="Análisis de criptomonedas, gráficas, indicadores y mapa de liquidez.">
+<title>CRYPTOLEXUZ | Plataforma de Trading</title>
+<!-- CRYPTOLEXUZ — INDEX.HTML V39 · APP V33 · UNIVERSO Y NAVEGACIÓN TÁCTIL -->
 <link rel="stylesheet" href="styles.css?v=31">
 <style>
 [hidden]{display:none!important}.cl-screen{display:none;min-width:0}.cl-screen.cl-active{display:block}
@@ -111,15 +121,17 @@ html,body{
 .cl-theme-actions .cl-theme-save{background:var(--cl-accent,#8845ed);border-color:var(--cl-accent,#8845ed);color:var(--cl-accent-contrast,#fff)}
 body.cl-theme-open{overflow:hidden}
 
+/* Identidad pública V39: sustituye el logotipo antiguo con texto sin PRO. */
+.cl-public-brand{display:inline-block;color:#f4eaff;font-size:clamp(15px,3.6vw,25px);font-weight:900;letter-spacing:.075em;line-height:1.15;text-shadow:0 0 10px rgba(171,87,255,.75),0 0 22px rgba(123,61,229,.45);white-space:nowrap}
 </style>
 <script defer src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
 <script defer src="fibonacci.js?v=8"></script>
 <script defer src="patterns.js?v=2"></script>
 <script defer src="patterns-bridge.js?v=1"></script>
-<!-- Motor independiente: se carga antes de app.js V31. -->
+<!-- Motor independiente: se carga antes de app.js V33. -->
 <script defer src="signals-engine.js?v=1"></script>
 <script defer src="app.js?v=33"></script>
-  
+
 <script defer src="liquidity.js?v=25"></script>
 <script defer src="trade-plans.js?v=4"></script>
 <script defer src="scalping-rapido.js?v=2"></script>
@@ -129,7 +141,7 @@ body.cl-theme-open{overflow:hidden}
 <script defer src="mercados-live.js?v=2"></script>
 </head>
 <body>
-<header class="app-header"><button id="menuToggle" class="menu-toggle" type="button" aria-label="Abrir herramientas" aria-controls="sidebar" aria-expanded="false">☰</button><div class="brand"><img class="logo-3d" src="file_00000000600881fb8ee48d81ba77b640.png" alt="CRYPTOLEXUZ PRO"></div><span id="connection" class="connection" role="status">● Conectando...</span></header>
+<header class="app-header"><button id="menuToggle" class="menu-toggle" type="button" aria-label="Abrir herramientas" aria-controls="sidebar" aria-expanded="false">☰</button><div class="brand"><span class="cl-public-brand" aria-label="CRYPTOLEXUZ">CRYPTOLEXUZ</span></div><span id="connection" class="connection" role="status">● Conectando...</span></header>
 <aside id="sidebar" class="sidebar" aria-label="Herramientas">
 <div class="sidebar-head"><strong>Herramientas</strong><button id="menuClose" type="button" aria-label="Cerrar menú">✕</button></div>
 <nav class="side-nav">
@@ -199,7 +211,7 @@ body.cl-theme-open{overflow:hidden}
 </div>
 <div id="clScreenScanner" class="cl-screen" data-cl-screen="scanner"><div class="cl-screen-title"><h1>📡 Escáner de mercado</h1><p>Señales LONG y SHORT y análisis multitemporal.</p></div><div id="clScannerHost"></div><section id="clTradePlansHost" class="cl-module"><h2>🎯 Planes LONG y SHORT</h2><div class="cl-trade-pair"><article class="cl-trade-card long"><h3>▲ LONG</h3><p>Entrada: <strong>Esperando análisis</strong></p><p>Stop: —</p><p>Objetivo: —</p></article><article class="cl-trade-card short"><h3>▼ SHORT</h3><p>Entrada: <strong>Esperando análisis</strong></p><p>Stop: —</p><p>Objetivo: —</p></article></div></section><section id="clQuickScalp" class="cl-module"><h2>⚡ Scalping rápido</h2><div id="clQuickScalpHost"><div class="cl-module-placeholder">Cargando scalping...</div></div></section><section id="signalsSection" class="signals-section"><h2>Monitor de señales <span id="engineState">INICIANDO</span></h2><div class="signal-grid"><article class="signal-card"><h3>BTC-USDT / 5m</h3><strong id="state5">Esperando datos</strong><p id="detail5">—</p><small id="metrics5">—</small></article><article class="signal-card"><h3>BTC-USDT / 15m</h3><strong id="state15">Esperando datos</strong><p id="detail15">—</p><small id="metrics15">—</small></article></div></section></div>
 <div id="clScreenResults" class="cl-screen" data-cl-screen="results"><div class="cl-screen-title"><h1>📊 Resultados y efectividad</h1><p>Historial y estadísticas de señales verificadas.</p></div><section id="clResultsStats" class="cl-module"><h2>Resumen de efectividad</h2><div class="cl-stats"><div class="cl-stat"><span>Señales</span><strong id="clTotalSignals">—</strong></div><div class="cl-stat"><span>Objetivos</span><strong id="clTargetsHit">—</strong></div><div class="cl-stat"><span>Stops</span><strong id="clStopsHit">—</strong></div><div class="cl-stat"><span>Efectividad</span><strong id="clWinRate">—</strong></div></div><p class="cl-results-note">Los resultados deben proceder de señales verificadas. No equivalen a operaciones ejecutadas.</p></section><section id="clScalpingResults" class="cl-module"><h2>⚡ Resultados de scalping</h2><div class="table-wrap"><table><thead><tr><th>Activo</th><th>Evaluadas</th><th>TP 50%</th><th>TP 100%</th><th>TP 200%</th><th>Stop</th><th>Aciertos</th></tr></thead><tbody id="clScalpingResultsBody"><tr><td colspan="7">Esperando resultados verificables...</td></tr></tbody></table></div></section><section id="historySection" class="history-section"><h2>Historial de señales</h2><div class="table-wrap"><table><thead><tr><th>Hora</th><th>TF</th><th>Activo</th><th>Señal</th><th>Precio</th><th>Motivo</th><th>Estado</th></tr></thead><tbody id="signalLog"><tr><td colspan="7">Sin señales registradas.</td></tr></tbody></table></div></section></div>
-<footer class="cl-notice">CRYPTOLEXUZ PRO · Análisis informativo. No ejecuta operaciones ni garantiza resultados.</footer>
+<footer class="cl-notice">CRYPTOLEXUZ · Análisis informativo. No ejecuta operaciones ni garantiza resultados.</footer>
 </main>
 <nav class="cl-bottom-nav" aria-label="Navegación principal"><button class="cl-nav-button active" type="button" data-cl-tab="markets" aria-pressed="true"><span class="cl-nav-icon">📋</span>Mercados</button><button class="cl-nav-button" type="button" data-cl-tab="charts" aria-pressed="false"><span class="cl-nav-icon">📈</span>Gráficas</button><button class="cl-nav-button" type="button" data-cl-tab="scanner" aria-pressed="false"><span class="cl-nav-icon">📡</span>Escáner</button><button class="cl-nav-button" type="button" data-cl-tab="results" aria-pressed="false"><span class="cl-nav-icon">📊</span>Resultados</button></nav>
 <div id="clSettingsOverlay" class="cl-settings-overlay" hidden><div class="cl-settings-sheet" role="dialog" aria-modal="true" aria-labelledby="clSettingsTitle" tabindex="-1"><div class="cl-settings-head"><button id="clSettingsBack" type="button" aria-label="Volver">‹</button><button id="clSettingsClose" type="button" aria-label="Cerrar ajustes">✕</button></div><div id="clSettingsContent"></div></div></div>
@@ -212,7 +224,7 @@ body.cl-theme-open{overflow:hidden}
     <div class="cl-theme-wheel-wrap"><div id="clThemeWheel" class="cl-theme-wheel" role="slider" tabindex="0" aria-label="Tono del color" aria-valuemin="0" aria-valuemax="359" aria-valuenow="270"></div><span id="clThemeWheelDot" class="cl-theme-dot" aria-hidden="true"></span></div>
     <div id="clThemeSV" class="cl-theme-sv" role="group" aria-label="Saturación y brillo"><span id="clThemeSVDot" class="cl-theme-sv-dot" aria-hidden="true"></span></div>
     <div class="cl-theme-fields"><label>Color hexadecimal<input id="clThemeHex" type="text" maxlength="7" spellcheck="false" value="#ba69ff" aria-label="Color hexadecimal"></label><label>Color seleccionado<input id="clThemeNative" type="color" value="#ba69ff" aria-label="Selector nativo de color"></label></div>
-    <div id="clThemePreview" class="cl-theme-preview">Vista previa · CRYPTOLEXUZ PRO</div>
+    <div id="clThemePreview" class="cl-theme-preview">Vista previa · CRYPTOLEXUZ</div>
     <div class="cl-theme-actions"><button id="clThemeReset" type="button">Restaurar</button><button id="clThemeSave" class="cl-theme-save" type="button">Guardar color</button></div>
     <p id="clThemeStatus" class="cl-theme-help" role="status">Los cambios se previsualizan antes de guardarlos.</p>
   </section>
@@ -221,9 +233,9 @@ body.cl-theme-open{overflow:hidden}
 <script>
 (() => {
 "use strict";
-/* CRYPTOLEXUZ PRO — CONTROLADOR INDEX V38 (conserva lógica V37) */
-if(window.__CL_INDEX_V38__)return;
-window.__CL_INDEX_V38__=true;
+/* CRYPTOLEXUZ — CONTROLADOR INDEX V39 (conserva lógica V37) */
+if(window.__CL_INDEX_V39__)return;
+window.__CL_INDEX_V39__=true;
 const $=id=>document.getElementById(id);
 const qa=s=>Array.from(document.querySelectorAll(s));
 const SETTINGS_KEY="cryptolexuz-chart-settings-v1";
@@ -401,7 +413,7 @@ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",
 </script>
 
 <script>
-/* CRYPTOLEXUZ PRO V35 — selector de color, aislado de app.js */
+/* CRYPTOLEXUZ V35 — selector de color, aislado de app.js */
 (() => {
   "use strict";
   if (window.__CL_THEME_V35__) return;
