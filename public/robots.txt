@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cryptolexuz-bingx-proxy.onrender.com/sitemap.xml
