@@ -1,5 +1,5 @@
 /*
- CRYPTOLEXUZ PRO — LIQUIDITY.JS V18 COMPLETO
+ CRYPTOLEXUZ PRO — LIQUIDITY.JS V19 COMPLETO
  Mapa de calor tipo Bookmap sobre velas reales de app.js V33.
  Profundidad REAL obtenida del proxy BingX; historial únicamente desde
  que se activa la función en esta sesión. No son liquidaciones.
@@ -7,8 +7,8 @@
 */
 'use strict';
 (() => {
-  if (window.__CL_LIQUIDITY_V18__) return;
-  window.__CL_LIQUIDITY_V18__ = true;
+  if (window.__CL_LIQUIDITY_V19__) return;
+  window.__CL_LIQUIDITY_V19__ = true;
   const $ = id => document.getElementById(id);
   const CFG = {refresh:3000,timeout:10000,depth:500,levels:10,maxSnapshots:360};
   const S = {enabled:false,running:false,busy:false,again:false,controller:null,timer:null,
@@ -25,7 +25,7 @@
   function getChart(){const obj=window.CryptolexuzChart;const chart=obj?.chart||obj?.chartApi||window.clChart,candle=obj?.candle||obj?.candleSeries;return chart&&candle&&typeof candle.priceToCoordinate==='function'?{chart,candle}:null;}
   function settingsEnabled(){try{return JSON.parse(localStorage.getItem('cryptolexuz-chart-settings-v1')||'null')?.indicators?.liquidity===true;}catch{return false;}}
   function setStatus(message,failed=false){const e=$('clLiquidityOverlayStatus');if(e){e.textContent=message;e.style.color=failed?'#ff8398':'#b4c5e7';}}
-  function styles(){if($('clLiquidityV18Styles'))return;const e=node('style');e.id='clLiquidityV18Styles';e.textContent=`
+  function styles(){if($('clLiquidityV19Styles'))return;const e=node('style');e.id='clLiquidityV19Styles';e.textContent=`
     #priceChartArea{position:relative!important;isolation:isolate}
     #clLiquidityOverlayCanvas{position:absolute!important;z-index:3;pointer-events:none!important;background:transparent!important;max-width:none!important}
     #clLiquidityOverlayInfo{display:flex;flex-wrap:wrap;gap:9px;align-items:center;margin:8px 0;padding:10px;background:#10121e;border:1px solid #343b55;border-radius:10px;color:#cbd5f3;font:12px/1.5 system-ui}
@@ -36,6 +36,11 @@
     #clLiquidityOverlayInfo input[type=checkbox]{accent-color:#bb52ff}
     #clLiquidityOverlayInfo select{background:#1c2032;color:#fff;border:1px solid #42475f;border-radius:6px;padding:5px;max-width:140px}
     #clLiquidityOverlayStatus{flex-basis:100%;font-size:11px}
+    #clLiquidityDepthPanel{margin:8px 0 10px;padding:10px;background:#080c15;border:1px solid #343b55;border-radius:12px;color:#dce7fa}
+    #clLiquidityDepthPanel[hidden]{display:none!important}
+    #clLiquidityDepthPanel h4{font-size:12px;margin:0 0 8px}
+    #clLiquidityDepthCanvas{display:block;width:100%;height:170px;border-radius:6px;background:#030609}
+    #clLiquidityDepthCaption{font:11px/1.5 system-ui;color:#b6c3da;margin:7px 0 0}
     #clLiquidityBook{margin-top:12px;padding:10px;background:#0b0e18;border:1px solid #343b55;border-radius:12px;color:#e7ecff}
     .cl-lq-columns,.cl-lq-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:6px 4px;font:11px system-ui;font-variant-numeric:tabular-nums}
     .cl-lq-columns{color:#aab7d4}.cl-lq-row{position:relative;border-radius:5px;overflow:hidden}
@@ -55,9 +60,16 @@
       const heat=node('input');heat.type='checkbox';heat.checked=S.showHeat;heat.addEventListener('change',()=>{S.showHeat=heat.checked;redraw();});info.append(control('Mapa de calor',heat));
       const candle=node('input');candle.type='checkbox';candle.checked=S.showCandles;candle.addEventListener('change',()=>{S.showCandles=candle.checked;redraw();});info.append(control('Resaltar velas',candle));
       const slider=node('input');slider.type='range';slider.min='10';slider.max='100';slider.step='5';slider.value=String(Math.round(S.intensity*100));slider.id='clLiquidityOverlayIntensity';
-      const value=node('span','',slider.value+'%');slider.addEventListener('input',()=>{S.intensity=Number(slider.value)/100;value.textContent=slider.value+'%';redraw();});const intensity=control('Intensidad',slider);intensity.append(value);info.append(intensity);
-      const select=node('select');for(const [v,t] of [['both','Compras y ventas'],['buy','Solo compras'],['sell','Solo ventas']]){const o=node('option','',t);o.value=v;select.append(o);}select.value=S.side;select.addEventListener('change',()=>{S.side=select.value;redraw();});info.append(control('Mostrar órdenes',select));
+      const value=node('span','',slider.value+'%');slider.addEventListener('input',()=>{S.intensity=Number(slider.value)/100;value.textContent=slider.value+'%';redraw();drawDepthPanel();});const intensity=control('Intensidad',slider);intensity.append(value);info.append(intensity);
+      const select=node('select');for(const [v,t] of [['both','Compras y ventas'],['buy','Solo compras'],['sell','Solo ventas']]){const o=node('option','',t);o.value=v;select.append(o);}select.value=S.side;select.addEventListener('change',()=>{S.side=select.value;redraw();drawDepthPanel();});info.append(control('Mostrar órdenes',select));
       const status=node('span');status.id='clLiquidityOverlayStatus';info.append(status);area.parentNode.insertBefore(info,area.nextSibling);
+    }
+    let depthPanel=$('clLiquidityDepthPanel');
+    if(!depthPanel){depthPanel=node('div');depthPanel.id='clLiquidityDepthPanel';
+      depthPanel.append(node('h4','','🌡️ Profundidad real · escala ampliada'));
+      const depthCanvas=node('canvas');depthCanvas.id='clLiquidityDepthCanvas';depthPanel.append(depthCanvas);
+      const caption=node('p');caption.id='clLiquidityDepthCaption';depthPanel.append(caption);
+      area.parentNode.insertBefore(depthPanel,info.nextSibling);
     }
     let root=$('clLiquidityBook');if(!root){root=node('div');root.id='clLiquidityBook';bookSection.append(root);}root.replaceChildren();root.append(node('h3','','📚 Libro de órdenes · diez niveles por lado'));
     const split=node('div','cl-lq-split');for(const [side,title] of [['asks','Ventas · ASK'],['bids','Compras · BID']]){const col=node('div');col.append(node('h4','',title));const headings=node('div','cl-lq-columns');for(const h of ['Precio','Cantidad','USDT'])headings.append(node('span','',h));const host=node('div');host.id='clLq'+side;host.textContent='Esperando órdenes...';col.append(headings,host);split.append(col);}root.append(split);
@@ -72,7 +84,7 @@
   const largest=orders=>orders.reduce((a,b)=>!a||b.price*b.quantity>a.price*a.quantity?b:a,null);
   function renderSide(id,orders,kind){const root=$(id);if(!root)return;root.replaceChildren();const data=orders.slice(0,CFG.levels),max=Math.max(1,...data.map(o=>o.price*o.quantity));for(const o of data){const row=node('div','cl-lq-row '+kind),bar=node('div','cl-lq-bar');bar.style.width=(100*o.price*o.quantity/max)+'%';row.append(bar);for(const t of [price(o.price),fmt(o.quantity,4),fmt(o.price*o.quantity,0)])row.append(node('span','',t));root.append(row);}}
   function renderBook(book){renderSide('clLqasks',book.asks,'ask');renderSide('clLqbids',book.bids,'bid');const bid=book.bids[0].price,ask=book.asks[0].price;if($('bid'))$('bid').textContent=price(bid);if($('ask'))$('ask').textContent=price(ask);const buys=book.bids.slice(0,CFG.levels),sells=book.asks.slice(0,CFG.levels),b=sum(buys),a=sum(sells),total=b+a,target=$('clLiquidityBookSummary');if(target)target.textContent='Bid '+price(bid)+' · Ask '+price(ask)+' · Spread '+price(ask-bid)+' ('+fmt((ask-bid)/book.mid*100,4)+'%). Compras visibles: '+fmt(b,0)+' USDT ('+fmt(total?b/total*100:0,1)+'%). Ventas visibles: '+fmt(a,0)+' USDT ('+fmt(total?a/total*100:0,1)+'%). Mayor compra: '+price(largest(buys)?.price)+'. Mayor venta: '+price(largest(sells)?.price)+'.';}
-  function updateVisibility(){if(S.canvas)S.canvas.hidden=!S.enabled;const info=$('clLiquidityOverlayInfo');if(info)info.hidden=!S.enabled;const toggle=$('liquidityMapToggle');if(toggle)toggle.checked=S.enabled;}
+  function updateVisibility(){if(S.canvas)S.canvas.hidden=!S.enabled;const info=$('clLiquidityOverlayInfo');if(info)info.hidden=!S.enabled;const panel=$('clLiquidityDepthPanel');if(panel)panel.hidden=!S.enabled;const toggle=$('liquidityMapToggle');if(toggle)toggle.checked=S.enabled;}
   function clear(){if(!S.canvas)return;const ctx=S.canvas.getContext('2d');if(ctx){ctx.setTransform(1,0,0,1,0,0);ctx.clearRect(0,0,S.canvas.width,S.canvas.height);}}
   function redraw(){if(S.frame)return;S.frame=requestAnimationFrame(()=>{S.frame=0;draw();});}
   function snapshot(book){const t=Date.now();S.snapshots.push({at:t,bids:book.bids.map(o=>[o.price,o.price*o.quantity]),asks:book.asks.map(o=>[o.price,o.price*o.quantity])});if(S.snapshots.length>CFG.maxSnapshots)S.snapshots.splice(0,S.snapshots.length-CFG.maxSnapshots);}
@@ -84,7 +96,7 @@
     const ctx=canvas.getContext('2d');if(!ctx)return;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
     const plotW=Math.max(0,Math.min(w-55,api.chart.timeScale().width?.()||w-70)),plotH=h-25;if(plotW<30||plotH<30)return;
     if(!S.book){setStatus('Esperando profundidad real...');return;}
-    const priceToY=p=>api.candle.priceToCoordinate(p),step=Math.max(5,Math.min(11,Math.round(plotH/65))),bins=Math.ceil(plotH/step);
+    const priceToY=p=>api.candle.priceToCoordinate(p),step=Math.max(7,Math.min(13,Math.round(plotH/50))),bins=Math.ceil(plotH/step);
     const current=S.snapshots.at(-1);if(!current)return;
     // Mapa temporal: solo se colorean instantes realmente observados.
     // Antes de activar el módulo NO existe historial de órdenes.
@@ -113,7 +125,7 @@
         const buyer=S.side==='buy'||(S.side==='both'&&b>=a);
         const base=buyer?'0,245,160':'255,71,108';
         const hot=buyer?'255,215,65':'255,146,60';
-        const alpha=Math.min(.55,S.intensity*(.10+.44*strength)*opacity);
+        const alpha=Math.min(.72,S.intensity*(.19+.53*strength)*opacity);
         ctx.fillStyle='rgba('+base+','+alpha.toFixed(3)+')';
         ctx.fillRect(x,i*step,width+.7,step+.7);
         if(strength>.55){
@@ -152,9 +164,38 @@
     const coverage=' · niveles visibles: '+visibleBuy+' compras / '+visibleSell+' ventas';
     setStatus('Mapa real · '+S.snapshots.length+' capturas · '+new Date(S.updated).toLocaleTimeString('es-MX')+coverage+(visibleBuy&&visibleSell?'':' · amplía el zoom de precios para ver más niveles'));
   }
+  function drawDepthPanel(){
+    const canvas=$('clLiquidityDepthCanvas'),caption=$('clLiquidityDepthCaption'),book=S.book;
+    if(!canvas||!caption||!book)return;
+    const width=Math.max(280,Math.floor(canvas.clientWidth||320)),height=170,dpr=Math.min(window.devicePixelRatio||1,2);
+    canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);
+    const ctx=canvas.getContext('2d');if(!ctx)return;
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#030609';ctx.fillRect(0,0,width,height);
+    const bids=book.bids,asks=book.asks,all=[...bids,...asks];
+    const low=Math.min(...all.map(o=>o.price)),high=Math.max(...all.map(o=>o.price));
+    if(!(high>low))return;
+    const left=8,right=width-70,top=8,bottom=height-9;
+    const priceY=p=>bottom-(p-low)/(high-low)*(bottom-top);
+    const max=Math.max(1,...all.map(o=>o.price*o.quantity));
+    for(const [orders,color,enabled] of [[bids,'0,245,160',S.side!=='sell'],[asks,'255,71,108',S.side!=='buy']]){
+      if(!enabled)continue;
+      for(const o of orders){
+        const y=priceY(o.price),weight=Math.log1p(o.price*o.quantity)/Math.log1p(max);
+        const thickness=Math.max(2,Math.min(7,2+weight*4));
+        ctx.fillStyle='rgba('+color+','+Math.min(.85,S.intensity*(.2+.65*weight))+')';
+        ctx.fillRect(left,y-thickness/2,right-left,thickness);
+        if(weight>.8){ctx.fillStyle='rgba(255,215,80,'+(S.intensity*.48)+')';ctx.fillRect(left,y-1,right-left,2);}
+      }
+    }
+    ctx.setLineDash([3,4]);ctx.strokeStyle='#c5d0e0';const midY=priceY(book.mid);
+    ctx.beginPath();ctx.moveTo(left,midY);ctx.lineTo(right,midY);ctx.stroke();ctx.setLineDash([]);
+    ctx.font='11px system-ui';ctx.fillStyle='#b7c4d8';
+    for(const p of [high,book.mid,low]){const y=Math.max(12,Math.min(height-5,priceY(p)));ctx.fillText(price(p),right+5,y);}
+    caption.textContent='Escala ampliada del libro recibido: '+price(low)+' a '+price(high)+'. Las posiciones son precios reales, no niveles inventados. En la gráfica principal se respeta su escala original.';
+  }
   async function refresh(){if(!S.running||document.hidden)return;if(S.busy){S.again=true;return;}const selected=selection(),k=key(selected);if(k!==S.key){S.key=k;S.generation++;S.book=null;S.snapshots=[];clear();}const generation=S.generation,controller=new AbortController();S.controller=controller;S.busy=true;const timeout=setTimeout(()=>controller.abort(),CFG.timeout);
-    try{setStatus('Consultando profundidad real...');const response=await fetch(url(selected),{signal:controller.signal,cache:'no-store'});if(!response.ok)throw Error('HTTP '+response.status);const book=normalize(await response.json());if(!S.running||generation!==S.generation||k!==key(selection())||controller.signal.aborted)return;S.book=book;S.updated=Date.now();S.error='';snapshot(book);renderBook(book);redraw();}
-    catch(e){if(!S.running||generation!==S.generation)return;S.error=controller.signal.aborted?'Tiempo de espera agotado':String(e.message||e);setStatus('Sin profundidad: '+S.error,true);if(!S.book)clear();console.warn('CRYPTOLEXUZ Liquidez V18:',e);}
+    try{setStatus('Consultando profundidad real...');const response=await fetch(url(selected),{signal:controller.signal,cache:'no-store'});if(!response.ok)throw Error('HTTP '+response.status);const book=normalize(await response.json());if(!S.running||generation!==S.generation||k!==key(selection())||controller.signal.aborted)return;S.book=book;S.updated=Date.now();S.error='';snapshot(book);renderBook(book);drawDepthPanel();redraw();}
+    catch(e){if(!S.running||generation!==S.generation)return;S.error=controller.signal.aborted?'Tiempo de espera agotado':String(e.message||e);setStatus('Sin profundidad: '+S.error,true);if(!S.book)clear();console.warn('CRYPTOLEXUZ Liquidez V19:',e);}
     finally{clearTimeout(timeout);if(S.controller===controller)S.controller=null;S.busy=false;if(S.again&&S.running&&!document.hidden){S.again=false;queueMicrotask(refresh);}}
   }
   function start(){if(S.running)return;S.running=true;S.key=key(selection());refresh();S.timer=setInterval(refresh,CFG.refresh);}
@@ -167,8 +208,8 @@
     window.addEventListener('cryptolexuz:chart-ready',()=>{bindChart();redraw();});window.addEventListener('cryptolexuz:candles-updated',()=>{bindChart();redraw();});window.addEventListener('cryptolexuz:indicator-state-updated',syncFromApp);window.addEventListener('cryptolexuz:indicator-settings-change',syncFromApp);window.addEventListener('cryptolexuz:screen-change',redraw);
     for(const id of ['symbol','exchange','market'])$(id)?.addEventListener('change',restart);$('interval')?.addEventListener('change',()=>{setStatus('Temporalidad: '+selection().tf);redraw();});
     $('liquidityMapToggle')?.addEventListener('change',e=>{if(window.CryptolexuzApp?.setIndicator)window.CryptolexuzApp.setIndicator('liquidity',e.target.checked);else setEnabled(e.target.checked);});
-    if(window.ResizeObserver){S.observer=new ResizeObserver(redraw);S.observer.observe($('chart'));S.observer.observe($('priceChartArea'));}window.addEventListener('resize',redraw);document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.running){refresh();redraw();}});window.addEventListener('beforeunload',()=>{stop();S.observer?.disconnect();});console.info('CRYPTOLEXUZ PRO — LIQUIDITY.JS V18 iniciado');
+    if(window.ResizeObserver){S.observer=new ResizeObserver(redraw);S.observer.observe($('chart'));S.observer.observe($('priceChartArea'));}window.addEventListener('resize',()=>{redraw();drawDepthPanel();});document.addEventListener('visibilitychange',()=>{if(!document.hidden&&S.running){refresh();redraw();}});window.addEventListener('beforeunload',()=>{stop();S.observer?.disconnect();});console.info('CRYPTOLEXUZ PRO — LIQUIDITY.JS V19 iniciado');
   }
-  window.CryptolexuzLiquidity={version:'18',start,stop,restart,refresh,redraw,setEnabled,isRunning:()=>S.running,getSelection:selection,getBook:()=>S.book?JSON.parse(JSON.stringify(S.book)):null,getSnapshots:()=>S.snapshots.map(x=>({at:x.at,bids:x.bids.length,asks:x.asks.length})),getStatus:()=>({enabled:S.enabled,running:S.running,busy:S.busy,market:S.key,lastUpdated:S.updated,lastError:S.error,snapshots:S.snapshots.length})};
+  window.CryptolexuzLiquidity={version:'19',start,stop,restart,refresh,redraw,setEnabled,isRunning:()=>S.running,getSelection:selection,getBook:()=>S.book?JSON.parse(JSON.stringify(S.book)):null,getSnapshots:()=>S.snapshots.map(x=>({at:x.at,bids:x.bids.length,asks:x.asks.length})),getStatus:()=>({enabled:S.enabled,running:S.running,busy:S.busy,market:S.key,lastUpdated:S.updated,lastError:S.error,snapshots:S.snapshots.length})};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();
