@@ -1,2192 +1,265 @@
-
 /*
- CRYPTOLEXUZ PRO — LIQUIDITY.JS V13 COMPLETO
-
- MAPA DE CALOR DE PROFUNDIDAD REAL
-
- Compatible con:
- - BingX / OKX mediante proxy
- - CRYPTOLEXUZ PRO
- - Vista móvil y computadora
-
- Funciones:
- - Mapa de calor tipo Bookmap
- - Libro de órdenes Top 10
- - Spread, bid, ask y concentración
- - Historial de snapshots reales
- - Trayectoria del precio medio bid/ask
- - Perfil lateral de liquidez
- - Escala de precios
- - Intensidad configurable
- - Zoom vertical táctil y con rueda
- - Reinicio seguro al cambiar de mercado
- - Sin datos simulados
-
- No representa liquidaciones.
- No ejecuta operaciones.
+ CRYPTOLEXUZ PRO — LIQUIDITY.JS V14 COMPLETO
+ Capa opcional de profundidad REAL sobre las velas de app.js V31.
+ Requiere window.CryptolexuzChart (publicado por app.js V31).
+ Utiliza el botón existente [data-indicator="liquidity"].
+ NO representa liquidaciones, no reconstruye un historial anterior
+ ni transforma el libro de órdenes en velas ficticias.
 */
-
 "use strict";
-
 (() => {
-  if (window.__CL_LIQUIDITY_V13__) return;
-  window.__CL_LIQUIDITY_V13__ = true;
-
+  if (window.__CL_LIQUIDITY_V14__) return;
+  window.__CL_LIQUIDITY_V14__ = true;
   const $ = id => document.getElementById(id);
-
-  const CFG = {
-    refresh: 2500,
-    timeout: 10000,
-    depth: 200,
-    bookLevels: 10,
-    maxSnapshots: 300
-  };
-
-  const C = {
-    bg: "#000000",
-    green: "#00f5a0",
-    red: "#ff476c",
-    blue: "#36c5ff",
-    purple: "#bb52ff",
-    yellow: "#ffe15a",
-    muted: "#9ba9c9"
-  };
-
+  const CFG = {refresh:2500, timeout:10000, depth:200, levels:10};
   const S = {
-    running: false,
-    busy: false,
-    generation: 0,
-    timer: null,
-    controller: null,
-    key: "",
-    snapshots: [],
-    lastBook: null,
-    maxHistory: 180,
-    bins: 100,
-    intensity: 1,
-    zoom: 1,
-    showMap: true,
-    showPrice: true,
-    showProfile: true,
-    observer: null,
-    initialized: false,
-    frame: 0,
-    pinchDistance: 0,
-    pendingRefresh: false,
-    lastError: "",
-    lastUpdated: 0
+    enabled:false, running:false, busy:false, again:false, controller:null,
+    timer:null, generation:0, key:"", book:null, updated:0, error:"",
+    chart:null, candle:null, canvas:null, observer:null, frame:0,
+    intensity:0.55, initialized:false
   };
-
-  function el(tag, cls = "", value) {
-    const node = document.createElement(tag);
-
-    if (cls) node.className = cls;
-
-    if (value !== undefined) {
-      node.textContent = String(value);
-    }
-
-    return node;
+  const fmt = (v,d=2) => Number.isFinite(Number(v)) ? Number(v).toLocaleString("en-US",{maximumFractionDigits:d,minimumFractionDigits:d}) : "—";
+  const digits = v => Math.abs(v)>=100?2:Math.abs(v)>=1?4:Math.abs(v)>=0.01?6:8;
+  const price = v => fmt(v,digits(v));
+  const node = (tag,cls,text) => {const e=document.createElement(tag);if(cls)e.className=cls;if(text!==undefined)e.textContent=text;return e;};
+  const isCommodity = s => /^NCCO/i.test(String(s));
+  function selection(){
+    const symbol=$("symbol")?.value||"BTC-USDT", special=isCommodity(symbol);
+    return {symbol,exchange:special?"bingx":$("exchange")?.value||"bingx",market:special?"perpetual":$("market")?.value||"perpetual",tf:$("interval")?.value||"15m"};
   }
-
-  function fmt(value, digits = 2) {
-    const number = Number(value);
-
-    if (!Number.isFinite(number)) {
-      return "—";
-    }
-
-    return number.toLocaleString("en-US", {
-      minimumFractionDigits: digits,
-      maximumFractionDigits: digits
-    });
+  const key = s => [s.exchange,s.market,s.symbol].join("|");
+  function getChart(){
+    const obj=window.CryptolexuzChart;
+    const chart=obj?.chart||obj?.chartApi||window.clChart;
+    const candle=obj?.candle||obj?.candleSeries;
+    return chart&&candle&&typeof candle.priceToCoordinate==="function"?{chart,candle}:null;
   }
-
-  function priceDigits(value) {
-    const n = Math.abs(Number(value));
-
-    if (n >= 100) return 2;
-    if (n >= 1) return 4;
-    if (n >= 0.01) return 6;
-
-    return 8;
+  function settingsEnabled(){
+    try{const data=JSON.parse(localStorage.getItem("cryptolexuz-chart-settings-v1")||"null");return data?.indicators?.liquidity===true;}catch{return false;}
   }
-
-  function fmtPrice(value) {
-    return fmt(value, priceDigits(value));
+  function setStatus(message,failed=false){
+    const t=$("clLiquidityOverlayStatus");if(t){t.textContent=message;t.style.color=failed?"#ff8398":"#b4c5e7";}
   }
-
-  function commodity(symbol) {
-    return /^NCCO/i.test(String(symbol));
+  function styles(){if($("clLiquidityV14Styles"))return;
+    const style=node("style");style.id="clLiquidityV14Styles";
+    style.textContent=`
+      #clLiquidityOverlayCanvas{position:absolute!important;inset:0 auto auto 0;z-index:1;pointer-events:none!important;background:transparent!important;max-width:none!important}
+      #priceChartArea{position:relative!important;isolation:isolate}
+      #clLiquidityOverlayInfo{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:7px 0;padding:8px 10px;border:1px solid #32364b;border-radius:9px;background:#10121e;color:#b4c5e7;font:11px system-ui}
+      #clLiquidityOverlayInfo[hidden]{display:none!important}
+      #clLiquidityOverlayInfo strong{color:#d8e2ff}
+      #clLiquidityOverlayInfo input{accent-color:#bb52ff;width:85px;vertical-align:middle}
+      #clLiquidityBook{margin-top:12px;padding:10px;background:#0b0e18;border:1px solid #343b55;border-radius:12px;color:#e7ecff}
+      .cl-lq-columns,.cl-lq-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;padding:6px 4px;font:11px system-ui;font-variant-numeric:tabular-nums}
+      .cl-lq-columns{color:#aab7d4}.cl-lq-row{position:relative;border-radius:5px;overflow:hidden}
+      .cl-lq-row span{z-index:1;position:relative}.cl-lq-row span:not(:first-child),.cl-lq-columns span:not(:first-child){text-align:right}
+      .cl-lq-bar{position:absolute;inset:0 auto 0 0;opacity:.2;z-index:0}
+      .cl-lq-row.ask{color:#ff9bb0}.cl-lq-row.bid{color:#77ffd0}
+      .cl-lq-row.ask .cl-lq-bar{background:#ff476c}.cl-lq-row.bid .cl-lq-bar{background:#00f5a0}
+      .cl-lq-note{font:11px/1.55 system-ui;color:#aab7d4;margin:7px 0}
+      .cl-lq-split{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+      .cl-lq-split>div{min-width:0}
+      .cl-lq-split h4{margin:5px 0;font:700 12px system-ui}
+      @media(max-width:370px){.cl-lq-split{grid-template-columns:1fr}}
+    `;document.head.appendChild(style);
   }
-
-  function selection() {
-    const symbol =
-      $("symbol")?.value || "BTC-USDT";
-
-    const special = commodity(symbol);
-
-    return {
-      symbol,
-      exchange: special
-        ? "bingx"
-        : $("exchange")?.value || "bingx",
-      market: special
-        ? "perpetual"
-        : $("market")?.value || "perpetual"
-    };
-  }
-
-  function marketKey(s = selection()) {
-    return [
-      s.exchange,
-      s.market,
-      s.symbol
-    ].join("|");
-  }
-
-  function status(message, color = C.muted) {
-    const target = $("clMapStatus");
-
-    if (!target) return;
-
-    target.textContent = message;
-    target.style.color = color;
-  }
-
-  function styles() {
-    if ($("clLiquidityStyles")) return;
-
-    const style = el("style");
-    style.id = "clLiquidityStyles";
-
-    style.textContent = `
-      .cl-liquidity-map {
-        width:100%;
-        min-width:0;
-        box-sizing:border-box;
-        padding:10px;
-        color:#edf1ff;
-        background:#080b16;
-        border:1px solid #34416b;
-        border-radius:14px;
-        overflow:hidden;
-      }
-
-      .cl-map-heading {
-        display:flex;
-        align-items:center;
-        justify-content:space-between;
-        flex-wrap:wrap;
-        gap:8px;
-        margin-bottom:10px;
-        font-size:13px;
-      }
-
-      .cl-muted {
-        color:#9ba9c9;
-        font-size:11px;
-      }
-
-      .cl-heat-toolbar {
-        display:flex;
-        flex-wrap:wrap;
-        align-items:center;
-        gap:8px;
-        margin-bottom:10px;
-        font-size:11px;
-      }
-
-      .cl-heat-toolbar label {
-        display:flex;
-        align-items:center;
-        gap:5px;
-      }
-
-      .cl-heat-toolbar select,
-      .cl-heat-toolbar button {
-        padding:7px;
-        color:#f2eaff;
-        background:#192442;
-        border:1px solid #45557e;
-        border-radius:7px;
-        font-size:11px;
-      }
-
-      .cl-heat-toolbar input[type="range"] {
-        width:85px;
-        accent-color:#bb52ff;
-      }
-
-      .cl-heat-toolbar input[type="checkbox"] {
-        accent-color:#bb52ff;
-      }
-
-      .cl-heat-stage {
-        position:relative;
-        width:100%;
-        height:440px;
-        overflow:hidden;
-        background:#000;
-        border:1px solid #202b4b;
-        border-radius:9px;
-      }
-
-      #clHeatmap {
-        display:block;
-        width:100%;
-        height:100%;
-        touch-action:pan-x;
-      }
-
-      .cl-heat-legend {
-        display:flex;
-        align-items:center;
-        gap:8px;
-        margin:10px 0;
-        font-size:10px;
-        color:#aab7d4;
-      }
-
-      .cl-heat-gradient {
-        height:10px;
-        flex:1;
-        border-radius:5px;
-        background:linear-gradient(
-          90deg,
-          #250b42 0%,
-          #7320ae 20%,
-          #1689ca 40%,
-          #22cfa7 60%,
-          #ffe24d 80%,
-          #ff7819 100%
-        );
-      }
-
-      .cl-map-note {
-        margin:9px 0;
-        color:#9ba9c9;
-        font-size:11px;
-        line-height:1.6;
-      }
-
-      .cl-orderbook {
-        margin-top:15px;
-        padding-top:12px;
-        border-top:1px solid #34416b;
-      }
-
-      .cl-book-title {
-        margin:0 0 10px;
-        color:#f5f7ff;
-        font-size:13px;
-      }
-
-      .cl-book-label {
-        margin:12px 0 7px;
-        font-size:11px;
-        font-weight:800;
-      }
-
-      .cl-sell { color:#ff476c; }
-      .cl-buy { color:#00f5a0; }
-
-      .cl-book-columns,
-      .cl-book-row {
-        display:grid;
-        grid-template-columns:1fr 1fr 1fr;
-        gap:6px;
-        padding:6px 7px;
-        font-size:11px;
-        font-variant-numeric:tabular-nums;
-      }
-
-      .cl-book-columns {
-        color:#9ba9c9;
-      }
-
-      .cl-book-columns span:not(:first-child),
-      .cl-book-row span:not(:first-of-type) {
-        text-align:right;
-      }
-
-      .cl-book-row {
-        position:relative;
-        overflow:hidden;
-        margin-bottom:3px;
-        border-radius:5px;
-      }
-
-      .cl-book-row > span {
-        position:relative;
-        z-index:1;
-      }
-
-      .cl-book-bar {
-        position:absolute;
-        inset:0 auto 0 0;
-        z-index:0;
-        opacity:.23;
-      }
-
-      .cl-book-row.ask {
-        color:#ff8ba1;
-        background:rgba(255,71,108,.05);
-      }
-
-      .cl-book-row.bid {
-        color:#65ffc7;
-        background:rgba(0,245,160,.05);
-      }
-
-      .cl-book-row.ask .cl-book-bar {
-        background:#ff476c;
-      }
-
-      .cl-book-row.bid .cl-book-bar {
-        background:#00f5a0;
-      }
-
-      .cl-book-middle {
-        margin:12px 0;
-        padding:10px;
-        text-align:center;
-        background:#121a36;
-        border:1px solid #35436d;
-        border-radius:8px;
-        font-size:12px;
-      }
-
-      .cl-book-summary {
-        margin-top:12px;
-        padding:11px;
-        color:#cbd5f2;
-        background:#101831;
-        border-radius:8px;
-        font-size:11px;
-        line-height:1.8;
-      }
-
-      @media (min-width:700px) {
-        .cl-heat-stage {
-          height:560px;
-        }
-      }
-    `;
-
-    document.head.appendChild(style);
-  }
-
-  function createColumns() {
-    const row = el("div", "cl-book-columns");
-
-    ["Precio", "Cantidad", "USDT"].forEach(
-      value => row.appendChild(
-        el("span", "", value)
-      )
-    );
-
-    return row;
-  }
-
-  function build() {
-    const map = $("liquidityMap");
-    const section = $("orderbookSection");
-
-    if (!map || !section) {
-      console.warn(
-        "Liquidez: faltan contenedores HTML"
-      );
-      return false;
-    }
-
+  function build(){
+    const area=$("priceChartArea"),bookSection=$("orderbookSection");
+    if(!area||!bookSection)return false;
     styles();
-
-    map.classList.add("cl-liquidity-map");
-    map.replaceChildren();
-
-    const heading = el(
-      "div",
-      "cl-map-heading"
-    );
-
-    heading.appendChild(
-      el(
-        "strong",
-        "",
-        "Mapa de calor · Liquidez"
-      )
-    );
-
-    const stateLabel = el(
-      "span",
-      "cl-muted",
-      "Preparando..."
-    );
-
-    stateLabel.id = "clMapStatus";
-    heading.appendChild(stateLabel);
-
-    const toolbar = el(
-      "div",
-      "cl-heat-toolbar"
-    );
-
-    function checkbox(id, text, checked) {
-      const label = el("label");
-      const input = el("input");
-
-      input.type = "checkbox";
-      input.id = id;
-      input.checked = checked;
-
-      label.append(
-        input,
-        el("span", "", text)
-      );
-
-      toolbar.appendChild(label);
-
-      return input;
+    let canvas=$("clLiquidityOverlayCanvas");
+    if(!canvas){canvas=node("canvas");canvas.id="clLiquidityOverlayCanvas";canvas.setAttribute("aria-hidden","true");area.appendChild(canvas);}
+    S.canvas=canvas;
+    let info=$("clLiquidityOverlayInfo");
+    if(!info){
+      info=node("div");info.id="clLiquidityOverlayInfo";
+      const label=node("strong","","🌡️ Liquidez sobre velas");
+      const status=node("span");status.id="clLiquidityOverlayStatus";
+      const intensity=node("label");intensity.textContent="Intensidad ";
+      const range=node("input");range.type="range";range.min="0.15";range.max="0.9";range.step="0.05";range.value=String(S.intensity);range.id="clLiquidityOverlayIntensity";
+      range.addEventListener("input",()=>{S.intensity=Number(range.value);redraw();});
+      intensity.append(range);info.append(label,status,intensity);
+      area.parentNode.insertBefore(info,area.nextSibling);
     }
-
-    checkbox(
-      "clHeatEnabled",
-      "Calor",
-      S.showMap
-    );
-
-    checkbox(
-      "clHeatPrice",
-      "Precio",
-      S.showPrice
-    );
-
-    checkbox(
-      "clHeatProfile",
-      "Perfil",
-      S.showProfile
-    );
-
-    const intensityLabel = el("label");
-
-    intensityLabel.appendChild(
-      el("span", "", "Intensidad")
-    );
-
-    const intensity = el("input");
-
-    intensity.type = "range";
-    intensity.id = "clHeatIntensity";
-    intensity.min = "0.5";
-    intensity.max = "2.5";
-    intensity.step = "0.25";
-    intensity.value = String(S.intensity);
-
-    intensityLabel.appendChild(intensity);
-    toolbar.appendChild(intensityLabel);
-
-    function select(id, title, values, selected) {
-      const label = el("label");
-
-      label.appendChild(
-        el("span", "", title)
-      );
-
-      const input = el("select");
-      input.id = id;
-
-      values.forEach(value => {
-        const option = el(
-          "option",
-          "",
-          value
-        );
-
-        option.value = String(value);
-        option.selected =
-          Number(value) === Number(selected);
-
-        input.appendChild(option);
-      });
-
-      label.appendChild(input);
-      toolbar.appendChild(label);
-
-      return input;
+    let root=$("clLiquidityBook");
+    if(!root){root=node("div");root.id="clLiquidityBook";bookSection.appendChild(root);}
+    root.replaceChildren();
+    root.append(node("h3","","📚 Libro de órdenes · diez niveles por lado"));
+    const split=node("div","cl-lq-split");
+    for(const [side,title] of [["asks","Ventas · ASK"],["bids","Compras · BID"]]){
+      const col=node("div");col.append(node("h4","",title));
+      const cols=node("div","cl-lq-columns");for(const h of ["Precio","Cantidad","USDT"])cols.append(node("span","",h));
+      const host=node("div");host.id="clLq"+side;host.textContent="Esperando órdenes...";
+      col.append(cols,host);split.append(col);
     }
-
-    select(
-      "clHeatHistory",
-      "Historial",
-      [60, 120, 180, 300],
-      S.maxHistory
-    );
-
-    select(
-      "clHeatBins",
-      "Detalle",
-      [60, 80, 100, 140],
-      S.bins
-    );
-
-    const resetZoom = el(
-      "button",
-      "",
-      "Restablecer zoom"
-    );
-
-    resetZoom.id = "clHeatResetZoom";
-    resetZoom.type = "button";
-
-    toolbar.appendChild(resetZoom);
-
-    const stage = el(
-      "div",
-      "cl-heat-stage"
-    );
-
-    const canvas = el("canvas");
-    canvas.id = "clHeatmap";
-
-    canvas.setAttribute(
-      "aria-label",
-      "Mapa histórico de liquidez real"
-    );
-
-    stage.appendChild(canvas);
-
-    const legend = el(
-      "div",
-      "cl-heat-legend"
-    );
-
-    legend.append(
-      el("span", "", "Menor"),
-      el("div", "cl-heat-gradient"),
-      el("span", "", "Mayor")
-    );
-
-    const info = el(
-      "p",
-      "cl-map-note",
-      "Esperando profundidad real..."
-    );
-
-    info.id = "clHeatInfo";
-
-    const note = el(
-      "p",
-      "cl-map-note",
-      "Cada columna corresponde a una consulta " +
-      "real del libro de órdenes. Las bandas " +
-      "muestran liquidez limitada visible, no " +
-      "liquidaciones. Las órdenes pueden " +
-      "cancelarse o modificarse."
-    );
-
-    map.append(
-      heading,
-      toolbar,
-      stage,
-      legend,
-      info,
-      note
-    );
-
-    const article =
-      section.querySelector("article") ||
-      section;
-
-    let book = $("clOrderbook");
-
-    if (!book) {
-      book = el(
-        "div",
-        "cl-orderbook"
-      );
-
-      book.id = "clOrderbook";
-      article.appendChild(book);
+    root.append(split);
+    const summary=node("p","cl-lq-note","Esperando profundidad real...");summary.id="clLiquidityBookSummary";
+    root.append(summary,node("p","cl-lq-note","Las concentraciones reflejan órdenes visibles que pueden cancelarse. No indican liquidaciones ni probabilidades de rechazo."));
+    const standalone=$("liquidityMap");
+    if(standalone){standalone.replaceChildren(node("p","cl-lq-note","El mapa de liquidez ahora se activa desde el botón Liquidez en la fila de indicadores, sobre las velas de la gráfica."));}
+    const toggle=$("liquidityMapToggle");if(toggle){toggle.disabled=false;toggle.checked=S.enabled;}
+    updateVisibility();return true;
+  }
+  function parseSide(data){if(!Array.isArray(data))return [];
+    return data.map(v=>({price:Number(Array.isArray(v)?v[0]:v?.price??v?.px??v?.p),quantity:Number(Array.isArray(v)?v[1]:v?.quantity??v?.qty??v?.size??v?.sz??v?.amount??v?.q)})).filter(v=>Number.isFinite(v.price)&&v.price>0&&Number.isFinite(v.quantity)&&v.quantity>0);
+  }
+  function normalize(raw){
+    if(raw?.code!==undefined&&![0,"0","00000"].includes(raw.code))throw Error("API "+raw.code);
+    let d=raw;
+    for(let i=0;i<6;i++){
+      if(d?.bids||d?.asks||d?.b||d?.a)break;
+      d=d?.data;if(Array.isArray(d))d=d[0];
     }
-
-    book.replaceChildren();
-
-    book.append(
-      el(
-        "h3",
-        "cl-book-title",
-        "Libro de órdenes · diez niveles por lado"
-      ),
-      el(
-        "div",
-        "cl-book-label cl-sell",
-        "VENTAS · ASK"
-      ),
-      createColumns()
-    );
-
-    const asks = el(
-      "div",
-      "",
-      "Esperando órdenes..."
-    );
-
-    asks.id = "clAsks";
-    book.appendChild(asks);
-
-    const spread = el(
-      "div",
-      "cl-book-middle",
-      "Spread: —"
-    );
-
-    spread.id = "clSpread";
-    book.appendChild(spread);
-
-    book.append(
-      el(
-        "div",
-        "cl-book-label cl-buy",
-        "COMPRAS · BID"
-      ),
-      createColumns()
-    );
-
-    const bids = el(
-      "div",
-      "",
-      "Esperando órdenes..."
-    );
-
-    bids.id = "clBids";
-    book.appendChild(bids);
-
-    const summary = el(
-      "div",
-      "cl-book-summary",
-      "Esperando profundidad..."
-    );
-
-    summary.id = "clBookSummary";
-    book.appendChild(summary);
-
-    const toggle = $("liquidityMapToggle");
-
-    if (toggle) {
-      toggle.disabled = false;
+    const bids=parseSide(d?.bids??d?.b).sort((a,b)=>b.price-a.price).slice(0,CFG.depth);
+    const asks=parseSide(d?.asks??d?.a).sort((a,b)=>a.price-b.price).slice(0,CFG.depth);
+    if(!bids.length||!asks.length)throw Error("Libro de órdenes vacío");
+    if(bids[0].price>=asks[0].price)throw Error("Bid/ask inconsistentes");
+    return {bids,asks,mid:(bids[0].price+asks[0].price)/2};
+  }
+  function url(s){return "/api/exchange/"+encodeURIComponent(s.exchange)+"/depth/"+encodeURIComponent(s.symbol)+"?market="+encodeURIComponent(s.market)+"&limit="+CFG.depth;}
+  function sum(orders){return orders.reduce((a,o)=>a+o.price*o.quantity,0);}
+  function largest(orders){return orders.reduce((a,b)=>!a||b.price*b.quantity>a.price*a.quantity?b:a,null);}
+  function renderSide(id,orders,kind){
+    const root=$(id);if(!root)return;root.replaceChildren();
+    const data=orders.slice(0,CFG.levels),max=Math.max(1,...data.map(o=>o.price*o.quantity));
+    for(const o of data){
+      const row=node("div","cl-lq-row "+kind),bar=node("div","cl-lq-bar");bar.style.width=(100*o.price*o.quantity/max)+"%";row.append(bar);
+      for(const t of [price(o.price),fmt(o.quantity,4),fmt(o.price*o.quantity,0)])row.append(node("span","",t));root.append(row);
     }
-
-    const subtitle = document.querySelector(
-      "#liquiditySection .section-heading .muted"
-    );
-
-    if (subtitle) {
-      subtitle.textContent =
-        "Mapa histórico · profundidad real";
+  }
+  function renderBook(book){
+    renderSide("clLqasks",book.asks,"ask");renderSide("clLqbids",book.bids,"bid");
+    const bid=book.bids[0].price,ask=book.asks[0].price;
+    if($("bid"))$("bid").textContent=price(bid);
+    if($("ask"))$("ask").textContent=price(ask);
+    const buys=book.bids.slice(0,CFG.levels),sells=book.asks.slice(0,CFG.levels);
+    const b=sum(buys),a=sum(sells),total=b+a;
+    const target=$("clLiquidityBookSummary");
+    if(target)target.textContent="Bid "+price(bid)+" · Ask "+price(ask)+" · Spread "+price(ask-bid)+" ("+fmt((ask-bid)/book.mid*100,4)+"%). Compras visibles: "+fmt(b,0)+" USDT ("+fmt(total?b/total*100:0,1)+"%). Ventas visibles: "+fmt(a,0)+" USDT ("+fmt(total?a/total*100:0,1)+"%). Mayor compra: "+price(largest(buys)?.price)+". Mayor venta: "+price(largest(sells)?.price)+".";
+  }
+  function updateVisibility(){
+    if(S.canvas)S.canvas.hidden=!S.enabled;
+    const info=$("clLiquidityOverlayInfo");if(info)info.hidden=!S.enabled;
+    const toggle=$("liquidityMapToggle");if(toggle)toggle.checked=S.enabled;
+  }
+  function clear(){
+    const canvas=S.canvas;if(!canvas)return;
+    const ctx=canvas.getContext("2d");if(ctx)ctx.clearRect(0,0,canvas.width,canvas.height);
+  }
+  function redraw(){if(S.frame)return;S.frame=requestAnimationFrame(()=>{S.frame=0;draw();});}
+  function draw(){
+    const canvas=S.canvas,api=getChart(),element=$("chart");
+    if(!canvas||!element||!api||!S.enabled||!S.book){clear();return;}
+    const rect=element.getBoundingClientRect(),area=$("priceChartArea")?.getBoundingClientRect();
+    if(!area||rect.width<80||rect.height<80)return;
+    const w=rect.width,h=rect.height,dpr=Math.min(devicePixelRatio||1,2);
+    canvas.style.left=(rect.left-area.left)+"px";canvas.style.top=(rect.top-area.top)+"px";
+    canvas.style.width=w+"px";canvas.style.height=h+"px";
+    const pw=Math.round(w*dpr),ph=Math.round(h*dpr);
+    if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph;}
+    const ctx=canvas.getContext("2d");if(!ctx)return;
+    ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+    // Nunca dibujar sobre el eje de precios ni el eje temporal.
+    const chartWidth=api.chart?.timeScale?.().width?.()||w-70;
+    const plotW=Math.max(0,Math.min(w-60,chartWidth));
+    if(plotW<30)return;
+    const all=[...S.book.bids,...S.book.asks];
+    const max=Math.max(1,...all.map(o=>o.price*o.quantity));
+    // Bandas horizontales sobre el rango de precios actual de la serie.
+    // NO se dibujan columnas históricas porque los snapshots no están sincronizados con velas.
+    const levels=all.map(o=>({y:api.candle.priceToCoordinate(o.price),notional:o.price*o.quantity,buy:o.price<S.book.mid})).filter(o=>Number.isFinite(o.y)&&o.y>=0&&o.y<h-22);
+    if(!levels.length){setStatus("Profundidad recibida; niveles fuera del rango visible");return;}
+    const sorted=levels.map(o=>o.y).sort((a,b)=>a-b);
+    const diffs=sorted.slice(1).map((y,i)=>y-sorted[i]).filter(x=>x>0.5);
+    const bandHeight=Math.max(3,Math.min(14,diffs.length?diffs.sort((a,b)=>a-b)[Math.floor(diffs.length/2)]*.8:6));
+    ctx.save();ctx.beginPath();ctx.rect(0,0,plotW,h-22);ctx.clip();
+    for(const o of levels){
+      const strength=Math.min(1,Math.log1p(o.notional)/Math.log1p(max));
+      const alpha=Math.min(.52,S.intensity*(.12+.65*strength));
+      ctx.fillStyle=o.buy?`rgba(0,245,160,${alpha.toFixed(3)})`:`rgba(255,71,108,${alpha.toFixed(3)})`;
+      ctx.fillRect(0,o.y-bandHeight/2,plotW,bandHeight);
+      if(strength>.78){ctx.strokeStyle=o.buy?"rgba(0,245,160,.50)":"rgba(255,71,108,.50)";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,o.y);ctx.lineTo(plotW,o.y);ctx.stroke();}
     }
-
+    ctx.restore();
+    setStatus("Órdenes visibles · "+new Date(S.updated).toLocaleTimeString("es-MX")+" · "+selection().tf);
+  }
+  async function refresh(){
+    if(!S.running||document.hidden)return;
+    if(S.busy){S.again=true;return;}
+    const selected=selection(),k=key(selected);
+    if(k!==S.key){S.key=k;S.generation++;S.book=null;clear();}
+    const generation=S.generation,controller=new AbortController();
+    S.controller=controller;S.busy=true;
+    const timeout=setTimeout(()=>controller.abort(),CFG.timeout);
+    try{
+      setStatus("Consultando profundidad real...");
+      const response=await fetch(url(selected),{signal:controller.signal,cache:"no-store"});
+      if(!response.ok)throw Error("HTTP "+response.status);
+      const book=normalize(await response.json());
+      if(!S.running||generation!==S.generation||k!==key(selection())||controller.signal.aborted)return;
+      S.book=book;S.updated=Date.now();S.error="";
+      renderBook(book);redraw();
+    }catch(e){
+      if(!S.running||generation!==S.generation)return;
+      S.error=controller.signal.aborted?"Tiempo de espera agotado":String(e.message||e);
+      setStatus("Sin profundidad: "+S.error,true);
+      if(!S.book)clear();
+      console.warn("CRYPTOLEXUZ Liquidez V14:",e);
+    }finally{
+      clearTimeout(timeout);if(S.controller===controller)S.controller=null;
+      S.busy=false;
+      if(S.again&&S.running&&!document.hidden){S.again=false;queueMicrotask(refresh);}
+    }
+  }
+  function start(){if(S.running)return;S.running=true;S.key=key(selection());refresh();S.timer=setInterval(refresh,CFG.refresh);}
+  function stop(){S.running=false;S.generation++;S.again=false;
+    if(S.timer){clearInterval(S.timer);S.timer=null;}
+    S.controller?.abort();S.controller=null;clear();
+  }
+  function restart(){S.generation++;S.key=key(selection());S.book=null;clear();S.controller?.abort();if(S.running){if(S.busy)S.again=true;else refresh();}}
+  function setEnabled(value){
+    S.enabled=Boolean(value);updateVisibility();
+    if(S.enabled){start();redraw();}else stop();
+  }
+  function syncFromApp(event){
+    const next=event?.detail?.settings?.indicators?.liquidity;
+    if(typeof next==="boolean")setEnabled(next);
+    else setEnabled(settingsEnabled());
+  }
+  function bindChart(){const c=getChart();if(!c)return false;
+    if(S.chart===c.chart&&S.candle===c.candle)return true;
+    S.chart=c.chart;S.candle=c.candle;
+    try{c.chart.timeScale().subscribeVisibleLogicalRangeChange(redraw);}catch{}
+    try{c.chart.timeScale().subscribeVisibleTimeRangeChange(redraw);}catch{}
     return true;
   }
-
-  function parseSide(side) {
-    if (!Array.isArray(side)) return [];
-
-    const result = [];
-
-    for (const item of side) {
-      if (!item) continue;
-
-      const price = Number(
-        Array.isArray(item)
-          ? item[0]
-          : item.price ?? item.px ?? item.p
-      );
-
-      const quantity = Number(
-        Array.isArray(item)
-          ? item[1]
-          : item.quantity ??
-            item.qty ??
-            item.size ??
-            item.sz ??
-            item.amount ??
-            item.q
-      );
-
-      if (
-        !Number.isFinite(price) ||
-        !Number.isFinite(quantity) ||
-        price <= 0 ||
-        quantity <= 0
-      ) {
-        continue;
-      }
-
-      result.push({
-        price,
-        quantity
-      });
-    }
-
-    return result;
-  }
-
-  function normalize(raw) {
-    if (
-      raw?.code !== undefined &&
-      ![0, "0", "00000"].includes(raw.code)
-    ) {
-      throw new Error(
-        "API " + raw.code
-      );
-    }
-
-    let data = raw;
-
-    for (let i = 0; i < 5; i++) {
-      if (
-        data?.bids ||
-        data?.asks ||
-        data?.b ||
-        data?.a
-      ) {
-        break;
-      }
-
-      data = data?.data;
-
-      if (Array.isArray(data)) {
-        data = data[0];
-      }
-    }
-
-    const bids = parseSide(
-      data?.bids ?? data?.b
-    ).sort(
-      (a, b) => b.price - a.price
-    );
-
-    const asks = parseSide(
-      data?.asks ?? data?.a
-    ).sort(
-      (a, b) => a.price - b.price
-    );
-
-    if (!bids.length || !asks.length) {
-      throw new Error(
-        "Libro de órdenes vacío"
-      );
-    }
-
-    if (bids[0].price >= asks[0].price) {
-      throw new Error(
-        "Precios bid/ask inconsistentes"
-      );
-    }
-
-    return {
-      bids: bids.slice(0, CFG.depth),
-      asks: asks.slice(0, CFG.depth),
-      mid:
-        (bids[0].price + asks[0].price) / 2
-    };
-  }
-
-  function depthURL(s) {
-    return (
-      "/api/exchange/" +
-      encodeURIComponent(s.exchange) +
-      "/depth/" +
-      encodeURIComponent(s.symbol) +
-      "?market=" +
-      encodeURIComponent(s.market) +
-      "&limit=" +
-      CFG.depth
-    );
-  }
-
-  async function fetchBook(s, signal) {
-    const response = await fetch(
-      depthURL(s),
-      {
-        signal,
-        cache: "no-store"
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error(
-        "HTTP " + response.status
-      );
-    }
-
-    return normalize(
-      await response.json()
-    );
-  }
-
-  function renderSide(id, side, kind) {
-    const root = $(id);
-
-    if (!root) return;
-
-    root.replaceChildren();
-
-    const levels = side.slice(
-      0,
-      CFG.bookLevels
-    );
-
-    const max = Math.max(
-      1,
-      ...levels.map(
-        order =>
-          order.price * order.quantity
-      )
-    );
-
-    levels.forEach(order => {
-      const row = el(
-        "div",
-        "cl-book-row " + kind
-      );
-
-      const bar = el(
-        "div",
-        "cl-book-bar"
-      );
-
-      const notional =
-        order.price * order.quantity;
-
-      bar.style.width =
-        (notional / max * 100) + "%";
-
-      row.append(
-        bar,
-        el(
-          "span",
-          "",
-          fmtPrice(order.price)
-        ),
-        el(
-          "span",
-          "",
-          fmt(order.quantity, 4)
-        ),
-        el(
-          "span",
-          "",
-          fmt(notional, 0)
-        )
-      );
-
-      root.appendChild(row);
+  function init(){if(S.initialized)return;if(!build())return;S.initialized=true;
+    bindChart();
+    S.enabled=settingsEnabled();updateVisibility();if(S.enabled)start();
+    window.addEventListener("cryptolexuz:chart-ready",()=>{bindChart();redraw();});
+    window.addEventListener("cryptolexuz:candles-updated",()=>{bindChart();redraw();});
+    window.addEventListener("cryptolexuz:indicator-state-updated",syncFromApp);
+    window.addEventListener("cryptolexuz:indicator-settings-change",syncFromApp);
+    window.addEventListener("cryptolexuz:screen-change",redraw);
+    for(const id of ["symbol","exchange","market"])$(id)?.addEventListener("change",restart);
+    $("interval")?.addEventListener("change",()=>{setStatus("Temporalidad: "+selection().tf);redraw();});
+    $("liquidityMapToggle")?.addEventListener("change",e=>{
+      // Delegar el cambio a app.js para mantener su preferencia sincronizada.
+      if(window.CryptolexuzApp?.setIndicator)window.CryptolexuzApp.setIndicator("liquidity",e.target.checked);
+      else setEnabled(e.target.checked);
     });
+    if(window.ResizeObserver){S.observer=new ResizeObserver(redraw);S.observer.observe($("chart"));S.observer.observe($("priceChartArea"));}
+    window.addEventListener("resize",redraw);
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden&&S.running){refresh();redraw();}});
+    window.addEventListener("beforeunload",()=>{stop();S.observer?.disconnect();});
+    console.info("CRYPTOLEXUZ PRO — LIQUIDITY.JS V14 · capa sobre velas");
   }
-
-  function totalNotional(orders) {
-    return orders.reduce(
-      (sum, order) =>
-        sum +
-        order.price * order.quantity,
-      0
-    );
-  }
-
-  function largestOrder(orders) {
-    return orders.reduce(
-      (best, order) => {
-        if (!best) return order;
-
-        const current =
-          order.price * order.quantity;
-
-        const previous =
-          best.price * best.quantity;
-
-        return current > previous
-          ? order
-          : best;
-      },
-      null
-    );
-  }
-
-  function renderBook(book) {
-    renderSide(
-      "clAsks",
-      book.asks,
-      "ask"
-    );
-
-    renderSide(
-      "clBids",
-      book.bids,
-      "bid"
-    );
-
-    const bid = book.bids[0].price;
-    const ask = book.asks[0].price;
-
-    if ($("bid")) {
-      $("bid").textContent =
-        fmtPrice(bid);
-    }
-
-    if ($("ask")) {
-      $("ask").textContent =
-        fmtPrice(ask);
-    }
-
-    const spread = ask - bid;
-
-    const spreadElement = $("clSpread");
-
-    if (spreadElement) {
-      spreadElement.textContent =
-        "Bid: " +
-        fmtPrice(bid) +
-        " · Ask: " +
-        fmtPrice(ask) +
-        " · Spread: " +
-        fmtPrice(spread) +
-        " (" +
-        fmt(spread / book.mid * 100, 4) +
-        "%)";
-    }
-
-    const buys = book.bids.slice(
-      0,
-      CFG.bookLevels
-    );
-
-    const sells = book.asks.slice(
-      0,
-      CFG.bookLevels
-    );
-
-    const buyTotal =
-      totalNotional(buys);
-
-    const sellTotal =
-      totalNotional(sells);
-
-    const combined =
-      buyTotal + sellTotal;
-
-    const buyPercent = combined
-      ? buyTotal / combined * 100
-      : 0;
-
-    const sellPercent = combined
-      ? sellTotal / combined * 100
-      : 0;
-
-    const strongestBuy =
-      largestOrder(buys);
-
-    const strongestSell =
-      largestOrder(sells);
-
-    const summary = $("clBookSummary");
-
-    if (summary) {
-      summary.textContent =
-        "Compras visibles: " +
-        fmt(buyTotal, 0) +
-        " USDT (" +
-        fmt(buyPercent, 1) +
-        "%). Ventas visibles: " +
-        fmt(sellTotal, 0) +
-        " USDT (" +
-        fmt(sellPercent, 1) +
-        "%). Mayor concentración compradora: " +
-        fmtPrice(strongestBuy?.price) +
-        ". Mayor concentración vendedora: " +
-        fmtPrice(strongestSell?.price) +
-        ". Datos calculados sobre diez " +
-        "niveles por lado. No equivalen " +
-        "a probabilidades de rechazo.";
-    }
-  }
-
-  function capture(book) {
-    S.snapshots.push({
-      time: Date.now(),
-      mid: book.mid,
-      bids: book.bids.map(
-        order => ({ ...order })
-      ),
-      asks: book.asks.map(
-        order => ({ ...order })
-      )
-    });
-
-    if (
-      S.snapshots.length > S.maxHistory
-    ) {
-      S.snapshots.splice(
-        0,
-        S.snapshots.length - S.maxHistory
-      );
-    }
-  }
-
-  function heatColor(value) {
-    const x = Math.max(
-      0,
-      Math.min(
-        1,
-        value * S.intensity
-      )
-    );
-
-    if (x < 0.08) return "#1d0936";
-    if (x < 0.20) return "#53208b";
-    if (x < 0.34) return "#9825c9";
-    if (x < 0.49) return "#176fbd";
-    if (x < 0.63) return "#15b7cf";
-    if (x < 0.76) return "#27d7a3";
-    if (x < 0.89) return "#ffe34d";
-
-    return "#ff7919";
-  }
-
-  function requestDraw() {
-    if (S.frame) return;
-
-    S.frame = requestAnimationFrame(() => {
-      S.frame = 0;
-      draw();
-    });
-  }
-
-  function draw() {
-    const canvas = $("clHeatmap");
-
-    if (!canvas) return;
-
-    const rect =
-      canvas.getBoundingClientRect();
-
-    const w = rect.width;
-    const h = rect.height;
-
-    if (w < 50 || h < 50) return;
-
-    const dpr = Math.min(
-      window.devicePixelRatio || 1,
-      2
-    );
-
-    const pixelWidth =
-      Math.round(w * dpr);
-
-    const pixelHeight =
-      Math.round(h * dpr);
-
-    if (
-      canvas.width !== pixelWidth ||
-      canvas.height !== pixelHeight
-    ) {
-      canvas.width = pixelWidth;
-      canvas.height = pixelHeight;
-    }
-
-    const ctx =
-      canvas.getContext("2d");
-
-    if (!ctx) return;
-
-    ctx.setTransform(
-      dpr,
-      0,
-      0,
-      dpr,
-      0,
-      0
-    );
-
-    ctx.fillStyle = C.bg;
-    ctx.fillRect(0, 0, w, h);
-
-    const snaps = S.snapshots;
-
-    if (!snaps.length) {
-      ctx.fillStyle = C.muted;
-      ctx.font = "12px system-ui";
-      ctx.textAlign = "center";
-
-      ctx.fillText(
-        "Esperando profundidad real...",
-        w / 2,
-        h / 2
-      );
-
-      return;
-    }
-
-    const left = 5;
-    const axis = Math.min(
-      75,
-      w * 0.22
-    );
-
-    const profileWidth =
-      S.showProfile
-        ? Math.min(85, w * 0.23)
-        : 0;
-
-    const gap =
-      S.showProfile ? 7 : 0;
-
-    const right =
-      w - axis - profileWidth - gap;
-
-    const top = 14;
-    const bottom = h - 28;
-
-    const plotW = right - left;
-    const plotH = bottom - top;
-
-    if (
-      plotW < 20 ||
-      plotH < 20
-    ) {
-      return;
-    }
-
-    const last =
-      snaps[snaps.length - 1];
-
-    /*
-     Determinar el rango de precios
-     usando los niveles reales
-     registrados.
-    */
-
-    let observedMin = Infinity;
-    let observedMax = -Infinity;
-
-    let pathMin = Infinity;
-    let pathMax = -Infinity;
-
-    for (const snap of snaps) {
-      observedMin = Math.min(
-        observedMin,
-        snap.mid
-      );
-
-      observedMax = Math.max(
-        observedMax,
-        snap.mid
-      );
-
-      pathMin = Math.min(
-        pathMin,
-        snap.mid
-      );
-
-      pathMax = Math.max(
-        pathMax,
-        snap.mid
-      );
-
-      for (const order of snap.bids) {
-        observedMin = Math.min(
-          observedMin,
-          order.price
-        );
-
-        observedMax = Math.max(
-          observedMax,
-          order.price
-        );
-      }
-
-      for (const order of snap.asks) {
-        observedMin = Math.min(
-          observedMin,
-          order.price
-        );
-
-        observedMax = Math.max(
-          observedMax,
-          order.price
-        );
-      }
-    }
-
-    if (
-      !Number.isFinite(observedMin) ||
-      !Number.isFinite(observedMax)
-    ) {
-      return;
-    }
-
-    const fullRange = Math.max(
-      observedMax - observedMin,
-      last.mid * 0.00005
-    );
-
-    let half =
-      fullRange * 0.54 / S.zoom;
-
-    let center = last.mid;
-
-    /*
-     El zoom modifica la escala
-     vertical. La trayectoria puede
-     quedar parcialmente fuera del
-     área al ampliar, como corresponde.
-    */
-
-    const min = Math.max(
-      Number.EPSILON,
-      center - half
-    );
-
-    const max =
-      center + half;
-
-    const range = max - min;
-
-    if (range <= 0) return;
-
-    const bins = S.bins;
-    const cellH = plotH / bins;
-    const colW = plotW / snaps.length;
-
-    const yPrice = price =>
-      bottom -
-      (price - min) / range * plotH;
-
-    const matrices = [];
-    const nonzero = [];
-
-    for (const snap of snaps) {
-      const column =
-        new Float64Array(bins);
-
-      for (const orders of [
-        snap.bids,
-        snap.asks
-      ]) {
-        for (const order of orders) {
-          const index = Math.floor(
-            (order.price - min) /
-            range * bins
-          );
-
-          if (
-            index < 0 ||
-            index >= bins
-          ) {
-            continue;
-          }
-
-          column[index] +=
-            order.price * order.quantity;
-        }
-      }
-
-      for (const value of column) {
-        if (value > 0) {
-          nonzero.push(value);
-        }
-      }
-
-      matrices.push(column);
-    }
-
-    nonzero.sort(
-      (a, b) => a - b
-    );
-
-    const reference = nonzero.length
-      ? Math.max(
-          1,
-          nonzero[
-            Math.floor(
-              (nonzero.length - 1) * 0.95
-            )
-          ]
-        )
-      : 1;
-
-    const logReference =
-      Math.log1p(reference);
-
-    function strength(value) {
-      if (value <= 0) return 0;
-
-      return Math.min(
-        1,
-        Math.log1p(value) /
-        logReference
-      );
-    }
-
-    /*
-     Cuadrícula horizontal.
-    */
-
-    ctx.strokeStyle =
-      "rgba(160,170,220,.13)";
-
-    ctx.lineWidth = 1;
-
-    for (let i = 0; i <= 6; i++) {
-      const y =
-        top + i * plotH / 6;
-
-      ctx.beginPath();
-      ctx.moveTo(left, y);
-      ctx.lineTo(right, y);
-      ctx.stroke();
-    }
-
-    /*
-     Bandas de calor.
-     Cada columna procede de
-     una muestra real.
-    */
-
-    if (S.showMap) {
-      matrices.forEach(
-        (column, columnIndex) => {
-          const x =
-            left + columnIndex * colW;
-
-          for (
-            let row = 0;
-            row < bins;
-            row++
-          ) {
-            const value =
-              column[row];
-
-            if (value <= 0) continue;
-
-            const y =
-              bottom -
-              (row + 1) * cellH;
-
-            ctx.fillStyle = heatColor(
-              strength(value)
-            );
-
-            ctx.fillRect(
-              x,
-              y,
-              Math.ceil(colW + 0.4),
-              Math.max(1, cellH + 0.4)
-            );
-          }
-        }
-      );
-    }
-
-    /*
-     Perfil lateral:
-     solamente órdenes visibles
-     en la última muestra.
-    */
-
-    if (S.showProfile) {
-      const buys =
-        new Float64Array(bins);
-
-      const sells =
-        new Float64Array(bins);
-
-      for (const [
-        orders,
-        target
-      ] of [
-        [last.bids, buys],
-        [last.asks, sells]
-      ]) {
-        for (const order of orders) {
-          const index = Math.floor(
-            (order.price - min) /
-            range * bins
-          );
-
-          if (
-            index < 0 ||
-            index >= bins
-          ) {
-            continue;
-          }
-
-          target[index] +=
-            order.price * order.quantity;
-        }
-      }
-
-      let peak = 1;
-
-      for (let i = 0; i < bins; i++) {
-        peak = Math.max(
-          peak,
-          buys[i] + sells[i]
-        );
-      }
-
-      const x0 = right + gap;
-
-      const scale =
-        Math.max(0, profileWidth - 4) /
-        peak;
-
-      for (let i = 0; i < bins; i++) {
-        const y =
-          bottom -
-          (i + 1) * cellH;
-
-        const buyWidth =
-          buys[i] * scale;
-
-        const sellWidth =
-          sells[i] * scale;
-
-        ctx.fillStyle = C.green;
-
-        ctx.fillRect(
-          x0,
-          y,
-          buyWidth,
-          Math.max(1, cellH)
-        );
-
-        ctx.fillStyle = C.red;
-
-        ctx.fillRect(
-          x0 + buyWidth,
-          y,
-          sellWidth,
-          Math.max(1, cellH)
-        );
-      }
-    }
-
-    /*
-     Trayectoria blanca del precio.
-     Se utiliza el precio medio
-     bid/ask de cada snapshot.
-    */
-
-    if (S.showPrice) {
-      ctx.save();
-
-      ctx.beginPath();
-      ctx.rect(
-        left,
-        top,
-        plotW,
-        plotH
-      );
-      ctx.clip();
-
-      ctx.beginPath();
-
-      snaps.forEach((snap, i) => {
-        const x =
-          left + (i + 0.5) * colW;
-
-        const y =
-          yPrice(snap.mid);
-
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
-      });
-
-      ctx.strokeStyle =
-        "rgba(0,0,0,.85)";
-      ctx.lineWidth = 3.5;
-      ctx.stroke();
-
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.6;
-      ctx.stroke();
-
-      ctx.restore();
-    }
-
-    /*
-     Línea del precio actual.
-    */
-
-    const py =
-      yPrice(last.mid);
-
-    if (py >= top && py <= bottom) {
-      ctx.beginPath();
-      ctx.setLineDash([4, 4]);
-      ctx.strokeStyle = C.blue;
-      ctx.lineWidth = 1;
-
-      ctx.moveTo(left, py);
-      ctx.lineTo(right, py);
-      ctx.stroke();
-
-      ctx.setLineDash([]);
-    }
-
-    /*
-     Escala lateral de precios.
-    */
-
-    ctx.font = "10px system-ui";
-    ctx.textAlign = "left";
-    ctx.fillStyle = "#aab7d4";
-
-    for (let i = 0; i <= 6; i++) {
-      const price =
-        max - i * range / 6;
-
-      const y =
-        top + i * plotH / 6;
-
-      ctx.fillText(
-        fmtPrice(price),
-        w - axis + 3,
-        Math.max(
-          11,
-          Math.min(h - 20, y + 3)
-        )
-      );
-    }
-
-    if (py >= top && py <= bottom) {
-      ctx.fillStyle = C.blue;
-
-      ctx.fillText(
-        fmtPrice(last.mid),
-        w - axis + 3,
-        Math.max(
-          12,
-          Math.min(h - 20, py - 7)
-        )
-      );
-    }
-
-    /*
-     Eje temporal:
-     tiempos reales de consulta.
-    */
-
-    const first = snaps[0];
-
-    const timeText = time =>
-      new Date(time).toLocaleTimeString(
-        "es-MX",
-        {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit"
-        }
-      );
-
-    ctx.fillStyle = "#aab7d4";
-    ctx.font = "10px system-ui";
-
-    ctx.textAlign = "left";
-
-    ctx.fillText(
-      timeText(first.time),
-      left,
-      h - 9
-    );
-
-    ctx.textAlign = "right";
-
-    ctx.fillText(
-      timeText(last.time),
-      right,
-      h - 9
-    );
-
-    const info = $("clHeatInfo");
-
-    if (info) {
-      info.textContent =
-        selection().symbol +
-        " · " +
-        snaps.length +
-        " muestras reales · " +
-        timeText(first.time) +
-        " a " +
-        timeText(last.time) +
-        " · Precio medio: " +
-        fmtPrice(last.mid) +
-        " · Profundidad: " +
-        last.bids.length +
-        " compras / " +
-        last.asks.length +
-        " ventas";
-    }
-  }
-
-  function reset() {
-    S.snapshots = [];
-    S.lastBook = null;
-    S.lastUpdated = 0;
-    S.lastError = "";
-
-    if ($("clAsks")) {
-      $("clAsks").textContent =
-        "Esperando órdenes...";
-    }
-
-    if ($("clBids")) {
-      $("clBids").textContent =
-        "Esperando órdenes...";
-    }
-
-    if ($("clSpread")) {
-      $("clSpread").textContent =
-        "Spread: —";
-    }
-
-    if ($("clBookSummary")) {
-      $("clBookSummary").textContent =
-        "Esperando profundidad...";
-    }
-
-    if ($("clHeatInfo")) {
-      $("clHeatInfo").textContent =
-        "Esperando muestras reales...";
-    }
-
-    requestDraw();
-  }
-
-  function abortRequest() {
-    if (S.controller) {
-      S.controller.abort();
-      S.controller = null;
-    }
-  }
-
-  async function refresh() {
-    if (
-      !S.running ||
-      document.hidden
-    ) {
-      return;
-    }
-
-    if (S.busy) {
-      S.pendingRefresh = true;
-      return;
-    }
-
-    const selected = selection();
-    const currentKey =
-      marketKey(selected);
-
-    if (currentKey !== S.key) {
-      S.key = currentKey;
-      S.generation++;
-      reset();
-    }
-
-    const generation =
-      S.generation;
-
-    const controller =
-      new AbortController();
-
-    S.controller = controller;
-    S.busy = true;
-
-    let timeout = null;
-
-    try {
-      status(
-        "Consultando " +
-        selected.exchange.toUpperCase(),
-        C.yellow
-      );
-
-      timeout = setTimeout(
-        () => controller.abort(),
-        CFG.timeout
-      );
-
-      const book = await fetchBook(
-        selected,
-        controller.signal
-      );
-
-      if (
-        !S.running ||
-        generation !== S.generation ||
-        currentKey !== marketKey() ||
-        controller.signal.aborted
-      ) {
-        return;
-      }
-
-      S.lastBook = book;
-      S.lastUpdated = Date.now();
-      S.lastError = "";
-
-      capture(book);
-      renderBook(book);
-      requestDraw();
-
-      status(
-        selected.exchange.toUpperCase() +
-        " · " +
-        new Date(
-          S.lastUpdated
-        ).toLocaleTimeString("es-MX"),
-        C.green
-      );
-
-    } catch (error) {
-      if (
-        generation !== S.generation ||
-        !S.running
-      ) {
-        return;
-      }
-
-      const message =
-        controller.signal.aborted
-          ? "Tiempo de espera agotado"
-          : error.message;
-
-      S.lastError = message;
-
-      console.warn(
-        "CRYPTOLEXUZ Liquidez:",
-        error
-      );
-
-      status(
-        "Sin profundidad · " + message,
-        C.red
-      );
-
-      if (
-        !S.lastBook &&
-        $("clBookSummary")
-      ) {
-        $("clBookSummary").textContent =
-          "No se pudo consultar el libro. " +
-          "Verifica el proxy y la conexión.";
-      }
-
-    } finally {
-      if (timeout !== null) {
-        clearTimeout(timeout);
-      }
-
-      if (S.controller === controller) {
-        S.controller = null;
-      }
-
-      S.busy = false;
-
-      if (
-        S.pendingRefresh &&
-        S.running &&
-        !document.hidden
-      ) {
-        S.pendingRefresh = false;
-
-        /*
-         Permite terminar la petición
-         anterior antes de iniciar
-         la nueva.
-        */
-
-        queueMicrotask(() => {
-          if (S.running) {
-            refresh();
-          }
-        });
-      }
-    }
-  }
-
-  function start() {
-    if (S.running) return;
-
-    S.running = true;
-    S.key = marketKey();
-
-    status(
-      "Conectando...",
-      C.yellow
-    );
-
-    refresh();
-
-    S.timer = setInterval(
-      refresh,
-      CFG.refresh
-    );
-  }
-
-  function stop() {
-    S.running = false;
-    S.generation++;
-    S.pendingRefresh = false;
-
-    if (S.timer) {
-      clearInterval(S.timer);
-      S.timer = null;
-    }
-
-    abortRequest();
-
-    status(
-      "Mapa detenido",
-      C.muted
-    );
-  }
-
-  function restart() {
-    S.generation++;
-    S.key = marketKey();
-
-    abortRequest();
-    reset();
-
-    if (S.running) {
-      S.pendingRefresh = true;
-
-      if (!S.busy) {
-        S.pendingRefresh = false;
-        refresh();
-      }
-    }
-  }
-
-  function setZoom(value) {
-    const next = Number(value);
-
-    if (!Number.isFinite(next)) {
-      return;
-    }
-
-    S.zoom = Math.max(
-      0.5,
-      Math.min(6, next)
-    );
-
-    requestDraw();
-  }
-
-  function events() {
-    $("clHeatEnabled")?.addEventListener(
-      "change",
-      event => {
-        S.showMap =
-          event.target.checked;
-
-        requestDraw();
-      }
-    );
-
-    $("clHeatPrice")?.addEventListener(
-      "change",
-      event => {
-        S.showPrice =
-          event.target.checked;
-
-        requestDraw();
-      }
-    );
-
-    $("clHeatProfile")?.addEventListener(
-      "change",
-      event => {
-        S.showProfile =
-          event.target.checked;
-
-        requestDraw();
-      }
-    );
-
-    $("clHeatIntensity")?.addEventListener(
-      "input",
-      event => {
-        S.intensity =
-          Number(event.target.value) || 1;
-
-        requestDraw();
-      }
-    );
-
-    $("clHeatHistory")?.addEventListener(
-      "change",
-      event => {
-        const next =
-          Number(event.target.value);
-
-        S.maxHistory = Math.max(
-          1,
-          Math.min(
-            CFG.maxSnapshots,
-            next || 180
-          )
-        );
-
-        S.snapshots =
-          S.snapshots.slice(-S.maxHistory);
-
-        requestDraw();
-      }
-    );
-
-    $("clHeatBins")?.addEventListener(
-      "change",
-      event => {
-        const next =
-          Number(event.target.value);
-
-        S.bins = Math.max(
-          20,
-          Math.min(200, next || 100)
-        );
-
-        requestDraw();
-      }
-    );
-
-    $("clHeatResetZoom")?.addEventListener(
-      "click",
-      () => setZoom(1)
-    );
-
-    $("liquidityMapToggle")?.addEventListener(
-      "change",
-      event => {
-        if (event.target.checked) {
-          start();
-        } else {
-          stop();
-        }
-      }
-    );
-
-    for (const id of [
-      "exchange",
-      "symbol",
-      "market"
-    ]) {
-      $(id)?.addEventListener(
-        "change",
-        restart
-      );
-    }
-
-    const canvas = $("clHeatmap");
-
-    if (canvas) {
-      canvas.addEventListener(
-        "wheel",
-        event => {
-          event.preventDefault();
-
-          setZoom(
-            S.zoom *
-            (event.deltaY < 0
-              ? 1.12
-              : 0.89)
-          );
-        },
-        { passive: false }
-      );
-
-      canvas.addEventListener(
-        "touchstart",
-        event => {
-          if (event.touches.length !== 2) {
-            S.pinchDistance = 0;
-            return;
-          }
-
-          S.pinchDistance = Math.hypot(
-            event.touches[0].clientX -
-            event.touches[1].clientX,
-            event.touches[0].clientY -
-            event.touches[1].clientY
-          );
-        },
-        { passive: true }
-      );
-
-      canvas.addEventListener(
-        "touchmove",
-        event => {
-          if (
-            event.touches.length !== 2 ||
-            S.pinchDistance <= 0
-          ) {
-            return;
-          }
-
-          event.preventDefault();
-
-          const distance = Math.hypot(
-            event.touches[0].clientX -
-            event.touches[1].clientX,
-            event.touches[0].clientY -
-            event.touches[1].clientY
-          );
-
-          if (distance > 0) {
-            setZoom(
-              S.zoom *
-              distance / S.pinchDistance
-            );
-
-            S.pinchDistance = distance;
-          }
-        },
-        { passive: false }
-      );
-
-      function finishPinch() {
-        S.pinchDistance = 0;
-      }
-
-      canvas.addEventListener(
-        "touchend",
-        finishPinch
-      );
-
-      canvas.addEventListener(
-        "touchcancel",
-        finishPinch
-      );
-
-      if (window.ResizeObserver) {
-        S.observer = new ResizeObserver(
-          requestDraw
-        );
-
-        S.observer.observe(canvas);
-      }
-    }
-
-    document.addEventListener(
-      "visibilitychange",
-      () => {
-        if (
-          !document.hidden &&
-          S.running
-        ) {
-          refresh();
-          requestDraw();
-        }
-      }
-    );
-
-    window.addEventListener(
-      "resize",
-      requestDraw
-    );
-
-    window.addEventListener(
-      "cryptolexuz:screen-change",
-      requestDraw
-    );
-
-    window.addEventListener(
-      "beforeunload",
-      () => {
-        stop();
-        S.observer?.disconnect();
-      }
-    );
-  }
-
-  function init() {
-    if (S.initialized) return;
-
-    if (!build()) {
-      console.warn(
-        "Liquidity V13: inicialización pendiente"
-      );
-      return;
-    }
-
-    S.initialized = true;
-
-    events();
-    reset();
-
-    const toggle =
-      $("liquidityMapToggle");
-
-    if (!toggle || toggle.checked) {
-      start();
-    } else {
-      status("Mapa detenido");
-    }
-
-    console.info(
-      "CRYPTOLEXUZ PRO — Liquidity V13 cargado"
-    );
-  }
-
-  window.CryptolexuzLiquidity = {
-    version: "13",
-
-    start,
-    stop,
-    restart,
-    refresh,
-    redraw: requestDraw,
-
-    isRunning: () => S.running,
-
-    getSelection: selection,
-
-    getBook: () =>
-      S.lastBook
-        ? JSON.parse(
-            JSON.stringify(S.lastBook)
-          )
-        : null,
-
-    getSnapshots: () =>
-      JSON.parse(
-        JSON.stringify(S.snapshots)
-      ),
-
-    getStatus: () => ({
-      running: S.running,
-      busy: S.busy,
-      market: S.key,
-      samples: S.snapshots.length,
-      lastUpdated: S.lastUpdated,
-      lastError: S.lastError
-    }),
-
-    setZoom
+  window.CryptolexuzLiquidity={
+    version:"14",start,stop,restart,refresh,redraw,setEnabled,
+    isRunning:()=>S.running,getSelection:selection,
+    getBook:()=>S.book?JSON.parse(JSON.stringify(S.book)):null,
+    getSnapshots:()=>[], // V14 muestra únicamente el libro actual, sin historial artificial.
+    getStatus:()=>({enabled:S.enabled,running:S.running,busy:S.busy,market:S.key,lastUpdated:S.updated,lastError:S.error})
   };
-
-  if (document.readyState === "loading") {
-    document.addEventListener(
-      "DOMContentLoaded",
-      init,
-      { once: true }
-    );
-  } else {
-    init();
-  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init,{once:true});else init();
 })();
